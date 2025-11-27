@@ -1,0 +1,14 @@
+:root{
+  --color-primary: #2E3094; /* provided primary */
+  --color-secondary: #FBB425; /* provided secondary */
+
+  --color-bg: #F5F6FB;      /* very light neutral background */
+  --color-surface: #FFFFFF; /* cards, surface */
+  --color-text: #0F1724;    /* primary text (dark) */
+  --color-muted: #6B7280;   /* subdued text */
+  --color-border: #E6E8F0;  /* soft borders */
+
+  --color-success: #16A34A;
+  --color-danger: #DC2626;
+  --color-info: #0EA5E9;
+}

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>เข้าสู่ระบบ - CDTE</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <!-- SweetAlert2 CDN -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
+  <style>
+    .icon{display:inline-block;width:20px;text-align:center}
+  </style>
+</head>
+<body>
+  <div class="auth-container">
+    <div class="auth-card">
+      <div class="auth-header">
+        <h1>เข้าสู่ระบบ</h1>
+        <p>ยินดีต้อนรับกลับมา</p>
+      </div>
+
+      <form id="loginForm" method="POST" action="/login">
+        <div class="form-group">
+          <label for="studentId" class="form-label">รหัสนักศึกษา</label>
+          <div class="input-with-icon">
+            <span class="icon">👤</span>
+            <input 
+              type="text" 
+              id="studentId" 
+              name="studentId" 
+              class="form-input" 
+              placeholder="กรอกรหัสนักศึกษา"
+              required
+              autocomplete="username"
+              pattern="[0-9]+"
+              title="กรุณากรอกตัวเลขเท่านั้น"
+            >
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="password" class="form-label">รหัสผ่าน</label>
+          <div class="input-with-icon">
+            <span class="icon">🔒</span>
+            <input 
+              type="password" 
+              id="password" 
+              name="password" 
+              class="form-input" 
+              placeholder="กรอกรหัสผ่าน"
+              required
+              autocomplete="current-password"
+            >
+          </div>
+        </div>
+
+        <div style="text-align:right;margin-bottom:18px">
+          <a href="/forgot-password" style="color:var(--color-primary);text-decoration:none;font-size:0.9rem">ลืมรหัสผ่าน?</a>
+        </div>
+
+        <button type="submit" class="btn btn--primary btn--full">
+          <span>เข้าสู่ระบบ</span>
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        ยังไม่มีบัญชี? <a href="/register">สมัครสมาชิก</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('loginForm');
+    const studentIdInput = document.getElementById('studentId');
+    const passwordInput = document.getElementById('password');
+
+    form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      const studentId = studentIdInput.value.trim();
+      const password = passwordInput.value;
+
+      // Client-side validation
+      if (!studentId) {
+        Swal.fire({
+          icon: 'error',
+          title: 'กรุณากรอกข้อมูล',
+          text: 'กรุณากรอกรหัสนักศึกษา',
+          confirmButtonColor: '#2E3094'
+        });
+        return;
+      }
+
+      if (!/^\d+$/.test(studentId)) {
+        Swal.fire({
+          icon: 'error',
+          title: 'รูปแบบไม่ถูกต้อง',
+          text: 'รหัสนักศึกษาต้องเป็นตัวเลขเท่านั้น',
+          confirmButtonColor: '#2E3094'
+        });
+        return;
+      }
+
+      if (!password) {
+        Swal.fire({
+          icon: 'error',
+          title: 'กรุณากรอกข้อมูล',
+          text: 'กรุณากรอกรหัสผ่าน',
+          confirmButtonColor: '#2E3094'
+        });
+        return;
+      }
+
+      // Show loading
+      Swal.fire({
+        title: 'กำลังเข้าสู่ระบบ...',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
+        }
+      });
+
+      // Submit form via fetch
+      try {
+        const response = await fetch('/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            studentId,
+            password
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          await Swal.fire({
+            icon: 'success',
+            title: 'เข้าสู่ระบบสำเร็จ!',
+            text: data.message || 'ยินดีต้อนรับ',
+            confirmButtonColor: '#16A34A',
+            timer: 1500,
+            showConfirmButton: false
+          });
+          // Redirect to dashboard or home
+          window.location.href = data.redirectTo || '/';
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'เข้าสู่ระบบไม่สำเร็จ',
+            text: data.message || 'รหัสนักศึกษาหรือรหัสผ่านไม่ถูกต้อง',
+            confirmButtonColor: '#DC2626'
+          });
+        }
+      } catch (error) {
+        Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้',
+          confirmButtonColor: '#DC2626'
+        });
+      }
+    });
+  </script>
+</body>
+</html>

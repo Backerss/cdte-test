@@ -1,0 +1,920 @@
+<div class="page-content">
+  <div class="card">
+    <h2 style="margin-top:0;color:var(--color-primary);display:flex;align-items:center;gap:12px">
+      <span>📝</span>
+      การประเมินการสังเกตการสอน
+    </h2>
+    <p class="text-muted">แบบประเมินการสังเกตการสอนระหว่างฝึกประสบการณ์วิชาชีพครู (15 วัน)</p>
+
+    <!-- Practice Period Info -->
+    <div class="info-banner" style="background:var(--color-bg);border-left:4px solid var(--color-primary);padding:16px;border-radius:8px;margin:24px 0">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+        <span style="font-size:1.5rem">📅</span>
+        <div>
+          <strong style="color:var(--color-text)">ช่วงการฝึกประสบการณ์:</strong>
+          <span id="practiceRange" style="margin-left:8px">1 ธันวาคม 2567 - 15 ธันวาคม 2567</span>
+        </div>
+      </div>
+      <p style="margin:8px 0 0 44px;font-size:0.9rem;color:var(--color-muted)">
+        * การประเมินสามารถทำได้เฉพาะภายในช่วง 15 วันนี้เท่านั้น หากเกินกำหนดกรุณาติดต่ออาจารย์นิเทศ
+      </p>
+    </div>
+
+    <!-- Evaluation Grid: 3 weeks × 3 evaluations -->
+    <div style="margin-top:24px">
+      <% for (let week = 1; week <= 3; week++) { %>
+        <div class="eval-week-section" style="margin-bottom:32px">
+          <h3 style="color:var(--color-primary);margin:0 0 16px 0;display:flex;align-items:center;gap:8px">
+            <span>📌</span>
+            สัปดาห์ที่ <%= week %>
+          </h3>
+          
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
+            <% for (let evalNum = 1; evalNum <= 3; evalNum++) { 
+               const globalNum = (week - 1) * 3 + evalNum;
+            %>
+              <div class="eval-card" data-eval="<%= globalNum %>">
+                <div class="eval-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                  <h4 style="margin:0;color:var(--color-text)">ครั้งที่ <%= globalNum %></h4>
+                  <span class="eval-status pending" id="status-<%= globalNum %>">
+                    <span class="status-icon">⏳</span>
+                    <span class="status-text">รอประเมิน</span>
+                  </span>
+                </div>
+                
+                <div class="eval-date" id="date-<%= globalNum %>" style="font-size:0.85rem;color:var(--color-muted);margin-bottom:12px">
+                  วันที่: <span class="date-value">-</span>
+                </div>
+
+                <button class="btn btn--primary btn-eval" 
+                        data-eval="<%= globalNum %>" 
+                        onclick="startEvaluation(<%= globalNum %>)"
+                        style="width:100%">
+                  เริ่มประเมิน
+                </button>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- Evaluation Modal -->
+<div id="evaluationModal" class="modal-overlay" style="display:none">
+  <div class="modal-content" style="max-width:900px;max-height:90vh">
+    <div class="modal-header">
+      <h3>แบบประเมินการสังเกตการสอน - <span id="evalTitle">ครั้งที่ 1</span></h3>
+      <button type="button" class="modal-close" onclick="closeEvaluationModal()">×</button>
+    </div>
+    
+    <div class="modal-body" style="padding:24px">
+      <div class="eval-info" style="background:var(--color-bg);padding:12px;border-radius:6px;margin-bottom:20px">
+        <strong>วันที่ประเมิน:</strong> <span id="modalEvalDate">-</span>
+      </div>
+
+      <form id="evaluationForm">
+        <!-- Teacher Verbal Behaviors -->
+        <div class="eval-section">
+          <h4 class="section-title">ครู - พฤติกรรมด้านภาษา (Verbal Behaviors)</h4>
+          <div class="question-list">
+            <div class="question-item">
+              <label class="question-label">1. ครูมีการให้ข้อมูลแก่นักเรียนสม่ำเสมอตลอดการจัดการเรียนรู้</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q1" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="question-item">
+              <label class="question-label">2. ครูมีการถามคำถามแก่นักเรียนสม่ำเสมอตลอดการจัดการเรียนรู้</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q2" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="question-item">
+              <label class="question-label">3. ครูมีการให้คำแนะนำแก่นักเรียนสม่ำเสมอตลอดการจัดการเรียนรู้</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q3" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="question-item">
+              <label class="question-label">4. ครูมีการว่ากล่าวตักเตือนนักเรียนสม่ำเสมอตลอดการจัดการเรียนรู้</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q4" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Teacher Non-Verbal Behaviors -->
+        <div class="eval-section">
+          <h4 class="section-title">ครู - พฤติกรรมที่ไม่ใช่ภาษา (Non-Verbal Behavior)</h4>
+          <div class="question-list">
+            <div class="question-item">
+              <label class="question-label">5. ครูมีการแสดงท่าทาง การเคลื่อนไหว ความเงียบ</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q5" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="question-item">
+              <label class="question-label">6. ครูมีการยิ้ม การหัวเราะ</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q6" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="question-item">
+              <label class="question-label">7. ครูมีการมอง</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q7" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="question-item">
+              <label class="question-label">8. ครูมีการเดิน</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q8" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="question-item">
+              <label class="question-label">9. ครูมีการเขียนกระดาน/ เขียนบอร์ด/ เขียนบนหน้าจอ</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q9" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Student Academic Behaviors -->
+        <div class="eval-section">
+          <h4 class="section-title">นักเรียน - พฤติกรรมทางวิชาการของผู้เรียน</h4>
+          <div class="question-list">
+            <div class="question-item">
+              <label class="question-label">1. นักเรียนเพ่งมองในสิ่งที่ครูกำลังดำเนินการสอน</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q10" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="question-item">
+              <label class="question-label">2. นักเรียนทำงานตามที่ครูมอบหมายในชั้นเรียน</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q11" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="question-item">
+              <label class="question-label">3. นักเรียนสนทนากันในชั้นเรียน</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q12" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="question-item">
+              <label class="question-label">4. นักเรียนไม่เพ่งมองสิ่งที่ครูกำลังดำเนินการสอน</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q13" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="question-item">
+              <label class="question-label">5. นักเรียนไม่ทำงานตามที่ครูมอบหมายในชั้นเรียน</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q14" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="question-item">
+              <label class="question-label">6. นักเรียนพูดคุยกันในระหว่างครูสอน</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q15" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Student Work Behaviors -->
+        <div class="eval-section">
+          <h4 class="section-title">นักเรียน - พฤติกรรมการทำงานของผู้เรียน</h4>
+          <div class="question-list">
+            <div class="question-item">
+              <label class="question-label">1. นักเรียนตั้งใจทำงาน</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q16" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="question-item">
+              <label class="question-label">2. นักเรียนไม่ตั้งใจทำงานและไม่รบกวนผู้อื่น</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q17" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="question-item">
+              <label class="question-label">3. นักเรียนไม่ตั้งใจทำงานแต่รบกวนผู้อื่น</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q18" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Learning Environment -->
+        <div class="eval-section">
+          <h4 class="section-title">สิ่งแวดล้อมทางการเรียนรู้ - สภาพทางกายภาพของห้องเรียน</h4>
+          <div class="question-list">
+            <div class="question-item">
+              <label class="question-label">1. พื้นห้องเรียนมีรอยเปื้อนและสกปรก</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q19" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="question-item">
+              <label class="question-label">2. เครื่องคอมพิวเตอร์มีอุปกรณ์ต่อพ่วงเพียงพอต่อการเรียน เช่น แป้นพิมพ์ เมาส์ เป็นต้น และใช้งานได้</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q20" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="question-item">
+              <label class="question-label">3. ฝาผนังมีรอยเปื้อนและสะอาดเป็นบางส่วน</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q21" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="question-item">
+              <label class="question-label">4. มีเครื่องคอมพิวเตอร์ใช้งานอย่างเพียงพอ 1 เครื่องต่อนักเรียน 1 คน</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q22" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="question-item">
+              <label class="question-label">5. เครื่องคอมพิวเตอร์สามารถใช้งานได้ทุกเครื่อง</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q23" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="question-item">
+              <label class="question-label">6. ในห้องเรียนคอมพิวเตอร์มีอุปกรณ์ในการสอน เช่น ทีวี เครื่องและจอฉาย เครื่องขยายเสียง เป็นต้น</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q24" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="question-item">
+              <label class="question-label">7. ห้องเรียนคอมพิวเตอร์มีแสงสว่างมากจนเกินไป</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q25" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="question-item">
+              <label class="question-label">8. ห้องเรียนคอมพิวเตอร์มีแสงสว่างไม่เพียงพอ</label>
+              <div class="rating-group">
+                <% for (let i = 1; i <= 5; i++) { %>
+                  <label class="rating-option">
+                    <input type="radio" name="q26" value="<%= i %>" required>
+                    <span><%= i %></span>
+                  </label>
+                <% } %>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="rating-legend" style="background:var(--color-bg);padding:12px;border-radius:6px;margin-top:24px;text-align:center">
+          <strong>เกณฑ์การให้คะแนน:</strong>
+          <span style="margin-left:16px">1 = ปรับปรุง</span>
+          <span style="margin-left:8px">|</span>
+          <span style="margin-left:8px">2 = พอใช้</span>
+          <span style="margin-left:8px">|</span>
+          <span style="margin-left:8px">3 = ปานกลาง</span>
+          <span style="margin-left:8px">|</span>
+          <span style="margin-left:8px">4 = ดี</span>
+          <span style="margin-left:8px">|</span>
+          <span style="margin-left:8px">5 = มากที่สุด</span>
+        </div>
+      </form>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn--secondary" onclick="closeEvaluationModal()">
+        ยกเลิก
+      </button>
+      <button type="button" class="btn btn--primary" onclick="submitEvaluation()">
+        ส่งแบบประเมิน
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+.info-banner {
+  animation: fadeIn 0.3s ease;
+}
+
+.eval-week-section {
+  animation: fadeIn 0.4s ease;
+}
+
+.eval-card {
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+.eval-card:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.eval-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.eval-status.pending {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.eval-status.completed {
+  background: #d4edda;
+  color: #155724;
+}
+
+.eval-status.locked {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.btn-eval:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Evaluation Form Styles */
+.eval-section {
+  margin-bottom: 32px;
+  padding: 20px;
+  background: var(--color-bg);
+  border-radius: 8px;
+}
+
+.section-title {
+  color: var(--color-primary);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.question-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.question-item {
+  background: var(--color-surface);
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+
+.question-label {
+  display: block;
+  font-weight: 500;
+  color: var(--color-text);
+  margin-bottom: 12px;
+}
+
+.rating-group {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.rating-option {
+  position: relative;
+  cursor: pointer;
+}
+
+.rating-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+}
+
+.rating-option span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 2px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-surface);
+  font-weight: 600;
+  color: var(--color-text);
+  transition: all 0.2s ease;
+}
+
+.rating-option input[type="radio"]:checked + span {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+  transform: scale(1.1);
+}
+
+.rating-option:hover span {
+  border-color: var(--color-primary);
+  background: var(--color-bg);
+}
+
+.rating-legend {
+  font-size: 0.9rem;
+  color: var(--color-text);
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  animation: fadeIn 0.2s ease;
+}
+
+/* Ensure SweetAlert2 appears above our modal overlay */
+.swal2-container {
+  z-index: 999999 !important;
+}
+
+.modal-content {
+  background: var(--color-surface);
+  border-radius: 12px;
+  width: 95%;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.3s ease;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 2px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: var(--color-primary);
+  font-size: 1.3rem;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.8rem;
+  cursor: pointer;
+  color: var(--color-muted);
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: var(--color-danger);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 2px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.btn--secondary {
+  background: var(--color-muted);
+  color: white;
+}
+
+.btn--secondary:hover {
+  background: var(--color-text);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+// Mock data - replace with real API calls
+const evaluationData = {
+  practiceStart: '2025-11-10',
+  practiceEnd: '2025-11-28',
+  evaluations: {}  // Will store: { evalNum: { date: 'YYYY-MM-DD', answers: {...}, submitted: true } }
+};
+
+let currentEvalNum = null;
+
+// Check if within practice period
+function isWithinPracticePeriod() {
+  const now = new Date();
+  const start = new Date(evaluationData.practiceStart);
+  const end = new Date(evaluationData.practiceEnd);
+  return now >= start && now <= end;
+}
+
+// Format Thai date
+function formatThaiDate(dateStr) {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  const thaiMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  return `${d.getDate()} ${thaiMonths[d.getMonth()]} ${d.getFullYear() + 543}`;
+}
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+  // Set practice date range
+  document.getElementById('practiceRange').textContent = 
+    `${formatThaiDate(evaluationData.practiceStart)} - ${formatThaiDate(evaluationData.practiceEnd)}`;
+
+  // Load saved evaluation states
+  loadEvaluationStates();
+
+  // Check if outside practice period
+  if (!isWithinPracticePeriod()) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'นอกช่วงการฝึกประสบการณ์',
+      html: 'ปัจจุบันอยู่นอกช่วง 15 วันฝึกประสบการณ์<br>หากต้องการประเมินกรุณาติดต่อ:<br><strong>อาจารย์นิเทศ / อาจารย์ผู้ควบคุมรายวิชา</strong>',
+      confirmButtonText: 'รับทราบ'
+    });
+  }
+});
+
+function loadEvaluationStates() {
+  // Load from localStorage or API
+  const saved = localStorage.getItem('evaluationData');
+  if (saved) {
+    Object.assign(evaluationData, JSON.parse(saved));
+  }
+
+  // Update UI for each evaluation
+  for (let i = 1; i <= 9; i++) {
+    const evalInfo = evaluationData.evaluations[i];
+    const statusEl = document.getElementById(`status-${i}`);
+    const dateEl = document.querySelector(`#date-${i} .date-value`);
+    const btnEl = document.querySelector(`button[data-eval="${i}"]`);
+
+    if (evalInfo) {
+      dateEl.textContent = formatThaiDate(evalInfo.date);
+      
+      if (evalInfo.submitted) {
+        statusEl.className = 'eval-status completed';
+        statusEl.innerHTML = '<span class="status-icon">✅</span><span class="status-text">เสร็จสิ้น</span>';
+        btnEl.textContent = 'ดูผลการประเมิน';
+        btnEl.disabled = false;
+      }
+    }
+  }
+}
+
+function startEvaluation(evalNum) {
+  currentEvalNum = evalNum;
+  
+  // Check if outside practice period
+  if (!isWithinPracticePeriod()) {
+    Swal.fire({
+      icon: 'error',
+      title: 'ไม่สามารถประเมินได้',
+      text: 'อยู่นอกช่วง 15 วันฝึกประสบการณ์ กรุณาติดต่ออาจารย์นิเทศ',
+      confirmButtonText: 'รับทราบ'
+    });
+    return;
+  }
+
+  // Check if already submitted
+  const evalInfo = evaluationData.evaluations[evalNum];
+  if (evalInfo && evalInfo.submitted) {
+    // View mode
+    viewEvaluation(evalNum);
+    return;
+  }
+
+  // Set current date if first time
+  if (!evalInfo) {
+    evaluationData.evaluations[evalNum] = {
+      date: new Date().toISOString().split('T')[0],
+      answers: {},
+      submitted: false
+    };
+    saveEvaluationData();
+    loadEvaluationStates();
+  }
+
+  // Open modal
+  document.getElementById('evalTitle').textContent = `ครั้งที่ ${evalNum}`;
+  document.getElementById('modalEvalDate').textContent = formatThaiDate(evaluationData.evaluations[evalNum].date);
+  
+  // Load saved answers if any
+  const form = document.getElementById('evaluationForm');
+  form.reset();
+  if (evalInfo && evalInfo.answers) {
+    Object.keys(evalInfo.answers).forEach(qName => {
+      const radio = form.querySelector(`input[name="${qName}"][value="${evalInfo.answers[qName]}"]`);
+      if (radio) radio.checked = true;
+    });
+  }
+
+  document.getElementById('evaluationModal').style.display = 'flex';
+}
+
+function viewEvaluation(evalNum) {
+  currentEvalNum = evalNum;
+  const evalInfo = evaluationData.evaluations[evalNum];
+  if (!evalInfo) return;
+
+  // Populate modal with saved data
+  document.getElementById('evalTitle').textContent = `ครั้งที่ ${evalNum}`;
+  document.getElementById('modalEvalDate').textContent = formatThaiDate(evalInfo.date);
+
+  const form = document.getElementById('evaluationForm');
+  if (form) form.reset();
+  if (evalInfo.answers && form) {
+    Object.keys(evalInfo.answers).forEach(qName => {
+      const radio = form.querySelector(`input[name="${qName}"][value="${evalInfo.answers[qName]}"]`);
+      if (radio) radio.checked = true;
+    });
+  }
+
+  // Open modal in view-only mode
+  document.getElementById('evaluationModal').style.display = 'flex';
+  document.querySelectorAll('#evaluationForm input').forEach(input => input.disabled = true);
+  const submitBtn = document.querySelector('.modal-footer .btn--primary');
+  if (submitBtn) submitBtn.style.display = 'none';
+}
+
+function closeEvaluationModal() {
+  // Save progress before closing (if not submitted)
+  if (currentEvalNum && evaluationData.evaluations[currentEvalNum] && !evaluationData.evaluations[currentEvalNum].submitted) {
+    saveProgress();
+  }
+  document.getElementById('evaluationModal').style.display = 'none';
+  currentEvalNum = null;
+  // Re-enable inputs for next time
+  document.querySelectorAll('#evaluationForm input').forEach(input => input.disabled = false);
+  document.querySelector('.modal-footer .btn--primary').style.display = 'block';
+}
+
+function saveProgress() {
+  const form = document.getElementById('evaluationForm');
+  const formData = new FormData(form);
+  const answers = {};
+  
+  for (let [key, value] of formData.entries()) {
+    answers[key] = value;
+  }
+  
+  evaluationData.evaluations[currentEvalNum].answers = answers;
+  saveEvaluationData();
+}
+
+function submitEvaluation() {
+  const form = document.getElementById('evaluationForm');
+  
+  // Validate all questions answered
+  const totalQuestions = 26;
+  const answeredQuestions = new FormData(form).entries();
+  const count = Array.from(answeredQuestions).length;
+  
+  if (count < totalQuestions) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'กรุณาตอบคำถามให้ครบ',
+      text: `คุณตอบไปแล้ว ${count} จาก ${totalQuestions} ข้อ`,
+      confirmButtonText: 'รับทราบ'
+    });
+    return;
+  }
+
+  // Confirm submission
+  Swal.fire({
+    icon: 'question',
+    title: 'ยืนยันการส่งแบบประเมิน',
+    html: `
+      <p>คุณต้องการส่งแบบประเมิน<strong>ครั้งที่ ${currentEvalNum}</strong> หรือไม่?</p>
+      <p style="color:var(--color-danger);margin-top:12px">
+        <strong>⚠️ หมายเหตุ:</strong> เมื่อส่งแล้วจะไม่สามารถแก้ไขได้อีก
+      </p>
+    `,
+    showCancelButton: true,
+    confirmButtonText: 'ยืนยันส่ง',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#2E3094',
+    cancelButtonColor: '#6c757d'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      // Save and mark as submitted
+      saveProgress();
+      evaluationData.evaluations[currentEvalNum].submitted = true;
+      saveEvaluationData();
+      loadEvaluationStates();
+
+      Swal.fire({
+        icon: 'success',
+        title: 'ส่งแบบประเมินสำเร็จ',
+        text: `บันทึกผลการประเมินครั้งที่ ${currentEvalNum} เรียบร้อยแล้ว`,
+        confirmButtonText: 'ตกลง'
+      }).then(() => {
+        // Close modal and clear form content (answers preserved in evaluationData)
+        const form = document.getElementById('evaluationForm');
+        if (form) form.reset();
+        closeEvaluationModal();
+      });
+    }
+  });
+}
+
+function saveEvaluationData() {
+  localStorage.setItem('evaluationData', JSON.stringify(evaluationData));
+  // TODO: Also send to server via API
+}
+
+// Close modal when clicking outside
+document.getElementById('evaluationModal').addEventListener('click', function(e) {
+  if (e.target === this) {
+    closeEvaluationModal();
+  }
+});
+</script>

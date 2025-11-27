@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title || 'Dashboard' %> - CDTE</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <!-- SweetAlert2 CDN (if needed) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
+  <!-- Chart.js for data visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body class="dashboard-body">
+  <!-- Sidebar Component -->
+  <%- include('../inc/sidebar', { user: user || {}, currentPage: currentPage || '' }) %>
+
+  <!-- Main Dashboard Content -->
+  <main class="dashboard-main">
+    <!-- Dashboard Header -->
+    <header class="dashboard-header">
+      <div class="dashboard-header-content">
+        <h1 class="dashboard-title"><%= title || 'Dashboard' %></h1>
+        <div class="dashboard-header-actions">
+          <!-- Add notifications, settings, etc. here -->
+        </div>
+      </div>
+    </header>
+
+    <!-- Dashboard Content Area -->
+    <div class="dashboard-content">
+      <%- body %>
+    </div>
+
+    <!-- Dashboard Footer -->
+    <footer class="dashboard-footer">
+      <p>&copy; <%= new Date().getFullYear() %> ระบบฝึกประสบการณ์วิชาชีพครู - มหาวิทยาลัยราชภัฏนครสวรรค์</p>
+    </footer>
+  </main>
+
+  <script src="/js/main.js"></script>
+</body>
+</html>

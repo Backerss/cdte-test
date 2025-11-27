@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">
+  <rect width="100%" height="100%" fill="#E9EEF8"/>
+  <g transform="translate(75,45)">
+    <circle cx="75" cy="60" r="60" fill="#2E3094"/>
+    <text x="75" y="90" font-family="Arial, Helvetica, sans-serif" font-size="60" font-weight="700" fill="#fff" text-anchor="middle">CD</text>
+  </g>
+</svg>

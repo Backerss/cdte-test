@@ -1,0 +1,121 @@
+<!-- Sidebar Component -->
+<aside class="sidebar" id="sidebar">
+    <!-- Sidebar Header with Logo -->
+    <div class="sidebar-header">
+        <div class="sidebar-logo">
+            <div class="logo-placeholder">
+                <!-- Use provided logo image (place file at public/img/cdte-logo.png) -->
+                 <img src="/img/department-logo.png" alt="CDTE Logo" width="48" height="48" class="sidebar-logo-img"
+                     onerror="fallbackLogo(this)">
+            </div>
+            <div class="sidebar-brand">
+                <h2>ระบบฝึกประสบการณ์</h2>
+                <p>วิชาชีพครู</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar Navigation -->
+    <nav class="sidebar-nav">
+        <ul class="sidebar-menu">
+            <li class="sidebar-menu-item <%= currentPage === 'home' ? 'active' : '' %>">
+                <a href="/dashboard" class="sidebar-link">
+                    <span class="sidebar-icon">🏠</span>
+                    <span class="sidebar-text">หน้าหลัก</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item <%= currentPage === 'school-info' ? 'active' : '' %>">
+                <a href="/dashboard/school-info" class="sidebar-link">
+                    <span class="sidebar-icon">🏫</span>
+                    <span class="sidebar-text">ข้อมูลสถานศึกษา</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item <%= currentPage === 'mentor-info' ? 'active' : '' %>">
+                <a href="/dashboard/mentor-info" class="sidebar-link">
+                    <span class="sidebar-icon">👨‍🏫</span>
+                    <span class="sidebar-text">ข้อมูลครูพี่เลี้ยง</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item <%= currentPage === 'evaluation' ? 'active' : '' %>">
+                <a href="/dashboard/evaluation" class="sidebar-link">
+                    <span class="sidebar-icon">📝</span>
+                    <span class="sidebar-text">การประเมิน</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item <%= currentPage === 'profile' ? 'active' : '' %>">
+                <a href="/dashboard/profile" class="sidebar-link">
+                    <span class="sidebar-icon">👤</span>
+                    <span class="sidebar-text">โปรไฟล์</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+    <!-- Sidebar Footer with User Profile -->
+    <div class="sidebar-footer">
+        <div class="sidebar-user">
+            <div class="sidebar-user-avatar">
+                <% if (user && user.avatar) { %>
+                    <img src="<%= user.avatar %>" alt="Profile">
+                    <% } else { %>
+                        <div class="avatar-placeholder">
+                            <%= user && user.firstName ? user.firstName.charAt(0) : 'U' %>
+                        </div>
+                        <% } %>
+            </div>
+            <div class="sidebar-user-info">
+                <div class="sidebar-user-name">
+                    <%= user ? (user.firstName + ' ' + user.lastName) : 'ผู้ใช้งาน' %>
+                </div>
+                <div class="sidebar-user-id">
+                    รหัส: <%= user ? user.studentId : '-' %>
+                </div>
+            </div>
+        </div>
+        <a href="/logout" class="sidebar-logout" title="ออกจากระบบ">
+            <span>🚪</span>
+        </a>
+    </div>
+</aside>
+
+<!-- Mobile Sidebar Overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- Mobile Menu Toggle Button -->
+<button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Toggle Menu">
+    <span></span>
+    <span></span>
+    <span></span>
+</button>
+
+<script>
+    // Fallback: replace missing image with inline SVG logo
+    function fallbackLogo(img) {
+        const svg = `
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="48" height="48" rx="8" fill="#2E3094" />
+            <text x="24" y="32" font-family="Arial" font-size="20" font-weight="bold" fill="white" text-anchor="middle">CDTE</text>
+        </svg>`;
+        img.outerHTML = svg;
+    }
+    // Mobile sidebar toggle
+    (function () {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        const toggle = document.getElementById('mobileMenuToggle');
+
+        if (toggle && sidebar && overlay) {
+            toggle.addEventListener('click', function () {
+                sidebar.classList.toggle('sidebar-open');
+                overlay.classList.toggle('active');
+                document.body.classList.toggle('sidebar-active');
+            });
+
+            overlay.addEventListener('click', function () {
+                sidebar.classList.remove('sidebar-open');
+                overlay.classList.remove('active');
+                document.body.classList.remove('sidebar-active');
+            });
+        }
+    })();
+</script>

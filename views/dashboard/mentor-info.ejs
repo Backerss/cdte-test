@@ -1,0 +1,586 @@
+<div class="page-content">
+  <div class="card">
+    <h2 style="margin-top:0;color:var(--color-primary);display:flex;align-items:center;gap:12px">
+      <span>👨‍🏫</span>
+      ข้อมูลครูพี่เลี้ยง
+    </h2>
+    <p class="text-muted">จัดการข้อมูลครูที่ปรึกษาและครูพี่เลี้ยง</p>
+
+    <form class="dashboard-form" style="margin-top:24px">
+      <!-- Personal Information -->
+      <div class="form-section">
+        <h3 class="form-section-title">ข้อมูลส่วนตัว</h3>
+        
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="form-group">
+            <label class="form-label">ชื่อ <span class="required">*</span></label>
+            <input type="text" class="form-input" placeholder="กรอกชื่อ" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">นามสกุล <span class="required">*</span></label>
+            <input type="text" class="form-input" placeholder="กรอกนามสกุล" required>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">วิทยฐานะ <span class="required">*</span></label>
+          <select class="form-input" required>
+            <option value="">เลือกวิทยฐานะ</option>
+            <option value="ครูผู้ช่วย">ครูผู้ช่วย</option>
+            <option value="ครู (คศ.1)">ครู (คศ.1)</option>
+            <option value="ครูชำนาญการ (คศ.2)">ครูชำนาญการ (คศ.2)</option>
+            <option value="ครูชำนาญการพิเศษ (คศ.3)">ครูชำนาญการพิเศษ (คศ.3)</option>
+            <option value="ครูเชี่ยวชาญ (คศ.4)">ครูเชี่ยวชาญ (คศ.4)</option>
+            <option value="ครูเชี่ยวชาญพิเศษ (คศ.5)">ครูเชี่ยวชาญพิเศษ (คศ.5)</option>
+          </select>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="form-group">
+            <label class="form-label">เบอร์โทรศัพท์</label>
+            <input type="tel" class="form-input" placeholder="0X-XXXX-XXXX">
+          </div>
+          <div class="form-group">
+            <label class="form-label">อีเมล</label>
+            <input type="email" class="form-input" placeholder="mentor@nsru.ac.th">
+          </div>
+        </div>
+      </div>
+
+      <!-- Education -->
+      <div class="form-section">
+        <h3 class="form-section-title">วุฒิการศึกษา</h3>
+        
+        <div id="educationContainer">
+          <div class="education-entry" style="display:flex;gap:8px;align-items:flex-end;margin-bottom:12px">
+            <div class="form-group" style="flex:1;margin:0">
+              <label class="form-label">วุฒิการศึกษา</label>
+              <input type="text" class="form-input education-input" placeholder="เช่น ค.บ. เทคโนโลยีดิจิทัลเพื่อการศึกษา">
+            </div>
+            <button type="button" class="btn btn--danger btn--icon" onclick="removeEducation(this)" style="padding:10px 16px">
+              ✕
+            </button>
+          </div>
+        </div>
+        
+        <button type="button" class="btn btn--secondary" onclick="addEducation()" style="margin-top:8px">
+          ➕ เพิ่มวุฒิการศึกษา
+        </button>
+      </div>
+
+      <!-- Teaching Experience -->
+      <div class="form-section">
+        <h3 class="form-section-title">ประสบการณ์การสอน</h3>
+        
+        <div class="form-group">
+          <label class="form-label">อายุราชการ / ประสบการณ์การสอน (ปี)</label>
+          <input type="number" class="form-input" placeholder="0" min="0" max="50">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">กลุ่มสาระการเรียนรู้ที่สังกัด</label>
+          <select class="form-input">
+            <option value="">เลือกกลุ่มสาระ</option>
+            <option value="ภาษาไทย">ภาษาไทย</option>
+            <option value="คณิตศาสตร์">คณิตศาสตร์</option>
+            <option value="วิทยาศาสตร์และเทคโนโลยี">วิทยาศาสตร์และเทคโนโลยี</option>
+            <option value="สังคมศึกษา ศาสนา และวัฒนธรรม">สังคมศึกษา ศาสนา และวัฒนธรรม</option>
+            <option value="สุขศึกษาและพลศึกษา">สุขศึกษาและพลศึกษา</option>
+            <option value="ศิลปะ">ศิลปะ</option>
+            <option value="การงานอาชีพ">การงานอาชีพ</option>
+            <option value="ภาษาต่างประเทศ">ภาษาต่างประเทศ</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Teaching Subjects & Grades -->
+      <div class="form-section">
+        <h3 class="form-section-title">รายวิชาที่สอน / ระดับชั้น</h3>
+        
+        <div class="form-group">
+          <label class="form-label">รายวิชาและระดับชั้นที่สอน</label>
+          <div class="teaching-input">
+            <input type="text" 
+                   id="teachingDisplay" 
+                   class="form-input" 
+                   placeholder="คลิกเพื่อเลือกวิชาและระดับชั้น" 
+                   readonly 
+                   style="cursor:pointer"
+                   onclick="openTeachingModal()">
+            <button type="button" 
+                    class="teaching-btn" 
+                    onclick="openTeachingModal()"
+                    style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--color-primary);cursor:pointer;font-size:1.2rem">
+              ⚙️
+            </button>
+          </div>
+          <div id="teachingTags" class="teaching-tags" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"></div>
+        </div>
+      </div>
+
+      <div class="form-actions" style="margin-top:32px;display:flex;gap:12px">
+        <button type="submit" class="btn btn--primary">
+          💾 บันทึกข้อมูล
+        </button>
+        <button type="reset" class="btn btn--secondary">
+          🔄 รีเซ็ต
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Teaching Subject & Grade Selection Modal -->
+<div id="teachingModal" class="modal-overlay" style="display:none">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>เลือกรายวิชาและระดับชั้นที่สอน</h3>
+      <button type="button" class="modal-close" onclick="closeTeachingModal()">×</button>
+    </div>
+    
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">ชื่อวิชา</label>
+        <input type="text" id="subjectNameInput" class="form-input" placeholder="เช่น คณิตศาสตร์พื้นฐาน">
+      </div>
+
+      <div class="teaching-selection">
+        <h4 style="margin:16px 0 12px 0;color:var(--color-text)">เลือกระดับชั้นที่สอนวิชานี้</h4>
+        <div class="grade-category">
+          <h4>ระดับอนุบาล</h4>
+          <div class="checkbox-grid">
+            <label class="checkbox-item">
+              <input type="checkbox" value="อ.1">
+              <span>อ.1</span>
+            </label>
+            <label class="checkbox-item">
+              <input type="checkbox" value="อ.2">
+              <span>อ.2</span>
+            </label>
+            <label class="checkbox-item">
+              <input type="checkbox" value="อ.3">
+              <span>อ.3</span>
+            </label>
+          </div>
+        </div>
+        <div class="grade-category">
+          <h4>ระดับประถมศึกษา</h4>
+          <div class="checkbox-grid">
+            <label class="checkbox-item">
+              <input type="checkbox" value="ป.1">
+              <span>ป.1</span>
+            </label>
+            <label class="checkbox-item">
+              <input type="checkbox" value="ป.2">
+              <span>ป.2</span>
+            </label>
+            <label class="checkbox-item">
+              <input type="checkbox" value="ป.3">
+              <span>ป.3</span>
+            </label>
+            <label class="checkbox-item">
+              <input type="checkbox" value="ป.4">
+              <span>ป.4</span>
+            </label>
+            <label class="checkbox-item">
+              <input type="checkbox" value="ป.5">
+              <span>ป.5</span>
+            </label>
+            <label class="checkbox-item">
+              <input type="checkbox" value="ป.6">
+              <span>ป.6</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="grade-category">
+          <h4>ระดับมัธยมศึกษาตอนต้น</h4>
+          <div class="checkbox-grid">
+            <label class="checkbox-item">
+              <input type="checkbox" value="ม.1">
+              <span>ม.1</span>
+            </label>
+            <label class="checkbox-item">
+              <input type="checkbox" value="ม.2">
+              <span>ม.2</span>
+            </label>
+            <label class="checkbox-item">
+              <input type="checkbox" value="ม.3">
+              <span>ม.3</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="grade-category">
+          <h4>ระดับมัธยมศึกษาตอนปลาย</h4>
+          <div class="checkbox-grid">
+            <label class="checkbox-item">
+              <input type="checkbox" value="ม.4">
+              <span>ม.4</span>
+            </label>
+            <label class="checkbox-item">
+              <input type="checkbox" value="ม.5">
+              <span>ม.5</span>
+            </label>
+            <label class="checkbox-item">
+              <input type="checkbox" value="ม.6">
+              <span>ม.6</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn--secondary" onclick="closeTeachingModal()">
+        ยกเลิก
+      </button>
+      <button type="button" class="btn btn--primary" onclick="addTeachingSubject()">
+        เพิ่มวิชา
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+.form-section {
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.form-section:last-of-type {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.form-section-title {
+  color: var(--color-primary);
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-section-title::before {
+  content: '';
+  width: 4px;
+  height: 20px;
+  background: var(--color-primary);
+  border-radius: 2px;
+}
+
+.required {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.teaching-input {
+  position: relative;
+}
+
+.teaching-btn {
+  transition: color 0.2s ease;
+}
+
+.teaching-btn:hover {
+  color: var(--color-secondary) !important;
+}
+
+.teaching-tags {
+  min-height: 20px;
+}
+
+.teaching-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-primary);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.teaching-tag-remove {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.teaching-tag-remove:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.btn--icon {
+  padding: 10px 16px;
+  min-width: auto;
+}
+
+.btn--danger {
+  background: var(--color-danger);
+  color: white;
+}
+
+.btn--danger:hover {
+  background: #c0392b;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: var(--color-surface);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1.25rem;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--color-muted);
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.2s ease;
+}
+
+.modal-close:hover {
+  color: var(--color-danger);
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 1px solid var(--color-border);
+}
+
+.grade-category {
+  margin-bottom: 24px;
+}
+
+.grade-category h4 {
+  color: var(--color-text);
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 8px;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.checkbox-item:hover {
+  border-color: var(--color-primary);
+  background: var(--color-bg);
+}
+
+.checkbox-item input[type="checkbox"] {
+  margin: 0;
+}
+
+.checkbox-item input[type="checkbox"]:checked + span {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.btn--secondary {
+  background: var(--color-muted);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s ease;
+}
+
+.btn--secondary:hover {
+  background: var(--color-text);
+}
+</style>
+
+<script>
+let teachingSubjects = [];
+
+// Education Management
+function addEducation() {
+  const container = document.getElementById('educationContainer');
+  const entry = document.createElement('div');
+  entry.className = 'education-entry';
+  entry.style.cssText = 'display:flex;gap:8px;align-items:flex-end;margin-bottom:12px';
+  entry.innerHTML = `
+    <div class="form-group" style="flex:1;margin:0">
+      <input type="text" class="form-input education-input" placeholder="เช่น ค.บ. เทคโนโลยีดิจิทัลเพื่อการศึกษา">
+    </div>
+    <button type="button" class="btn btn--danger btn--icon" onclick="removeEducation(this)" style="padding:10px 16px">
+      ✕
+    </button>
+  `;
+  container.appendChild(entry);
+}
+
+function removeEducation(btn) {
+  const entries = document.querySelectorAll('.education-entry');
+  if (entries.length > 1) {
+    btn.closest('.education-entry').remove();
+  }
+}
+
+// Teaching Modal
+function openTeachingModal() {
+  document.getElementById('teachingModal').style.display = 'flex';
+  document.getElementById('subjectNameInput').value = '';
+  document.querySelectorAll('#teachingModal input[type="checkbox"]').forEach(cb => cb.checked = false);
+}
+
+function closeTeachingModal() {
+  document.getElementById('teachingModal').style.display = 'none';
+}
+
+function addTeachingSubject() {
+  const subjectName = document.getElementById('subjectNameInput').value.trim();
+  if (!subjectName) {
+    alert('กรุณากรอกชื่อวิชา');
+    return;
+  }
+
+  const selectedGrades = [];
+  document.querySelectorAll('#teachingModal input[type="checkbox"]:checked').forEach(cb => {
+    selectedGrades.push(cb.value);
+  });
+
+  if (selectedGrades.length === 0) {
+    alert('กรุณาเลือกระดับชั้นอย่างน้อย 1 ระดับ');
+    return;
+  }
+
+  // Sort grades properly
+  selectedGrades.sort((a, b) => {
+    const order = ch => {
+      if (ch === 'อ') return 0;
+      if (ch === 'ป') return 1;
+      if (ch === 'ม') return 2;
+      return 3;
+    };
+    const aChar = a.charAt(0);
+    const bChar = b.charAt(0);
+    const aOrder = order(aChar);
+    const bOrder = order(bChar);
+    if (aOrder !== bOrder) return aOrder - bOrder;
+
+    const aNum = parseInt(a.replace(/[^0-9]/g, '')) || 0;
+    const bNum = parseInt(b.replace(/[^0-9]/g, '')) || 0;
+    return aNum - bNum;
+  });
+
+  teachingSubjects.push({
+    subject: subjectName,
+    grades: selectedGrades
+  });
+
+  updateTeachingDisplay();
+  closeTeachingModal();
+}
+
+function updateTeachingDisplay() {
+  const display = document.getElementById('teachingDisplay');
+  const tagsContainer = document.getElementById('teachingTags');
+  
+  display.value = teachingSubjects.length > 0 
+    ? `เลือกแล้ว ${teachingSubjects.length} รายวิชา` 
+    : '';
+  
+  tagsContainer.innerHTML = '';
+  teachingSubjects.forEach((item, index) => {
+    const tag = document.createElement('span');
+    tag.className = 'teaching-tag';
+    tag.innerHTML = `
+      <strong>${item.subject}</strong> (${item.grades.join(', ')})
+      <button type="button" class="teaching-tag-remove" onclick="removeTeachingSubject(${index})">×</button>
+    `;
+    tagsContainer.appendChild(tag);
+  });
+}
+
+function removeTeachingSubject(index) {
+  teachingSubjects.splice(index, 1);
+  updateTeachingDisplay();
+}
+
+// Close modal when clicking outside
+document.addEventListener('DOMContentLoaded', function() {
+  const modal = document.getElementById('teachingModal');
+  if (modal) {
+    modal.addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeTeachingModal();
+      }
+    });
+  }
+  updateTeachingDisplay();
+});
+</script>

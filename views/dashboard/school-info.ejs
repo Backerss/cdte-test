@@ -1,0 +1,723 @@
+<div class="page-content">
+  <div class="card">
+    <h2 style="margin-top:0;color:var(--color-primary);display:flex;align-items:center;gap:12px">
+      <span>🏫</span>
+      ข้อมูลสถานศึกษา
+    </h2>
+    <p class="text-muted">จัดการข้อมูลสถานที่ฝึกประสบการณ์วิชาชีพ</p>
+
+    <form class="dashboard-form" style="margin-top:24px">
+      <!-- Basic School Information -->
+      <div class="form-section">
+        <h3 class="form-section-title">ข้อมูลพื้นฐาน</h3>
+        
+        <div class="form-group">
+          <label class="form-label">ชื่อสถานศึกษา <span class="required">*</span></label>
+          <input type="text" class="form-input" placeholder="เช่น โรงเรียนวัดไผ่ล้อม" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">สังกัด <span class="required">*</span></label>
+          <select id="affiliationSelect" class="form-input" required onchange="onAffiliationChange()">
+            <option value="">เลือกสังกัด</option>
+            <option value="สำนักงานคณะกรรมการการศึกษาขั้นพื้นฐาน">สำนักงานคณะกรรมการการศึกษาขั้นพื้นฐาน (สพฐ.)</option>
+            <option value="สังกัดสำนักงานเขตพื้นที่การศึกษามัธยมศึกษา">สำนักงานเขตพื้นที่การศึกษามัธยมศึกษา (สพม.)</option>
+            <option value="สังกัดองค์กรปกครองส่วนท้องถิ่น">สังกัดองค์กรปกครองส่วนท้องถิ่น (อปท.)</option>
+            <option value="กรุงเทพมหานคร">กรุงเทพมหานคร (BMA)</option>
+            <option value="มหาวิทยาลัย">สังกัดมหาวิทยาลัย</option>
+            <option value="อื่นๆ">อื่นๆ</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Address Information -->
+      <div class="form-section">
+        <h3 class="form-section-title">ที่อยู่</h3>
+        
+        <div class="form-group">
+          <label class="form-label">เลขที่ ถนน ตรอก ซอย</label>
+          <input type="text" class="form-input" placeholder="เช่น 123 ถนนพหลโยธิน ซอย 5">
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="form-group">
+            <label class="form-label">เขต/แขวง</label>
+            <input type="text" id="districtAreaInput" class="form-input" placeholder="เช่น เขตจตุจักร">
+          </div>
+          <div class="form-group">
+            <label class="form-label">ตำบล</label>
+            <input type="text" id="subdistrictInput" class="form-input" placeholder="เช่น ตำบลในเมือง" autocomplete="off">
+            <div id="subdistrictSuggestions" class="suggestion-box" style="display:none;position:relative;z-index:1200"></div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+          <div class="form-group">
+            <label class="form-label">อำเภอ <span class="required">*</span></label>
+            <input type="text" id="amphoeInput" class="form-input" placeholder="เช่น เมืองนครสวรรค์" autocomplete="off" required>
+            <div id="amphoeSuggestions" class="suggestion-box" style="display:none;position:relative;z-index:1200"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">จังหวัด <span class="required">*</span></label>
+            <input type="text" id="provinceInput" class="form-input" placeholder="เช่น นครสวรรค์" autocomplete="off" required>
+            <div id="provinceSuggestions" class="suggestion-box" style="display:none;position:relative;z-index:1200"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">รหัสไปรษณีย์ <span class="required">*</span></label>
+            <input type="text" id="postcodeInput" class="form-input" placeholder="60000" pattern="[0-9]{5}" maxlength="5" required readonly>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grade Levels -->
+      <div class="form-section">
+        <h3 class="form-section-title">ระดับชั้นที่เปิดการเรียนการสอน</h3>
+        
+        <div class="form-group">
+          <label class="form-label">ระดับชั้นที่เปิดสอน <span class="required">*</span></label>
+          <div class="grade-level-input">
+            <input type="text" 
+                   id="gradeLevelsDisplay" 
+                   class="form-input" 
+                   placeholder="คลิกเพื่อเลือกระดับชั้น" 
+                   readonly 
+                   style="cursor:pointer">
+            <button type="button" 
+                    class="grade-level-btn" 
+                    onclick="openGradeLevelModal()"
+                    style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--color-primary);cursor:pointer;font-size:1.2rem">
+              ⚙️
+            </button>
+          </div>
+          <div id="gradeLevelTags" class="grade-tags" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px"></div>
+        </div>
+      </div>
+
+      <!-- School Statistics -->
+      <div class="form-section">
+        <h3 class="form-section-title">สถิติโรงเรียน</h3>
+        
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+          <div class="form-group">
+            <label class="form-label">จำนวนนักเรียน</label>
+            <input type="number" class="form-input" placeholder="0" min="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">จำนวนครู</label>
+            <input type="number" class="form-input" placeholder="0" min="0">
+          </div>
+          <div class="form-group">
+            <label class="form-label">จำนวนเจ้าหน้าที่</label>
+            <input type="number" class="form-input" placeholder="0" min="0">
+          </div>
+        </div>
+      </div>
+
+      <!-- Contact Information -->
+      <div class="form-section">
+        <h3 class="form-section-title">ข้อมูลติดต่อ</h3>
+        
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="form-group">
+            <label class="form-label">เบอร์โทรศัพท์โรงเรียน</label>
+            <input type="tel" class="form-input" placeholder="056-123456">
+          </div>
+          <div class="form-group">
+            <label class="form-label">อีเมลโรงเรียน</label>
+            <input type="email" class="form-input" placeholder="school@example.com">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">ชื่อผู้อำนวยการโรงเรียน</label>
+          <input type="text" class="form-input" placeholder="เช่น นายสมชาย ใจดี">
+        </div>
+      </div>
+
+      <div class="form-actions" style="margin-top:32px;display:flex;gap:12px">
+        <button type="submit" class="btn btn--primary">
+          💾 บันทึกข้อมูล
+        </button>
+        <button type="reset" class="btn btn--secondary">
+          🔄 รีเซ็ต
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Grade Level Selection Modal -->
+<div id="gradeLevelModal" class="modal-overlay" style="display:none">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>เลือกระดับชั้นที่เปิดการเรียนการสอน</h3>
+      <button type="button" class="modal-close" onclick="closeGradeLevelModal()">×</button>
+    </div>
+    
+    <div class="modal-body">
+      <div class="grade-selection">
+        <div class="grade-category kindergarten">
+          <h4>ระดับอนุบาล</h4>
+          <div class="checkbox-grid">
+            <label class="checkbox-item">
+              <input type="checkbox" value="อ.1" onchange="updateGradeLevels()">
+              <span>อ.1</span>
+            </label>
+            <label class="checkbox-item">
+              <input type="checkbox" value="อ.2" onchange="updateGradeLevels()">
+              <span>อ.2</span>
+            </label>
+            <label class="checkbox-item">
+              <input type="checkbox" value="อ.3" onchange="updateGradeLevels()">
+              <span>อ.3</span>
+            </label>
+          </div>
+        </div>
+        <div class="grade-category primary">
+          <h4>ระดับประถมศึกษา</h4>
+          <div class="checkbox-grid">
+            <label class="checkbox-item">
+              <input type="checkbox" value="ป.1" onchange="updateGradeLevels()">
+              <span>ป.1</span>
+            </label>
+            <label class="checkbox-item">
+              <input type="checkbox" value="ป.2" onchange="updateGradeLevels()">
+              <span>ป.2</span>
+            </label>
+            <label class="checkbox-item">
+              <input type="checkbox" value="ป.3" onchange="updateGradeLevels()">
+              <span>ป.3</span>
+            </label>
+            <label class="checkbox-item">
+              <input type="checkbox" value="ป.4" onchange="updateGradeLevels()">
+              <span>ป.4</span>
+            </label>
+            <label class="checkbox-item">
+              <input type="checkbox" value="ป.5" onchange="updateGradeLevels()">
+              <span>ป.5</span>
+            </label>
+            <label class="checkbox-item">
+              <input type="checkbox" value="ป.6" onchange="updateGradeLevels()">
+              <span>ป.6</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="grade-category lower-secondary">
+          <h4>ระดับมัธยมศึกษาตอนต้น</h4>
+          <div class="checkbox-grid">
+            <label class="checkbox-item">
+              <input type="checkbox" value="ม.1" onchange="updateGradeLevels()">
+              <span>ม.1</span>
+            </label>
+            <label class="checkbox-item">
+              <input type="checkbox" value="ม.2" onchange="updateGradeLevels()">
+              <span>ม.2</span>
+            </label>
+            <label class="checkbox-item">
+              <input type="checkbox" value="ม.3" onchange="updateGradeLevels()">
+              <span>ม.3</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="grade-category upper-secondary">
+          <h4>ระดับมัธยมศึกษาตอนปลาย</h4>
+          <div class="checkbox-grid">
+            <label class="checkbox-item">
+              <input type="checkbox" value="ม.4" onchange="updateGradeLevels()">
+              <span>ม.4</span>
+            </label>
+            <label class="checkbox-item">
+              <input type="checkbox" value="ม.5" onchange="updateGradeLevels()">
+              <span>ม.5</span>
+            </label>
+            <label class="checkbox-item">
+              <input type="checkbox" value="ม.6" onchange="updateGradeLevels()">
+              <span>ม.6</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn--secondary" onclick="clearAllGrades()">
+        ล้างทั้งหมด
+      </button>
+      <button type="button" class="btn btn--primary" onclick="closeGradeLevelModal()">
+        เสร็จสิ้น
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+.form-section {
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.form-section:last-of-type {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.form-section-title {
+  color: var(--color-primary);
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0 0 20px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-section-title::before {
+  content: '';
+  width: 4px;
+  height: 20px;
+  background: var(--color-primary);
+  border-radius: 2px;
+}
+
+.required {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.grade-level-input {
+  position: relative;
+}
+
+.grade-level-btn {
+  transition: color 0.2s ease;
+}
+
+.grade-level-btn:hover {
+  color: var(--color-secondary) !important;
+}
+
+.grade-tags {
+  min-height: 20px;
+}
+
+.grade-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-primary);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.grade-tag-remove {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.grade-tag-remove:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: var(--color-surface);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 1.25rem;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--color-muted);
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.2s ease;
+}
+
+.modal-close:hover {
+  color: var(--color-danger);
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 1px solid var(--color-border);
+}
+
+.grade-category {
+  margin-bottom: 24px;
+}
+
+.grade-category h4 {
+  color: var(--color-text);
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+}
+
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 8px;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+}
+
+.checkbox-item:hover {
+  border-color: var(--color-primary);
+  background: var(--color-bg);
+}
+
+.checkbox-item input[type="checkbox"] {
+  margin: 0;
+}
+
+.checkbox-item input[type="checkbox"]:checked + span {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.btn--secondary {
+  background: var(--color-muted);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.2s ease;
+}
+
+.btn--secondary:hover {
+  background: var(--color-text);
+}
+</style>
+
+<script>
+let selectedGrades = [];
+
+function openGradeLevelModal() {
+  document.getElementById('gradeLevelModal').style.display = 'flex';
+}
+
+function closeGradeLevelModal() {
+  document.getElementById('gradeLevelModal').style.display = 'none';
+}
+
+function onAffiliationChange() {
+  const sel = document.getElementById('affiliationSelect');
+  if (!sel) return;
+  const val = sel.value || '';
+
+  const kindergartenBlock = document.querySelector('.grade-category.kindergarten');
+  const primaryBlock = document.querySelector('.grade-category.primary');
+  const lowerBlock = document.querySelector('.grade-category.lower-secondary');
+  const upperBlock = document.querySelector('.grade-category.upper-secondary');
+
+  const isSpm = val.includes('สังกัดสำนักงานเขตพื้นที่การศึกษามัธยมศึกษา');
+
+  if (isSpm) {
+    // Only show ม.1-ม.6 (both lower- and upper-secondary should be visible)
+    if (kindergartenBlock) kindergartenBlock.style.display = 'none';
+    if (primaryBlock) primaryBlock.style.display = 'none';
+    if (lowerBlock) lowerBlock.style.display = 'block';
+    if (upperBlock) upperBlock.style.display = 'block';
+
+    // Uncheck hidden checkboxes (kindergarten + primary only)
+    document.querySelectorAll('.grade-category.kindergarten input, .grade-category.primary input')
+      .forEach(cb => { cb.checked = false; cb.dispatchEvent(new Event('change')); });
+  } else {
+    // show all
+    if (kindergartenBlock) kindergartenBlock.style.display = 'block';
+    if (primaryBlock) primaryBlock.style.display = 'block';
+    if (lowerBlock) lowerBlock.style.display = 'block';
+    if (upperBlock) upperBlock.style.display = 'block';
+  }
+}
+
+function updateGradeLevels() {
+  const checkboxes = document.querySelectorAll('#gradeLevelModal input[type="checkbox"]');
+  selectedGrades = [];
+  
+  checkboxes.forEach(checkbox => {
+    if (checkbox.checked) {
+      selectedGrades.push(checkbox.value);
+    }
+  });
+  
+  // Sort grades properly: อ. (kindergarten) -> ป. (primary) -> ม. (secondary), then by number
+  selectedGrades.sort((a, b) => {
+    const order = ch => {
+      if (ch === 'อ') return 0;
+      if (ch === 'ป') return 1;
+      if (ch === 'ม') return 2;
+      return 3;
+    };
+    const aChar = a.charAt(0);
+    const bChar = b.charAt(0);
+    const aOrder = order(aChar);
+    const bOrder = order(bChar);
+    if (aOrder !== bOrder) return aOrder - bOrder;
+
+    const aNum = parseInt(a.replace(/[^0-9]/g, '')) || 0;
+    const bNum = parseInt(b.replace(/[^0-9]/g, '')) || 0;
+    return aNum - bNum;
+  });
+  
+  updateGradeDisplay();
+}
+
+function updateGradeDisplay() {
+  const display = document.getElementById('gradeLevelsDisplay');
+  const tagsContainer = document.getElementById('gradeLevelTags');
+  
+  // Update input display
+  display.value = selectedGrades.length > 0 
+    ? `เลือกแล้ว ${selectedGrades.length} ระดับชั้น` 
+    : '';
+  
+  // Update tags
+  tagsContainer.innerHTML = '';
+  selectedGrades.forEach(grade => {
+    const tag = document.createElement('span');
+    tag.className = 'grade-tag';
+    tag.innerHTML = `
+      ${grade}
+      <button type="button" class="grade-tag-remove" onclick="removeGrade('${grade}')">×</button>
+    `;
+    tagsContainer.appendChild(tag);
+  });
+}
+
+function removeGrade(grade) {
+  selectedGrades = selectedGrades.filter(g => g !== grade);
+  
+  // Uncheck the corresponding checkbox
+  const checkbox = document.querySelector(`#gradeLevelModal input[value="${grade}"]`);
+  if (checkbox) checkbox.checked = false;
+  
+  updateGradeDisplay();
+}
+
+function clearAllGrades() {
+  selectedGrades = [];
+  const checkboxes = document.querySelectorAll('#gradeLevelModal input[type="checkbox"]');
+  checkboxes.forEach(checkbox => checkbox.checked = false);
+  updateGradeDisplay();
+}
+
+// Close modal when clicking outside
+document.getElementById('gradeLevelModal').addEventListener('click', function(e) {
+  if (e.target === this) {
+    closeGradeLevelModal();
+  }
+});
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+  updateGradeDisplay();
+  // Ensure grade options reflect current affiliation on load
+  onAffiliationChange();
+  // Load Thai address dataset and bind autocomplete
+  loadThaiAddressData();
+});
+
+// --- Address autocomplete using kongvut single API ---
+const KONGVUT_SUBDIST_URL = 'https://raw.githubusercontent.com/kongvut/thai-province-data/refs/heads/master/api/latest/sub_district_with_district_and_province.json';
+let _subdistricts = [];
+let _districts = [];
+let _provinces = [];
+
+async function loadThaiAddressData() {
+  try {
+    const res = await fetch(KONGVUT_SUBDIST_URL);
+    if (!res.ok) throw new Error('Failed to fetch address data');
+    const data = await res.json();
+
+    // Normalize and build unique lists
+    _subdistricts = data.map(sd => ({
+      id: sd.id,
+      name: sd.name_th,
+      zip: sd.zip_code,
+      district_id: sd.district_id,
+      district_name: sd.district && sd.district.name_th ? sd.district.name_th : (sd.district_name || ''),
+      province_id: (sd.province && sd.province.id) || (sd.district && sd.district.province_id) || null,
+      province_name: sd.province && sd.province.name_th ? sd.province.name_th : (sd.district && sd.district.province && sd.district.province.name_th) || ''
+    }));
+
+    const districtMap = new Map();
+    const provinceMap = new Map();
+
+    _subdistricts.forEach(sd => {
+      if (sd.district_id && !districtMap.has(sd.district_id)) {
+        districtMap.set(sd.district_id, { id: sd.district_id, name: sd.district_name, province_id: sd.province_id });
+      }
+      if (sd.province_id && sd.province_name && !provinceMap.has(sd.province_id)) {
+        provinceMap.set(sd.province_id, { id: sd.province_id, name: sd.province_name });
+      }
+    });
+
+    _districts = Array.from(districtMap.values());
+    _provinces = Array.from(provinceMap.values());
+
+    bindAddressAutocomplete();
+  } catch (err) {
+    console.error('Address data load failed', err);
+  }
+}
+
+function showSuggestions(listEl, items, onSelect) {
+  if (!listEl) return;
+  listEl.innerHTML = '';
+  if (!items || items.length === 0) { listEl.style.display = 'none'; return; }
+
+  items.slice(0, 8).forEach(it => {
+    const div = document.createElement('div');
+    div.className = 'suggestion-item';
+    div.style.padding = '6px 10px';
+    div.style.cursor = 'pointer';
+    div.style.borderBottom = '1px solid rgba(0,0,0,0.04)';
+    div.textContent = it.name;
+    div.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      onSelect(it);
+    });
+    listEl.appendChild(div);
+  });
+
+  listEl.style.display = 'block';
+}
+
+function bindAddressAutocomplete() {
+  const subEl = document.getElementById('subdistrictInput');
+  const subList = document.getElementById('subdistrictSuggestions');
+  const amphoeEl = document.getElementById('amphoeInput');
+  const amphoeList = document.getElementById('amphoeSuggestions');
+  const provEl = document.getElementById('provinceInput');
+  const provList = document.getElementById('provinceSuggestions');
+  const postcodeEl = document.getElementById('postcodeInput');
+
+  if (subEl) {
+    subEl.addEventListener('input', function() {
+      const q = this.value.trim();
+      if (!q) { showSuggestions(subList, []); return; }
+      const results = _subdistricts.filter(s => s.name.includes(q) || s.name.startsWith(q));
+      showSuggestions(subList, results, sel => {
+        subEl.value = sel.name;
+        if (amphoeEl) amphoeEl.value = sel.district_name || '';
+        if (provEl) provEl.value = sel.province_name || '';
+        if (postcodeEl) postcodeEl.value = sel.zip || '';
+        showSuggestions(subList, []);
+      });
+    });
+    document.addEventListener('click', (e) => { if (e.target !== subEl) subList.style.display = 'none'; });
+  }
+
+  if (amphoeEl) {
+    amphoeEl.addEventListener('input', function() {
+      const q = this.value.trim();
+      if (!q) { showSuggestions(amphoeList, []); return; }
+      const results = _districts.filter(d => d.name && d.name.includes(q));
+      showSuggestions(amphoeList, results, sel => {
+        amphoeEl.value = sel.name || '';
+        // set province if known
+        const prov = _provinces.find(p => p.id === sel.province_id);
+        if (provEl && prov) provEl.value = prov.name;
+        // clear postcode because amphoe has many zip codes
+        if (postcodeEl) postcodeEl.value = '';
+        showSuggestions(amphoeList, []);
+      });
+    });
+    document.addEventListener('click', (e) => { if (e.target !== amphoeEl) amphoeList.style.display = 'none'; });
+  }
+
+  if (provEl) {
+    provEl.addEventListener('input', function() {
+      const q = this.value.trim();
+      if (!q) { showSuggestions(provList, []); return; }
+      const results = _provinces.filter(p => p.name && p.name.includes(q));
+      showSuggestions(provList, results, sel => {
+        provEl.value = sel.name || '';
+        showSuggestions(provList, []);
+      });
+    });
+    document.addEventListener('click', (e) => { if (e.target !== provEl) provList.style.display = 'none'; });
+  }
+}
+
+// small CSS for suggestion items (inserted via JS in case external CSS not ready)
+(() => {
+  const css = `
+    .suggestion-box{background:var(--color-surface);border:1px solid rgba(0,0,0,0.06);border-radius:6px;position:absolute;left:0;right:0;box-shadow:0 6px 18px rgba(0,0,0,0.08);max-height:220px;overflow:auto}
+    .suggestion-item{padding:6px 10px}
+    .suggestion-item:hover{background:var(--color-bg);}
+  `;
+  const s = document.createElement('style'); s.appendChild(document.createTextNode(css)); document.head.appendChild(s);
+})();
+</script>

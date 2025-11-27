@@ -1,0 +1,451 @@
+<div class="page-content">
+  <div class="card">
+    <h2 style="margin-top:0;color:var(--color-primary);display:flex;align-items:center;gap:12px">
+      <span>👤</span>
+      โปรไฟล์
+    </h2>
+    <p class="text-muted">จัดการข้อมูลส่วนตัวของคุณ</p>
+
+    <form id="profileForm" class="dashboard-form" style="margin-top:24px">
+      <!-- Profile Picture Section -->
+      <div style="text-align:center;margin-bottom:32px">
+        <div style="position:relative;display:inline-block">
+          <img id="profileImage" 
+            src="<%= user.avatar || '/img/default-avatar.svg' %>" 
+               alt="Profile" 
+               style="width:120px;height:120px;border-radius:50%;object-fit:cover;border:4px solid var(--color-primary)"
+            onerror="this.src='/img/default-avatar.svg'">
+          <input type="file" id="avatarInput" accept="image/*" style="display:none">
+        </div>
+        <div style="margin-top:16px">
+          <button type="button" class="btn btn--secondary" onclick="document.getElementById('avatarInput').click()" style="font-size:0.9rem">
+            เปลี่ยนรูปโปรไฟล์
+          </button>
+          <p style="margin:8px 0 0 0;font-size:0.85rem;color:var(--color-muted)">
+            ⚠️ ใช้รูปภาพที่เห็นใบหน้าชัดเจนเท่านั้น ห้ามใช้รูปบุคคลอื่น (ไม่เกิน 10MB)
+          </p>
+        </div>
+      </div>
+
+      <!-- Personal Information Section -->
+      <h3 style="color:var(--color-text);margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid var(--color-border)">
+        ข้อมูลส่วนตัว
+      </h3>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div class="form-group">
+          <label class="form-label">ชื่อ <span style="color:var(--color-danger)">*</span></label>
+          <input type="text" id="firstNameInput" class="form-input" value="<%= user.firstName || '' %>" placeholder="กรอกชื่อ" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">นามสกุล <span style="color:var(--color-danger)">*</span></label>
+          <input type="text" id="lastNameInput" class="form-input" value="<%= user.lastName || '' %>" placeholder="กรอกนามสกุล" required>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div class="form-group">
+          <label class="form-label">รหัสนักศึกษา</label>
+          <input type="text" class="form-input" value="<%= user.studentId || '' %>" disabled style="background-color:var(--color-bg);cursor:not-allowed">
+          <small style="color:var(--color-muted);font-size:0.85rem">ไม่สามารถแก้ไขได้</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">คณะ</label>
+          <input type="text" class="form-input" value="คณะครุศาสตร์" disabled style="background-color:var(--color-bg);cursor:not-allowed">
+          <small style="color:var(--color-muted);font-size:0.85rem">ไม่สามารถแก้ไขได้</small>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:16px">
+        <label class="form-label">สาขาวิชา <span style="color:var(--color-danger)">*</span></label>
+        <select id="majorSelect" class="form-input" required style="cursor:pointer">
+          <option value="">-- เลือกสาขาวิชา --</option>
+          <option value="computer-education" <%= user.major === 'computer-education' ? 'selected' : '' %>>คอมพิวเตอร์ศึกษา</option>
+          <option value="digital-technology-education" <%= user.major === 'digital-technology-education' ? 'selected' : '' %>>เทคโนโลยีดิจิทัลเพื่อการศึกษา</option>
+        </select>
+      </div>
+
+      <div class="form-group" style="margin-bottom:16px">
+        <label class="form-label">อีเมล <span style="color:var(--color-danger)">*</span></label>
+        <input type="email" id="emailInput" class="form-input" value="<%= user.email || '' %>" placeholder="email@nsru.ac.th" required>
+        <div id="emailWarning" style="display:none;margin-top:8px;padding:12px;background:#fff3cd;border-left:4px solid #ffc107;border-radius:4px">
+          <strong style="color:#856404">⚠️ คำเตือน:</strong>
+          <span style="color:#856404;font-size:0.9rem">นี่คือ Email นอกสถานศึกษาที่มหาวิทยาลัยไม่ได้รับรอง แนะนำให้ใช้ Email @nsru.ac.th</span>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:16px">
+        <label class="form-label">เบอร์โทรศัพท์</label>
+        <input type="tel" id="phoneInput" class="form-input" value="<%= user.phone || '' %>" placeholder="0X-XXXX-XXXX" pattern="[0-9]{2,3}-[0-9]{4}-[0-9]{4}">
+        <small style="color:var(--color-muted);font-size:0.85rem">รูปแบบ: 0X-XXXX-XXXX</small>
+      </div>
+
+      <hr style="border:none;border-top:1px solid var(--color-border);margin:32px 0">
+
+      <!-- Change Password Section -->
+      <h3 style="color:var(--color-text);margin-bottom:16px;padding-bottom:8px;border-bottom:2px solid var(--color-border)">
+        เปลี่ยนรหัสผ่าน
+      </h3>
+
+      <div class="form-group" style="margin-bottom:16px">
+        <label class="form-label">รหัสผ่านปัจจุบัน</label>
+        <input type="password" id="currentPasswordInput" class="form-input" placeholder="กรอกรหัสผ่านปัจจุบัน">
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div class="form-group">
+          <label class="form-label">รหัสผ่านใหม่</label>
+          <input type="password" id="newPasswordInput" class="form-input" placeholder="กรอกรหัสผ่านใหม่" minlength="8">
+          <small style="color:var(--color-muted);font-size:0.85rem">ความยาวอย่างน้อย 8 ตัวอักษร</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">ยืนยันรหัสผ่าน</label>
+          <input type="password" id="confirmPasswordInput" class="form-input" placeholder="ยืนยันรหัสผ่านใหม่">
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:24px">
+        <button type="submit" class="btn btn--primary">
+          💾 บันทึกข้อมูล
+        </button>
+        <button type="button" class="btn" style="background-color:var(--color-bg);color:var(--color-text)" onclick="resetForm()">
+          ยกเลิก
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Image Crop Modal -->
+<div id="cropModal" class="modal-overlay" style="display:none">
+  <div class="modal-content" style="max-width:600px">
+    <div class="modal-header">
+      <h3>ครอบตัดรูปภาพ</h3>
+      <button type="button" class="modal-close" onclick="closeCropModal()">×</button>
+    </div>
+    <div class="modal-body" style="padding:24px">
+      <p style="margin:0 0 16px 0;color:var(--color-muted)">
+        ⚠️ กรุณาเลือกพื้นที่ที่ต้องการ (ควรเป็นรูปใบหน้าที่ชัดเจน)
+      </p>
+      <div style="max-height:400px;overflow:hidden;background:#000;border-radius:8px">
+        <img id="cropImage" style="max-width:100%;display:block">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn--secondary" onclick="closeCropModal()">ยกเลิก</button>
+      <button type="button" class="btn btn--primary" onclick="applyCrop()">ใช้รูปนี้</button>
+    </div>
+  </div>
+</div>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<style>
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-content {
+  background: var(--color-surface);
+  border-radius: 12px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: var(--color-primary);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.8rem;
+  cursor: pointer;
+  color: var(--color-muted);
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: var(--color-danger);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.modal-body {
+  padding: 24px;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 2px solid var(--color-border);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+</style>
+
+<script>
+let cropper = null;
+let croppedImageBlob = null;
+
+// Email validation
+document.getElementById('emailInput').addEventListener('blur', function() {
+  const email = this.value.trim();
+  const warning = document.getElementById('emailWarning');
+  
+  if (email && !email.endsWith('@nsru.ac.th')) {
+    warning.style.display = 'block';
+  } else {
+    warning.style.display = 'none';
+  }
+});
+
+// Avatar upload with size check
+document.getElementById('avatarInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  // Check file size (10MB = 10 * 1024 * 1024 bytes)
+  const maxSize = 10 * 1024 * 1024;
+  if (file.size > maxSize) {
+    Swal.fire({
+      icon: 'error',
+      title: 'ไฟล์ใหญ่เกินไป',
+      text: 'กรุณาเลือกไฟล์ที่มีขนาดไม่เกิน 10MB',
+      confirmButtonText: 'รับทราบ'
+    });
+    e.target.value = '';
+    return;
+  }
+
+  // Check if it's an image
+  if (!file.type.startsWith('image/')) {
+    Swal.fire({
+      icon: 'error',
+      title: 'ไฟล์ไม่ถูกต้อง',
+      text: 'กรุณาเลือกไฟล์รูปภาพเท่านั้น',
+      confirmButtonText: 'รับทราบ'
+    });
+    e.target.value = '';
+    return;
+  }
+
+  // Load image for cropping
+  const reader = new FileReader();
+  reader.onload = function(event) {
+    document.getElementById('cropImage').src = event.target.result;
+    openCropModal();
+  };
+  reader.readAsDataURL(file);
+});
+
+function openCropModal() {
+  document.getElementById('cropModal').style.display = 'flex';
+  
+  // Initialize cropper
+  const image = document.getElementById('cropImage');
+  if (cropper) {
+    cropper.destroy();
+  }
+  
+  cropper = new Cropper(image, {
+    aspectRatio: 1,
+    viewMode: 1,
+    dragMode: 'move',
+    autoCropArea: 0.8,
+    restore: false,
+    guides: true,
+    center: true,
+    highlight: false,
+    cropBoxMovable: true,
+    cropBoxResizable: true,
+    toggleDragModeOnDblclick: false,
+  });
+}
+
+function closeCropModal() {
+  document.getElementById('cropModal').style.display = 'none';
+  if (cropper) {
+    cropper.destroy();
+    cropper = null;
+  }
+  document.getElementById('avatarInput').value = '';
+}
+
+function applyCrop() {
+  if (!cropper) return;
+
+  cropper.getCroppedCanvas({
+    width: 300,
+    height: 300,
+    imageSmoothingEnabled: true,
+    imageSmoothingQuality: 'high',
+  }).toBlob(function(blob) {
+    croppedImageBlob = blob;
+    const url = URL.createObjectURL(blob);
+    document.getElementById('profileImage').src = url;
+    closeCropModal();
+    
+    Swal.fire({
+      icon: 'success',
+      title: 'อัพโหลดรูปภาพสำเร็จ',
+      text: 'กรุณากดบันทึกข้อมูลเพื่อยืนยันการเปลี่ยนแปลง',
+      timer: 2000,
+      showConfirmButton: false
+    });
+  }, 'image/jpeg', 0.9);
+}
+
+// Form submission
+document.getElementById('profileForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+
+  const firstName = document.getElementById('firstNameInput').value.trim();
+  const lastName = document.getElementById('lastNameInput').value.trim();
+  const major = document.getElementById('majorSelect').value;
+  const email = document.getElementById('emailInput').value.trim();
+  const phone = document.getElementById('phoneInput').value.trim();
+  const currentPassword = document.getElementById('currentPasswordInput').value;
+  const newPassword = document.getElementById('newPasswordInput').value;
+  const confirmPassword = document.getElementById('confirmPasswordInput').value;
+
+  // Validate required fields
+  if (!firstName || !lastName || !major || !email) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'กรุณากรอกข้อมูลให้ครบ',
+      text: 'กรุณากรอกข้อมูลที่มีเครื่องหมาย * ให้ครบถ้วน',
+      confirmButtonText: 'รับทราบ'
+    });
+    return;
+  }
+
+  // Validate password change
+  if (newPassword || confirmPassword) {
+    if (!currentPassword) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'กรุณากรอกรหัสผ่านปัจจุบัน',
+        confirmButtonText: 'รับทราบ'
+      });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Swal.fire({
+        icon: 'error',
+        title: 'รหัสผ่านไม่ตรงกัน',
+        text: 'กรุณายืนยันรหัสผ่านให้ตรงกัน',
+        confirmButtonText: 'รับทราบ'
+      });
+      return;
+    }
+    if (newPassword.length < 8) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'รหัสผ่านสั้นเกินไป',
+        text: 'รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร',
+        confirmButtonText: 'รับทราบ'
+      });
+      return;
+    }
+  }
+
+  // Prepare form data
+  const formData = new FormData();
+  formData.append('firstName', firstName);
+  formData.append('lastName', lastName);
+  formData.append('major', major);
+  formData.append('email', email);
+  formData.append('phone', phone);
+  
+  if (croppedImageBlob) {
+    formData.append('avatar', croppedImageBlob, 'avatar.jpg');
+  }
+  
+  if (newPassword) {
+    formData.append('currentPassword', currentPassword);
+    formData.append('newPassword', newPassword);
+  }
+
+  // TODO: Send to server
+  Swal.fire({
+    icon: 'success',
+    title: 'บันทึกข้อมูลสำเร็จ',
+    text: 'ข้อมูลของคุณได้รับการอัพเดตแล้ว',
+    confirmButtonText: 'ตกลง'
+  }).then(() => {
+    // Clear password fields
+    document.getElementById('currentPasswordInput').value = '';
+    document.getElementById('newPasswordInput').value = '';
+    document.getElementById('confirmPasswordInput').value = '';
+    croppedImageBlob = null;
+  });
+
+  console.log('Form data:', {
+    firstName,
+    lastName,
+    major,
+    email,
+    phone,
+    hasAvatar: !!croppedImageBlob,
+    hasPasswordChange: !!newPassword
+  });
+});
+
+function resetForm() {
+  if (confirm('ต้องการยกเลิกการแก้ไขหรือไม่?')) {
+    document.getElementById('profileForm').reset();
+    document.getElementById('emailWarning').style.display = 'none';
+    location.reload();
+  }
+}
+
+// Close modal when clicking outside
+document.getElementById('cropModal').addEventListener('click', function(e) {
+  if (e.target === this) {
+    closeCropModal();
+  }
+});
+</script>
