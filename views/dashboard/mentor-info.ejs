@@ -1,57 +1,16 @@
 <%
-  // Mock mentor history data สำหรับแต่ละงวดฝึก
-  const mentorPracticeHistory = [
-    {
-      id: 1,
-      year: 1,
-      period: 'ฝึกปฏิบัติวิชาชีพระหว่างเรียน 1',
-      mentorData: {
-        firstName: 'สมชาย',
-        lastName: 'ใจดี',
-        position: 'ครูชำนาญการพิเศษ (คศ.3)',
-        phone: '081-234-5678',
-        email: 'somchai@pailom.ac.th',
-        education: ['ค.บ. เทคโนโลยีดิจิทัลเพื่อการศึกษา', 'ค.ม. หลักสูตรและการสอน'],
-        experience: 15,
-        department: 'วิทยาศาสตร์และเทคโนโลยี',
-        teachingSubjects: [
-          { subject: 'วิทยาการคำนวณ', grades: ['ป.4', 'ป.5', 'ป.6'] },
-          { subject: 'คอมพิวเตอร์', grades: ['ป.1', 'ป.2', 'ป.3'] }
-        ]
-      },
-      status: 'completed'
-    },
-    {
-      id: 2,
-      year: 2,
-      period: 'ฝึกปฏิบัติวิชาชีพระหว่างเรียน 2',
-      mentorData: {
-        firstName: 'สมหญิง',
-        lastName: 'รักการสอน',
-        position: 'ครูชำนาญการ (คศ.2)',
-        phone: '089-876-5432',
-        email: 'somying@nakhonsawan.ac.th',
-        education: ['ค.บ. คอมพิวเตอร์ศึกษา', 'วท.ม. เทคโนโลยีสารสนเทศ'],
-        experience: 10,
-        department: 'วิทยาศาสตร์และเทคโนโลยี',
-        teachingSubjects: [
-          { subject: 'วิทยาการคำนวณ', grades: ['ม.1', 'ม.2', 'ม.3'] },
-          { subject: 'เทคโนโลยีสารสนเทศ', grades: ['ม.4', 'ม.5', 'ม.6'] }
-        ]
-      },
-      status: 'completed'
-    },
-    {
-      id: 3,
-      year: 3,
-      period: 'ฝึกประสบการณ์วิชาชีพครู 1',
-      mentorData: null, // ยังไม่กรอกข้อมูล
-      status: 'active'
-    }
-  ];
+  // Use server-provided mentor practice history. Server should pass `mentorPracticeHistory` and optionally `activeMentorPeriodId`.
+  const mentorPractice = (typeof mentorPracticeHistory !== 'undefined' && Array.isArray(mentorPracticeHistory))
+    ? mentorPracticeHistory
+    : [];
 
-  const activeMentorPeriod = mentorPracticeHistory.find(p => p.status === 'active');
+  const activeMentorPeriod = (typeof activeMentorPeriodId !== 'undefined')
+    ? mentorPractice.find(p => p.id === activeMentorPeriodId)
+    : mentorPractice.find(p => p.status === 'active');
+
   const currentMentorData = activeMentorPeriod && activeMentorPeriod.mentorData;
+  const hasPractice = mentorPractice.length > 0;
+  const hasActive = !!activeMentorPeriod;
 %>
 
 <div class="page-content">
@@ -68,15 +27,25 @@
       <div class="form-group" style="margin:0;min-width:300px">
         <label class="form-label">เลือกงวดฝึกประสบการณ์</label>
         <select id="mentorPeriodSelector" class="form-input" onchange="changeMentorPeriod()" style="padding:10px 14px">
-          <% mentorPracticeHistory.slice().reverse().forEach((record) => { %>
-            <option value="<%= record.id %>" <%= record.status === 'active' ? 'selected' : '' %>>
-              <%= record.period %> (ปี <%= record.year %>)
-              <%= record.status === 'active' ? ' - ปัจจุบัน' : '' %>
-            </option>
-          <% }); %>
+          <% if (!hasPractice) { %>
+            <option value="none" selected disabled>ยังไม่มีงวดการฝึกประสบการณ์</option>
+          <% } else { %>
+            <% mentorPractice.slice().reverse().forEach((record) => { %>
+              <option value="<%= record.id %>" <%= record.status === 'active' ? 'selected' : '' %>>
+                <%= record.period %> (ปี <%= record.year %>)
+                <%= record.status === 'active' ? ' - ปัจจุบัน' : '' %>
+              </option>
+            <% }); %>
+          <% } %>
         </select>
       </div>
     </div>
+
+    <% if (!hasActive) { %>
+      <div id="noMentorActiveBanner" style="background:#fff3cd;border-left:4px solid #ffc107;padding:12px;border-radius:8px;margin-bottom:16px;color:#856404">
+        ⚠️ ยังไม่มีงวดการฝึกที่ถูกตั้งค่าเป็น "ปัจจุบัน" — คุณไม่สามารถกรอกข้อมูลครูพี่เลี้ยงได้จนกว่าจะมีการตั้งงวดฝึกที่ใช้งานอยู่
+      </div>
+    <% } %>
 
     <!-- แสดงประวัติงวดที่ผ่านมา (Read-only) -->
     <div id="mentorHistoryView" style="display:none">
@@ -251,7 +220,7 @@
       </p>
       
       <div id="mentorHistoryList" class="mentor-history-list">
-        <% mentorPracticeHistory.filter(p => p.mentorData && p.status !== 'active').forEach((record) => { %>
+        <% mentorPractice.filter(p => p.mentorData && p.status !== 'active').forEach((record) => { %>
           <div class="mentor-card" onclick="selectMentorFromHistory(<%= record.id %>)">
             <div class="mentor-card-header">
               <div style="display:flex;align-items:center;gap:12px">
@@ -298,7 +267,7 @@
         <% }); %>
       </div>
       
-      <% if (mentorPracticeHistory.filter(p => p.mentorData && p.status !== 'active').length === 0) { %>
+      <% if (mentorPractice.filter(p => p.mentorData && p.status !== 'active').length === 0) { %>
         <div style="text-align:center;padding:40px;color:var(--color-muted)">
           <div style="font-size:3rem;margin-bottom:16px">📋</div>
           <p>ยังไม่มีประวัติครูพี่เลี้ยงจากงวดก่อนหน้า</p>
@@ -918,8 +887,11 @@ function removeTeachingSubject(index) {
 }
 
 // Mentor period management
-const mentorData = <%- JSON.stringify(mentorPracticeHistory) %>;
+const mentorData = <%- JSON.stringify(mentorPractice) %>;
 let currentMentorPeriodId = <%= activeMentorPeriod ? activeMentorPeriod.id : 'null' %>;
+
+const hasPractice = <%= mentorPractice.length > 0 ? 'true' : 'false' %>;
+const hasActive = <%= activeMentorPeriod ? 'true' : 'false' %>;
 
 function changeMentorPeriod() {
   const selector = document.getElementById('mentorPeriodSelector');
@@ -1147,6 +1119,23 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   updateTeachingDisplay();
+
+  if (!hasPractice) {
+    // No practice periods - disable everything in the form
+    const form = document.getElementById('mentorCurrentForm');
+    if (form) {
+      form.querySelectorAll('input,select,textarea,button').forEach(el => el.disabled = true);
+    }
+  } else if (!hasActive) {
+    // Periods exist, but none active - disable inputs and submit
+    const form = document.getElementById('mentorCurrentForm');
+    if (form) {
+      form.querySelectorAll('input,textarea').forEach(el => el.disabled = true);
+      const buttons = form.querySelectorAll('button[type="submit"],button[type="reset"]');
+      buttons.forEach(b => b.disabled = true);
+    }
+  }
+
   changeMentorPeriod();
 });
 </script>

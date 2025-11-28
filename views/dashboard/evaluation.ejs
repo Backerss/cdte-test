@@ -1,77 +1,18 @@
 <%
-  // Mock evaluation history สำหรับแต่ละงวดฝึก
-  const evaluationPracticeHistory = [
-    {
-      id: 1,
-      year: 1,
-      period: 'ฝึกปฏิบัติวิชาชีพระหว่างเรียน 1',
-      startDate: new Date('2023-01-02'),
-      endDate: new Date('2023-01-15'),
-      requiresEvaluation: true, // ปี 1-3 ต้องทำ
-      evaluationCount: 9, // 3 สัปดาห์ x 3 ครั้ง
-      evaluations: {
-        1: { date: '2023-01-03', submitted: true, answers: { q1:5, q2:4, q3:5, q4:2, q5:4, q6:5, q7:4, q8:3, q9:4, q10:5, q11:4, q12:3, q13:2, q14:1, q15:2, q16:5, q17:2, q18:1, q19:2, q20:5, q21:3, q22:4, q23:5, q24:4, q25:2, q26:1 } },
-        2: { date: '2023-01-05', submitted: true, answers: { q1:4, q2:4, q3:4, q4:2, q5:5, q6:4, q7:5, q8:4, q9:5, q10:4, q11:5, q12:4, q13:1, q14:2, q15:1, q16:4, q17:1, q18:2, q19:1, q20:4, q21:2, q22:5, q23:4, q24:5, q25:1, q26:2 } },
-        3: { date: '2023-01-07', submitted: true, answers: { q1:5, q2:5, q3:4, q4:1, q5:4, q6:5, q7:4, q8:4, q9:5, q10:5, q11:4, q12:4, q13:2, q14:1, q15:2, q16:5, q17:2, q18:1, q19:1, q20:5, q21:2, q22:4, q23:5, q24:4, q25:2, q26:1 } },
-        4: { date: '2023-01-09', submitted: true, answers: { q1:4, q2:5, q3:5, q4:2, q5:5, q6:4, q7:5, q8:3, q9:4, q10:4, q11:5, q12:3, q13:1, q14:2, q15:1, q16:4, q17:1, q18:2, q19:2, q20:4, q21:3, q22:5, q23:4, q24:5, q25:1, q26:2 } },
-        5: { date: '2023-01-11', submitted: true, answers: { q1:5, q2:4, q3:4, q4:2, q5:4, q6:5, q7:4, q8:4, q9:5, q10:5, q11:4, q12:4, q13:2, q14:1, q15:2, q16:5, q17:1, q18:2, q19:1, q20:5, q21:2, q22:4, q23:5, q24:4, q25:2, q26:1 } },
-        6: { date: '2023-01-12', submitted: true, answers: { q1:4, q2:5, q3:5, q4:1, q5:5, q6:5, q7:5, q8:4, q9:5, q10:4, q11:5, q12:4, q13:1, q14:2, q15:1, q16:5, q17:2, q18:1, q19:1, q20:5, q21:2, q22:5, q23:5, q24:5, q25:1, q26:1 } },
-        7: { date: '2023-01-13', submitted: true, answers: { q1:5, q2:5, q3:4, q4:2, q5:4, q6:5, q7:4, q8:4, q9:5, q10:5, q11:4, q12:3, q13:2, q14:1, q15:2, q16:4, q17:2, q18:1, q19:2, q20:4, q21:3, q22:4, q23:5, q24:4, q25:2, q26:2 } },
-        8: { date: '2023-01-14', submitted: true, answers: { q1:5, q2:4, q3:5, q4:1, q5:5, q6:4, q7:5, q8:3, q9:4, q10:5, q11:5, q12:4, q13:1, q14:2, q15:1, q16:5, q17:1, q18:2, q19:1, q20:5, q21:2, q22:5, q23:4, q24:5, q25:1, q26:1 } },
-        9: { date: '2023-01-15', submitted: true, answers: { q1:4, q2:5, q3:4, q4:2, q5:4, q6:5, q7:4, q8:4, q9:5, q10:4, q11:4, q12:4, q13:2, q14:1, q15:2, q16:5, q17:2, q18:1, q19:2, q20:4, q21:3, q22:4, q23:5, q24:4, q25:2, q26:1 } }
-      },
-      lessonPlan: {
-        uploaded: true,
-        fileName: 'แผนการสอน_ปี1_งวด1.pdf',
-        submittedDate: '2023-01-03'
-      },
-      status: 'completed'
-    },
-    {
-      id: 2,
-      year: 2,
-      period: 'ฝึกปฏิบัติวิชาชีพระหว่างเรียน 2',
-      startDate: new Date('2024-06-01'),
-      endDate: new Date('2024-06-30'),
-      requiresEvaluation: true,
-      evaluationCount: 9,
-      evaluations: {
-        1: { date: '2024-06-03', submitted: true, answers: { q1:4, q2:5, q3:5, q4:2, q5:4, q6:5, q7:4, q8:4, q9:4, q10:5, q11:4, q12:3, q13:2, q14:1, q15:2, q16:5, q17:1, q18:2, q19:2, q20:5, q21:3, q22:4, q23:5, q24:4, q25:2, q26:1 } },
-        2: { date: '2024-06-06', submitted: true, answers: { q1:5, q2:4, q3:4, q4:1, q5:5, q6:4, q7:5, q8:3, q9:5, q10:4, q11:5, q12:4, q13:1, q14:2, q15:1, q16:4, q17:2, q18:1, q19:1, q20:4, q21:2, q22:5, q23:4, q24:5, q25:1, q26:2 } },
-        3: { date: '2024-06-09', submitted: true, answers: { q1:4, q2:5, q3:5, q4:2, q5:4, q6:5, q7:4, q8:4, q9:4, q10:5, q11:4, q12:4, q13:2, q14:1, q15:2, q16:5, q17:1, q18:2, q19:2, q20:5, q21:3, q22:4, q23:5, q24:5, q25:2, q26:1 } },
-        4: { date: '2024-06-12', submitted: true, answers: { q1:5, q2:5, q3:4, q4:1, q5:5, q6:5, q7:5, q8:4, q9:5, q10:4, q11:5, q12:3, q13:1, q14:2, q15:1, q16:4, q17:2, q18:1, q19:1, q20:4, q21:2, q22:5, q23:5, q24:4, q25:1, q26:2 } },
-        5: { date: '2024-06-15', submitted: true, answers: { q1:4, q2:4, q3:5, q4:2, q5:4, q6:4, q7:4, q8:3, q9:4, q10:5, q11:4, q12:4, q13:2, q14:1, q15:2, q16:5, q17:1, q18:2, q19:2, q20:5, q21:3, q22:4, q23:4, q24:5, q25:2, q26:1 } },
-        6: { date: '2024-06-18', submitted: false, answers: { q1:3, q2:4, q3:4, q4:2, q5:3, q6:4, q7:3 } }, // บันทึกไว้บางส่วน
-        7: { date: '2024-06-21', submitted: false, answers: {} },
-        8: { date: null, submitted: false, answers: {} },
-        9: { date: null, submitted: false, answers: {} }
-      },
-      lessonPlan: {
-        uploaded: true,
-        fileName: 'แผนการสอน_ปี2_งวด2.docx',
-        submittedDate: '2024-06-05'
-      },
-      status: 'completed'
-    },
-    {
-      id: 3,
-      year: 3,
-      period: 'ฝึกประสบการณ์วิชาชีพครู 1',
-      startDate: new Date('2025-03-01'),
-      endDate: new Date('2025-05-31'),
-      requiresEvaluation: true,
-      evaluationCount: 9,
-      evaluations: {}, // ยังไม่ได้ทำเลย
-      lessonPlan: {
-        uploaded: false
-      },
-      status: 'active' // งวดปัจจุบัน
-    }
-  ];
+  // Use server-provided evaluation practice history. Server should pass `evaluationPracticeHistory` and optionally `activeEvalPeriodId`.
+  const evalPractice = (typeof evaluationPracticeHistory !== 'undefined' && Array.isArray(evaluationPracticeHistory))
+    ? evaluationPracticeHistory
+    : [];
 
-  const activeEvalPeriod = evaluationPracticeHistory.find(p => p.status === 'active');
-  const currentEvalData = activeEvalPeriod || evaluationPracticeHistory[evaluationPracticeHistory.length - 1];
+  const activeEvalPeriod = (typeof activeEvalPeriodId !== 'undefined')
+    ? evalPractice.find(p => p.id === activeEvalPeriodId)
+    : evalPractice.find(p => p.status === 'active');
+
+  const currentEvalData = activeEvalPeriod || (evalPractice.length > 0 ? evalPractice[evalPractice.length - 1] : null);
   const userYear = user.year || 3;
+
+  const hasPractice = evalPractice.length > 0;
+  const hasActive = !!activeEvalPeriod;
 %>
 
 <div class="page-content">
@@ -88,15 +29,25 @@
       <div class="form-group" style="margin:0;min-width:300px">
         <label class="form-label">เลือกงวดฝึกประสบการณ์</label>
         <select id="evalPeriodSelector" class="form-input" onchange="changeEvalPeriod()" style="padding:10px 14px">
-          <% evaluationPracticeHistory.slice().reverse().forEach((record) => { %>
-            <option value="<%= record.id %>" <%= record.status === 'active' ? 'selected' : '' %>>
-              <%= record.period %> (ปี <%= record.year %>)
-              <%= record.status === 'active' ? ' - ปัจจุบัน' : '' %>
-            </option>
-          <% }); %>
+          <% if (!hasPractice) { %>
+            <option value="none" selected disabled>ยังไม่มีงวดการฝึกประสบการณ์</option>
+          <% } else { %>
+            <% evalPractice.slice().reverse().forEach((record) => { %>
+              <option value="<%= record.id %>" <%= record.status === 'active' ? 'selected' : '' %>>
+                <%= record.period %> (ปี <%= record.year %>)
+                <%= record.status === 'active' ? ' - ปัจจุบัน' : '' %>
+              </option>
+            <% }); %>
+          <% } %>
         </select>
       </div>
     </div>
+
+    <% if (!hasActive) { %>
+      <div id="noEvalActiveBanner" style="background:#fff3cd;border-left:4px solid #ffc107;padding:12px;border-radius:8px;margin-bottom:16px;color:#856404">
+        ⚠️ ยังไม่มีงวดการฝึกที่ถูกตั้งค่าเป็น "ปัจจุบัน" — คุณไม่สามารถทำการประเมินได้จนกว่าจะมีการตั้งงวดฝึกที่ใช้งานอยู่
+      </div>
+    <% } %>
 
     <!-- แสดงประวัติงวดที่ผ่านมา (Read-only) -->
     <div id="evalHistoryView" style="display:none">
@@ -939,9 +890,12 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 // Practice history data from server
-const evaluationPracticeHistory = <%- JSON.stringify(evaluationPracticeHistory) %>;
+const evaluationPracticeHistory = <%- JSON.stringify(evalPractice) %>;
 
-let currentEvalPeriod = evaluationPracticeHistory.find(p => p.status === 'active') || evaluationPracticeHistory[evaluationPracticeHistory.length - 1];
+const hasPractice = <%= evalPractice.length > 0 ? 'true' : 'false' %>;
+const hasActive = <%= activeEvalPeriod ? 'true' : 'false' %>;
+
+let currentEvalPeriod = evaluationPracticeHistory.find(p => p.status === 'active') || (evaluationPracticeHistory.length > 0 ? evaluationPracticeHistory[evaluationPracticeHistory.length - 1] : null);
 let currentEvalNum = null;
 let mainLessonPlanFile = null;
 const userYear = <%= userYear %>;
@@ -1765,6 +1719,19 @@ function saveEvaluationData() {
   // TODO: Also send to server via API
   // fetch('/api/evaluation/save', { method: 'POST', body: JSON.stringify(currentEvalPeriod) })
 }
+
+// Disable form when no practice or no active
+document.addEventListener('DOMContentLoaded', function() {
+  if (!hasPractice || !hasActive) {
+    const currentContent = document.getElementById('evalCurrentContent');
+    if (currentContent) {
+      // Disable all inputs, textareas, and buttons in current content area
+      currentContent.querySelectorAll('input,textarea,button').forEach(el => {
+        el.disabled = true;
+      });
+    }
+  }
+});
 
 // Close modal when clicking outside
 document.getElementById('evaluationModal').addEventListener('click', function(e) {

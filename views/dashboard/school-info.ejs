@@ -1,60 +1,18 @@
 <%
-  // Mock practice history สำหรับเลือกงวด
-  const schoolPracticeHistory = [
-    {
-      id: 1,
-      year: 1,
-      period: 'ฝึกปฏิบัติวิชาชีพระหว่างเรียน 1',
-      schoolData: {
-        name: 'โรงเรียนวัดไผ่ล้อม',
-        affiliation: 'สำนักงานคณะกรรมการการศึกษาขั้นพื้นฐาน',
-        address: '123 ถนนพหลโยธิน',
-        subdistrict: 'ไผ่ล้อม',
-        amphoe: 'เมืองนครสวรรค์',
-        province: 'นครสวรรค์',
-        postcode: '60000',
-        gradeLevels: ['ป.1', 'ป.2', 'ป.3', 'ป.4', 'ป.5', 'ป.6'],
-        studentCount: 350,
-        teacherCount: 28,
-        classroomCount: 18,
-        phone: '056-123456',
-        email: 'info@pailom.ac.th',
-        principal: 'นายสมชาย ใจดี'
-      },
-      status: 'completed'
-    },
-    {
-      id: 2,
-      year: 2,
-      period: 'ฝึกปฏิบัติวิชาชีพระหว่างเรียน 2',
-      schoolData: {
-        name: 'โรงเรียนนครสวรรค์',
-        affiliation: 'สังกัดสำนักงานเขตพื้นที่การศึกษามัธยมศึกษา',
-        address: '789 ถนนสวรรค์วิถี',
-        subdistrict: 'ปากน้ำโพ',
-        amphoe: 'เมืองนครสวรรค์',
-        province: 'นครสวรรค์',
-        postcode: '60000',
-        gradeLevels: ['ม.1', 'ม.2', 'ม.3', 'ม.4', 'ม.5', 'ม.6'],
-        studentCount: 1250,
-        teacherCount: 85,
-        classroomCount: 42,
-        phone: '056-234567',
-        email: 'info@nakhonsawan.ac.th',
-        principal: 'นางสาววิไล สุขสม'
-      },
-      status: 'completed'
-    },
-    {
-      id: 3,
-      year: 3,
-      period: 'ฝึกประสบการณ์วิชาชีพครู 1',
-      schoolData: null, // ยังไม่กรอกข้อมูล
-      status: 'active'
-    }
-  ];
+  // Use real data passed from the server.
+  // Server should pass `schoolPracticeHistory` (array) and optionally `activePeriodId`.
+  // Provide safe fallbacks so the template doesn't crash when variables are missing.
+  const practiceHistory = (typeof schoolPracticeHistory !== 'undefined' && Array.isArray(schoolPracticeHistory))
+    ? schoolPracticeHistory
+    : [];
 
-  const activePeriod = schoolPracticeHistory.find(p => p.status === 'active');
+  const activePeriod = (typeof activePeriodId !== 'undefined')
+    ? practiceHistory.find(p => p.id === activePeriodId)
+    : practiceHistory.find(p => p.status === 'active');
+
+  const hasPractice = practiceHistory.length > 0;
+  const hasActive = !!activePeriod;
+
   const currentSchoolData = activePeriod && activePeriod.schoolData;
 %>
 
@@ -72,15 +30,25 @@
       <div class="form-group" style="margin:0;min-width:300px">
         <label class="form-label">เลือกงวดฝึกประสบการณ์</label>
         <select id="periodSelector" class="form-input" onchange="changePeriod()" style="padding:10px 14px">
-          <% schoolPracticeHistory.slice().reverse().forEach((record) => { %>
-            <option value="<%= record.id %>" <%= record.status === 'active' ? 'selected' : '' %>>
-              <%= record.period %> (ปี <%= record.year %>)
-              <%= record.status === 'active' ? ' - ปัจจุบัน' : '' %>
-            </option>
-          <% }); %>
+          <% if (!hasPractice) { %>
+            <option value="none" selected disabled>ยังไม่มีงวดการฝึกประสบการณ์</option>
+          <% } else { %>
+            <% practiceHistory.slice().reverse().forEach((record) => { %>
+              <option value="<%= record.id %>" <%= record.status === 'active' ? 'selected' : '' %>>
+                <%= record.period %> (ปี <%= record.year %>)
+                <%= record.status === 'active' ? ' - ปัจจุบัน' : '' %>
+              </option>
+            <% }); %>
+          <% } %>
         </select>
       </div>
     </div>
+
+    <% if (!hasActive) { %>
+      <div id="noActiveBanner" style="background:#fff3cd;border-left:4px solid #ffc107;padding:12px;border-radius:8px;margin-bottom:16px;color:#856404">
+        ⚠️ ยังไม่มีงวดการฝึกที่ถูกตั้งค่าในสถานะ "ปัจจุบัน" — คุณไม่สามารถกรอกข้อมูลสถานศึกษาได้จนกว่าจะมีการตั้งงวดฝึกที่ใช้งานอยู่
+      </div>
+    <% } %>
 
     <!-- แสดงประวัติงวดที่ผ่านมา (Read-only) -->
     <div id="historyView" style="display:none">
@@ -747,8 +715,11 @@ document.getElementById('gradeLevelModal').addEventListener('click', function(e)
 });
 
 // Practice period management
-const practiceData = <%- JSON.stringify(schoolPracticeHistory) %>;
+const practiceData = <%- JSON.stringify(practiceHistory) %>;
 let currentPeriodId = <%= activePeriod ? activePeriod.id : 'null' %>;
+
+const hasPractice = <%= practiceHistory.length > 0 ? 'true' : 'false' %>;
+const hasActive = <%= activePeriod ? 'true' : 'false' %>;
 
 function changePeriod() {
   const selector = document.getElementById('periodSelector');
@@ -929,6 +900,23 @@ document.addEventListener('DOMContentLoaded', function() {
   // Load Thai address dataset and bind autocomplete
   loadThaiAddressData();
   // Initialize period view
+  if (!hasPractice) {
+    // No practice periods at all - disable the form
+    const form = document.getElementById('currentForm');
+    if (form) {
+      form.querySelectorAll('input,select,textarea,button').forEach(el => el.disabled = true);
+    }
+  } else if (!hasActive) {
+    // There are periods but none active - disable inputs until an active one is selected
+    const form = document.getElementById('currentForm');
+    if (form) {
+      form.querySelectorAll('input,textarea').forEach(el => el.disabled = true);
+      // keep selectors like periodSelector enabled so user can choose
+      const buttons = form.querySelectorAll('button[type="submit"],button[type="reset"]');
+      buttons.forEach(b => b.disabled = true);
+    }
+  }
+
   changePeriod();
 });
 

@@ -1,102 +1,30 @@
 <%
-  // Mock practice history data - แยกตามงวดฝึกแต่ละปี
-  const practiceHistory = [
-    {
-      id: 1,
-      year: 1,
-      period: 'ฝึกปฏิบัติวิชาชีพระหว่างเรียน 1',
-      startDate: new Date('2023-01-02'),
-      endDate: new Date('2023-01-15'),
-      school: {
-        name: 'โรงเรียนวัดไผ่ล้อม',
-        province: 'นครสวรรค์',
-        affiliation: 'สพฐ.'
-      },
-      mentor: {
-        name: 'นายสมชาย ใจดี',
-        position: 'ครูชำนาญการพิเศษ',
-        phone: '081-234-5678'
-      },
-      evaluationData: {
-        personality: { label: 'บุคลิกภาพและมนุษยสัมพันธ์', score: 4.0, total: 5 },
-        teaching: { label: 'ทักษะการสอน', score: 3.8, total: 5 },
-        planning: { label: 'การวางแผนการสอน', score: 3.5, total: 5 },
-        classroom: { label: 'การจัดการชั้นเรียน', score: 3.9, total: 5 },
-        assessment: { label: 'การวัดและประเมินผล', score: 3.6, total: 5 },
-        innovation: { label: 'นวัตกรรมและสื่อการสอน', score: 4.2, total: 5 },
-        responsibility: { label: 'ความรับผิดชอบ', score: 4.5, total: 5 },
-        punctuality: { label: 'ความตรงต่อเวลา', score: 4.3, total: 5 }
-      },
-      status: 'completed'
-    },
-    {
-      id: 2,
-      year: 2,
-      period: 'ฝึกปฏิบัติวิชาชีพระหว่างเรียน 2',
-      startDate: new Date('2024-06-01'),
-      endDate: new Date('2024-06-30'),
-      school: {
-        name: 'โรงเรียนนครสวรรค์',
-        province: 'นครสวรรค์',
-        affiliation: 'สพม.'
-      },
-      mentor: {
-        name: 'นางสาวสมหญิง รักการสอน',
-        position: 'ครูชำนาญการ',
-        phone: '089-876-5432'
-      },
-      evaluationData: {
-        personality: { label: 'บุคลิกภาพและมนุษยสัมพันธ์', score: 4.3, total: 5 },
-        teaching: { label: 'ทักษะการสอน', score: 4.0, total: 5 },
-        planning: { label: 'การวางแผนการสอน', score: 3.8, total: 5 },
-        classroom: { label: 'การจัดการชั้นเรียน', score: 4.1, total: 5 },
-        assessment: { label: 'การวัดและประเมินผล', score: 3.7, total: 5 },
-        innovation: { label: 'นวัตกรรมและสื่อการสอน', score: 4.4, total: 5 },
-        responsibility: { label: 'ความรับผิดชอบ', score: 4.6, total: 5 },
-        punctuality: { label: 'ความตรงต่อเวลา', score: 4.5, total: 5 }
-      },
-      status: 'completed'
-    },
-    {
-      id: 3,
-      year: 3,
-      period: 'ฝึกประสบการณ์วิชาชีพครู 1',
-      startDate: new Date('2025-03-01'),
-      endDate: new Date('2025-05-31'),
-      school: {
-        name: 'โรงเรียนวัดไผ่ล้อม', // กลับไปโรงเรียนเดิม
-        province: 'นครสวรรค์',
-        affiliation: 'สพฐ.'
-      },
-      mentor: {
-        name: 'นายวิชัย มานะดี', // ครูพี่เลี้ยงคนใหม่
-        position: 'ครูเชี่ยวชาญ',
-        phone: '062-111-2233'
-      },
-      evaluationData: {
-        personality: { label: 'บุคลิกภาพและมนุษยสัมพันธ์', score: 4.5, total: 5 },
-        teaching: { label: 'ทักษะการสอน', score: 4.2, total: 5 },
-        planning: { label: 'การวางแผนการสอน', score: 4.0, total: 5 },
-        classroom: { label: 'การจัดการชั้นเรียน', score: 4.3, total: 5 },
-        assessment: { label: 'การวัดและประเมินผล', score: 3.8, total: 5 },
-        innovation: { label: 'นวัตกรรมและสื่อการสอน', score: 4.6, total: 5 },
-        responsibility: { label: 'ความรับผิดชอบ', score: 4.8, total: 5 },
-        punctuality: { label: 'ความตรงต่อเวลา', score: 4.7, total: 5 }
-      },
-      status: 'active' // งวดปัจจุบัน
-    }
-  ];
-
-  const userYear = user.year || 3;
+  // ข้อมูลผู้ใช้ที่ login (จาก session)
+  const userName = user.firstName && user.lastName 
+    ? `${user.firstName} ${user.lastName}` 
+    : user.studentId || 'ผู้ใช้';
+  const userYear = user.year || 1;
   
-  // หาว่างวดไหนเป็นงวดปัจจุบัน (active)
-  const currentPracticeRecord = practiceHistory.find(p => p.status === 'active');
+  // TODO: ดึงข้อมูลจาก database
+  // ตอนนี้ใช้ค่าเริ่มต้นไปก่อน
+  const practiceHistory = [];
+  const currentPracticeRecord = null;
   const today = new Date();
   
-  // ใช้ข้อมูลจากงวดปัจจุบัน (ถ้ามี) หรือจากงวดล่าสุด
-  const activePractice = currentPracticeRecord || practiceHistory[practiceHistory.length - 1];
-  const evaluationData = activePractice.evaluationData;
-  const overallAverage = Object.values(evaluationData).reduce((sum, item) => sum + item.score, 0) / Object.keys(evaluationData).length;
+  // ถ้ายังไม่มีข้อมูลฝึกงาน ให้แสดงข้อความเริ่มต้น
+  const activePractice = currentPracticeRecord || {
+    school: { name: 'ยังไม่ได้ลงทะเบียนสถานศึกษา', province: '-', affiliation: '-' },
+    mentor: { name: 'ยังไม่ได้ระบุครูพี่เลี้ยง', position: '-', phone: '-' },
+    evaluationData: {},
+    period: 'ยังไม่มีงวดฝึก',
+    status: 'pending'
+  };
+  
+  const evaluationData = activePractice.evaluationData || {};
+  const hasEvaluation = Object.keys(evaluationData).length > 0;
+  const overallAverage = hasEvaluation 
+    ? Object.values(evaluationData).reduce((sum, item) => sum + item.score, 0) / Object.keys(evaluationData).length 
+    : 0;
   
   // เช็คว่าอยู่ในช่วงฝึกหรือไม่
   const isInPracticePeriod = currentPracticeRecord && 
@@ -154,25 +82,35 @@
 
     <!-- Practice Timeline -->
     <div class="practice-timeline">
-      <% practiceHistory.forEach((record, index) => { 
-        const isActive = record.status === 'active';
-        const isCompleted = record.status === 'completed';
-      %>
-        <div class="timeline-item <%= isActive ? 'timeline-active' : '' %> <%= isCompleted ? 'timeline-completed' : '' %>">
-          <div class="timeline-marker">
-            <% if (isActive) { %>
-              <span style="font-size:1.3rem">🟢</span>
-            <% } else if (isCompleted) { %>
-              <span style="font-size:1.3rem">✅</span>
-            <% } else { %>
-              <span style="font-size:1.3rem">⏳</span>
-            <% } %>
-          </div>
-          
-          <div class="timeline-content">
-            <div class="timeline-header">
-              <h4 style="margin:0 0 8px 0;color:var(--color-primary);font-size:1.1rem">
-                <%= record.period %> 
+      <% if (practiceHistory.length === 0) { %>
+        <div style="text-align:center;padding:60px 20px;color:var(--color-muted)">
+          <div style="font-size:4rem;margin-bottom:16px">📋</div>
+          <h3 style="color:var(--color-text);margin-bottom:8px">ยังไม่มีประวัติการฝึก</h3>
+          <p style="margin:0">กรุณากรอกข้อมูลสถานศึกษาและครูพี่เลี้ยงเพื่อเริ่มต้นการฝึก</p>
+          <a href="/dashboard/school-info" class="btn btn--primary" style="margin-top:20px;display:inline-block">
+            เริ่มลงทะเบียน
+          </a>
+        </div>
+      <% } else { %>
+        <% practiceHistory.forEach((record, index) => { 
+          const isActive = record.status === 'active';
+          const isCompleted = record.status === 'completed';
+        %>
+          <div class="timeline-item <%= isActive ? 'timeline-active' : '' %> <%= isCompleted ? 'timeline-completed' : '' %>">
+            <div class="timeline-marker">
+              <% if (isActive) { %>
+                <span style="font-size:1.3rem">🟢</span>
+              <% } else if (isCompleted) { %>
+                <span style="font-size:1.3rem">✅</span>
+              <% } else { %>
+                <span style="font-size:1.3rem">⏳</span>
+              <% } %>
+            </div>
+            
+            <div class="timeline-content">
+              <div class="timeline-header">
+                <h4 style="margin:0 0 8px 0;color:var(--color-primary);font-size:1.1rem">
+                  <%= record.period %> 
                 <span style="background:var(--color-primary);color:white;padding:2px 8px;border-radius:8px;font-size:0.75rem;margin-left:8px">
                   ชั้นปีที่ <%= record.year %>
                 </span>
@@ -239,11 +177,13 @@
             <% } %>
           </div>
         </div>
-      <% }); %>
+        <% }); %>
+      <% } %>
     </div>
   </div>
 
   <!-- Overall Performance Summary -->
+  <% if (hasEvaluation) { %>
   <div class="card" style="margin-bottom:24px">
     <h3 style="margin-top:0;color:var(--color-text);display:flex;align-items:center;gap:10px">
       <span>📊</span>
@@ -587,28 +527,34 @@
   }
 
   // Initialize with current practice data
-  let evaluationData = <%- JSON.stringify(activePractice.evaluationData) %>;
+  const hasEvalData = <%= hasEvaluation ? 'true' : 'false' %>;
   
-  // Prepare data for charts
-  let labels = Object.values(evaluationData).map(d => d.label);
-  let scores = Object.values(evaluationData).map(d => d.score);
-  const colors = [
-    '#2E3094', // primary
-    '#FBB425', // secondary
-    '#16A34A', // success
-    '#DC2626', // danger
-    '#0EA5E9', // info
-    '#F59E0B', // orange
-    '#8B5CF6', // purple
-    '#EC4899'  // pink
-  ];
+  if (!hasEvalData) {
+    console.log('No evaluation data available yet');
+    // Skip chart initialization
+  } else {
+    let evaluationData = <%- JSON.stringify(activePractice.evaluationData) %>;
+    
+    // Prepare data for charts
+    let labels = Object.values(evaluationData).map(d => d.label);
+    let scores = Object.values(evaluationData).map(d => d.score);
+    const colors = [
+      '#2E3094', // primary
+      '#FBB425', // secondary
+      '#16A34A', // success
+      '#DC2626', // danger
+      '#0EA5E9', // info
+      '#F59E0B', // orange
+      '#8B5CF6', // purple
+      '#EC4899'  // pink
+    ];
 
-  // Chart.js default config
-  Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-  Chart.defaults.color = '#0F1724';
+    // Chart.js default config
+    Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    Chart.defaults.color = '#0F1724';
 
-  // Store chart instances for updating
-  let chartInstances = {};
+    // Store chart instances for updating
+    let chartInstances = {};
 
   // 1. Line Chart - Progress Over Time (Mock data with monthly progress)
   const lineCtx = document.getElementById('lineChart');
@@ -964,4 +910,6 @@
       chartContainer.innerHTML += rowHtml;
     });
   }
+  } // End of hasEvalData check
 </script>
+<% } %>

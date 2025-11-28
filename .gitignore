@@ -1,0 +1,10 @@
+node_modules/
+.env
+*.env
+prac-cdte-firebase-adminsdk-fbsvc-2952dcad04.json
+secret-*.json
+.DS_Store
+npm-debug.log
+dist/
+.vscode/
+public/img/profile_img

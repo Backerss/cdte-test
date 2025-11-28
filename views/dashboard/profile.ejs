@@ -65,6 +65,30 @@
         </select>
       </div>
 
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div class="form-group">
+          <label class="form-label">ชั้นปี</label>
+          <input type="text" id="yearInput" class="form-input" value="<%= user.year || '' %>" disabled style="background-color:var(--color-bg);cursor:not-allowed">
+        </div>
+        <div class="form-group">
+          <label class="form-label">ห้อง <span style="color:var(--color-danger)">*</span></label>
+          <select id="roomSelect" class="form-input" style="cursor:pointer">
+            <option value="">-- เลือกห้อง --</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+          </select>
+          <small id="roomHint" style="color:var(--color-muted);font-size:0.85rem">นักศึกษาสามารถเลือกห้องได้ครั้งเดียว</small>
+        </div>
+      </div>
+
       <div class="form-group" style="margin-bottom:16px">
         <label class="form-label">อีเมล <span style="color:var(--color-danger)">*</span></label>
         <input type="email" id="emailInput" class="form-input" value="<%= user.email || '' %>" placeholder="email@nsru.ac.th" required>
@@ -76,7 +100,7 @@
 
       <div class="form-group" style="margin-bottom:16px">
         <label class="form-label">เบอร์โทรศัพท์</label>
-        <input type="tel" id="phoneInput" class="form-input" value="<%= user.phone || '' %>" placeholder="0X-XXXX-XXXX" pattern="[0-9]{2,3}-[0-9]{4}-[0-9]{4}">
+        <input type="tel" id="phoneInput" class="form-input" value="<%= user.phone || '' %>" placeholder="0X-XXXX-XXXX" pattern="0[689]\d{8}">
         <small style="color:var(--color-muted);font-size:0.85rem">รูปแบบ: 0X-XXXX-XXXX</small>
       </div>
 
@@ -338,101 +362,7 @@ function applyCrop() {
   }, 'image/jpeg', 0.9);
 }
 
-// Form submission
-document.getElementById('profileForm').addEventListener('submit', function(e) {
-  e.preventDefault();
-
-  const firstName = document.getElementById('firstNameInput').value.trim();
-  const lastName = document.getElementById('lastNameInput').value.trim();
-  const major = document.getElementById('majorSelect').value;
-  const email = document.getElementById('emailInput').value.trim();
-  const phone = document.getElementById('phoneInput').value.trim();
-  const currentPassword = document.getElementById('currentPasswordInput').value;
-  const newPassword = document.getElementById('newPasswordInput').value;
-  const confirmPassword = document.getElementById('confirmPasswordInput').value;
-
-  // Validate required fields
-  if (!firstName || !lastName || !major || !email) {
-    Swal.fire({
-      icon: 'warning',
-      title: 'กรุณากรอกข้อมูลให้ครบ',
-      text: 'กรุณากรอกข้อมูลที่มีเครื่องหมาย * ให้ครบถ้วน',
-      confirmButtonText: 'รับทราบ'
-    });
-    return;
-  }
-
-  // Validate password change
-  if (newPassword || confirmPassword) {
-    if (!currentPassword) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'กรุณากรอกรหัสผ่านปัจจุบัน',
-        confirmButtonText: 'รับทราบ'
-      });
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      Swal.fire({
-        icon: 'error',
-        title: 'รหัสผ่านไม่ตรงกัน',
-        text: 'กรุณายืนยันรหัสผ่านให้ตรงกัน',
-        confirmButtonText: 'รับทราบ'
-      });
-      return;
-    }
-    if (newPassword.length < 8) {
-      Swal.fire({
-        icon: 'warning',
-        title: 'รหัสผ่านสั้นเกินไป',
-        text: 'รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร',
-        confirmButtonText: 'รับทราบ'
-      });
-      return;
-    }
-  }
-
-  // Prepare form data
-  const formData = new FormData();
-  formData.append('firstName', firstName);
-  formData.append('lastName', lastName);
-  formData.append('major', major);
-  formData.append('email', email);
-  formData.append('phone', phone);
-  
-  if (croppedImageBlob) {
-    formData.append('avatar', croppedImageBlob, 'avatar.jpg');
-  }
-  
-  if (newPassword) {
-    formData.append('currentPassword', currentPassword);
-    formData.append('newPassword', newPassword);
-  }
-
-  // TODO: Send to server
-  Swal.fire({
-    icon: 'success',
-    title: 'บันทึกข้อมูลสำเร็จ',
-    text: 'ข้อมูลของคุณได้รับการอัพเดตแล้ว',
-    confirmButtonText: 'ตกลง'
-  }).then(() => {
-    // Clear password fields
-    document.getElementById('currentPasswordInput').value = '';
-    document.getElementById('newPasswordInput').value = '';
-    document.getElementById('confirmPasswordInput').value = '';
-    croppedImageBlob = null;
-  });
-
-  console.log('Form data:', {
-    firstName,
-    lastName,
-    major,
-    email,
-    phone,
-    hasAvatar: !!croppedImageBlob,
-    hasPasswordChange: !!newPassword
-  });
-});
+// (Submission handled by newer listener below)
 
 function resetForm() {
   if (confirm('ต้องการยกเลิกการแก้ไขหรือไม่?')) {
@@ -448,4 +378,187 @@ document.getElementById('cropModal').addEventListener('click', function(e) {
     closeCropModal();
   }
 });
+</script>
+<script>
+// Load profile data from server and populate form
+async function loadProfile() {
+  try {
+    const res = await fetch('/api/profile');
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message || 'Failed to load');
+
+    const user = data.data || {};
+
+    // Populate fields
+    document.getElementById('firstNameInput').value = user.firstName || '';
+    document.getElementById('lastNameInput').value = user.lastName || '';
+    document.getElementById('phoneInput').value = user.phone || '';
+    document.getElementById('profileImage').src = user.avatar || '/img/default-avatar.svg';
+    document.getElementById('majorSelect').value = user.major || '';
+
+    // Year (computed by server) and room
+    const yearInput = document.getElementById('yearInput');
+    const roomSelect = document.getElementById('roomSelect');
+    const roomHint = document.getElementById('roomHint');
+    if (yearInput) yearInput.value = user.year || '';
+    if (roomSelect) {
+      if (user.room) {
+        roomSelect.value = user.room;
+      } else {
+        roomSelect.value = '';
+      }
+    }
+
+    const emailInput = document.getElementById('emailInput');
+    const emailWarning = document.getElementById('emailWarning');
+
+    if (user.email && user.email.trim() !== '') {
+      // Email already set — disable editing
+      emailInput.value = user.email;
+      emailInput.disabled = true;
+      emailWarning.style.display = 'block';
+      emailWarning.querySelector('strong').textContent = '🔒 อีเมลล็อกแล้ว:';
+      emailWarning.querySelector('span').textContent = ' อีเมลแก้ไขได้เพียงครั้งเดียว หากต้องการเปลี่ยนจริง ๆ ติดต่อผู้ดูแลระบบ';
+    } else {
+      emailInput.value = '';
+      emailInput.disabled = false;
+      // reset the warning text if user types an external email
+      emailWarning.querySelector('strong').textContent = '⚠️ คำเตือน:';
+      emailWarning.querySelector('span').textContent = ' นี่คือ Email นอกสถานศึกษาที่มหาวิทยาลัยไม่ได้รับรอง แนะนำให้ใช้ Email @nsru.ac.th';
+      emailWarning.style.display = 'none';
+    }
+
+    // Room locking: if server tells roomLocked, disable select
+    if (user.roomLocked) {
+      if (roomSelect) roomSelect.disabled = true;
+      if (roomHint) roomHint.textContent = 'ห้องถูกล็อกแล้ว (แก้ไขได้เพียงครั้งเดียว)';
+    } else {
+      if (roomSelect) roomSelect.disabled = false;
+      if (roomHint) roomHint.textContent = 'นักศึกษาสามารถเลือกห้องได้ครั้งเดียว';
+    }
+
+  } catch (err) {
+    console.error('Load profile error', err);
+  }
+}
+
+loadProfile();
+
+// Upload avatar helper - returns avatarUrl
+async function uploadAvatarIfNeeded() {
+  if (!croppedImageBlob) return null;
+
+  const fd = new FormData();
+  fd.append('avatar', croppedImageBlob, 'avatar.jpg');
+
+  const resp = await fetch('/api/profile/avatar', { method: 'POST', body: fd });
+  const json = await resp.json();
+  if (!json.success) {
+    throw new Error(json.message || 'Upload failed');
+  }
+  return json.avatarUrl;
+}
+
+// Submit profile
+document.getElementById('profileForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+
+  const firstName = document.getElementById('firstNameInput').value.trim();
+  const lastName = document.getElementById('lastNameInput').value.trim();
+  const major = document.getElementById('majorSelect').value;
+  const emailInput = document.getElementById('emailInput');
+  const email = emailInput.value.trim();
+  const phone = document.getElementById('phoneInput').value.trim();
+  const currentPassword = document.getElementById('currentPasswordInput').value;
+  const newPassword = document.getElementById('newPasswordInput').value;
+  const confirmPassword = document.getElementById('confirmPasswordInput').value;
+
+  if (!firstName || !lastName || !major) {
+    Swal.fire({ icon: 'warning', title: 'กรุณากรอกข้อมูลให้ครบ', confirmButtonText: 'รับทราบ' });
+    return;
+  }
+
+  // If email input is enabled, validate basic format
+  if (!emailInput.disabled) {
+    if (!email || !email.includes('@')) {
+      Swal.fire({ icon: 'warning', title: 'อีเมลไม่ถูกต้อง', text: 'กรุณากรอกอีเมลที่ถูกต้อง', confirmButtonText: 'รับทราบ' });
+      return;
+    }
+  }
+
+  // Handle password change first (if requested)
+  if (newPassword || confirmPassword) {
+    if (!currentPassword) {
+      Swal.fire({ icon: 'warning', title: 'กรุณากรอกรหัสผ่านปัจจุบัน', confirmButtonText: 'รับทราบ' });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Swal.fire({ icon: 'error', title: 'รหัสผ่านไม่ตรงกัน', confirmButtonText: 'รับทราบ' });
+      return;
+    }
+    if (newPassword.length < 8) {
+      Swal.fire({ icon: 'warning', title: 'รหัสผ่านสั้นเกินไป', text: 'รหัสผ่านใหม่ต้องอย่างน้อย 8 ตัวอักษร', confirmButtonText: 'รับทราบ' });
+      return;
+    }
+
+    // Call change-password endpoint
+    const pwResp = await fetch('/api/profile/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+    const pwJson = await pwResp.json();
+    if (!pwJson.success) {
+      Swal.fire({ icon: 'error', title: 'เปลี่ยนรหัสผ่านไม่สำเร็จ', text: pwJson.message || 'เกิดข้อผิดพลาด', confirmButtonText: 'รับทราบ' });
+      return;
+    }
+  }
+
+  try {
+    Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+    // Upload avatar if there's a new cropped image
+    let avatarUrl = null;
+    if (croppedImageBlob) {
+      avatarUrl = await uploadAvatarIfNeeded();
+    }
+
+    // Prepare payload
+    const payload = { firstName, lastName, major, email, phone };
+    const roomSelect = document.getElementById('roomSelect');
+    if (roomSelect) {
+      const roomVal = roomSelect.value;
+      if (roomVal) payload.room = roomVal;
+    }
+    if (avatarUrl) payload.avatar = avatarUrl;
+
+    const res = await fetch('/api/profile', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const json = await res.json();
+    Swal.close();
+    if (json.success) {
+      Swal.fire({ icon: 'success', title: 'บันทึกข้อมูลสำเร็จ', confirmButtonText: 'ตกลง' }).then(() => {
+        // Clear password fields
+        document.getElementById('currentPasswordInput').value = '';
+        document.getElementById('newPasswordInput').value = '';
+        document.getElementById('confirmPasswordInput').value = '';
+        croppedImageBlob = null;
+        loadProfile();
+      });
+    } else {
+      Swal.fire({ icon: 'error', title: 'ไม่สามารถบันทึกข้อมูลได้', text: json.message || 'เกิดข้อผิดพลาด', confirmButtonText: 'รับทราบ' });
+    }
+
+  } catch (err) {
+    console.error(err);
+    Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message || '', confirmButtonText: 'รับทราบ' });
+  }
+});
+
+// Disable email editing if it's already set - handled in loadProfile
+
 </script>

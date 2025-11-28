@@ -1,20 +1,40 @@
 const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
+const session = require('express-session');
+const authRoutes = require('./routes/auth');
+const profileRoutes = require('./routes/profile');
+const { requireAuth, requireGuest, addUserToLocals } = require('./middleware/auth');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 // In-memory storage (replace with database in production)
-const users = new Map(); // studentId -> { studentId, password, email }
 const resetTokens = new Map(); // token -> { email, expires, used }
 
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
+// Disable view cache during development to pick up template changes immediately
+app.set('view cache', false);
 
 // Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Session middleware
+app.use(session({
+  secret: 'your-secret-key-change-this-in-production', // TODO: ใช้ค่าจาก .env
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: false, // ตั้งเป็น true ถ้าใช้ HTTPS
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 ชั่วโมง
+  }
+}));
+
+// Add user to locals for all views
+app.use(addUserToLocals);
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -22,97 +42,18 @@ app.get('/', (req, res) => {
 	res.render('index', { title: 'Home' });
 });
 
+// Auth routes
+app.use('/', authRoutes);
+app.use('/api', profileRoutes);
+
 // Register routes
-app.get('/register', (req, res) => {
+app.get('/register', requireGuest, (req, res) => {
 	res.render('auth/register');
 });
 
-app.post('/register', (req, res) => {
-	const { studentId, password } = req.body;
-
-	// Basic validation
-	if (!studentId || !password) {
-		return res.status(400).json({
-			success: false,
-			message: 'กรุณากรอกข้อมูลให้ครบถ้วน'
-		});
-	}
-
-	if (!/^\d+$/.test(studentId)) {
-		return res.status(400).json({
-			success: false,
-			message: 'รหัสนักศึกษาต้องเป็นตัวเลขเท่านั้น'
-		});
-	}
-
-	if (password.length < 6) {
-		return res.status(400).json({
-			success: false,
-			message: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'
-		});
-	}
-
-	// TODO: Save to database
-	// For now, just store in memory
-	users.set(studentId, {
-		studentId,
-		password, // TODO: Hash password in production
-		email: null,
-		firstName: 'นักศึกษา',
-		lastName: 'ใหม่',
-		createdAt: new Date()
-	});
-
-	console.log('Registration attempt:', { studentId, passwordLength: password.length });
-
-	res.json({
-		success: true,
-		message: 'สมัครสมาชิกสำเร็จ!'
-	});
-});
-
 // Login routes
-app.get('/login', (req, res) => {
+app.get('/login', requireGuest, (req, res) => {
 	res.render('auth/login');
-});
-
-app.post('/login', (req, res) => {
-	const { studentId, password } = req.body;
-
-	// Basic validation
-	if (!studentId || !password) {
-		return res.status(400).json({
-			success: false,
-			message: 'กรุณากรอกข้อมูลให้ครบถ้วน'
-		});
-	}
-
-	// Check if user exists
-	const user = users.get(studentId);
-	
-	if (!user) {
-		return res.status(401).json({
-			success: false,
-			message: 'ไม่พบรหัสนักศึกษานี้ในระบบ'
-		});
-	}
-
-	// Verify password (TODO: use bcrypt in production)
-	if (user.password !== password) {
-		return res.status(401).json({
-			success: false,
-			message: 'รหัสผ่านไม่ถูกต้อง'
-		});
-	}
-
-	// TODO: Create session
-	console.log('Login successful:', { studentId });
-
-	res.json({
-		success: true,
-		message: 'เข้าสู่ระบบสำเร็จ',
-		redirectTo: '/dashboard'
-	});
 });
 
 // Forgot password routes
@@ -263,25 +204,11 @@ app.post('/reset-password', (req, res) => {
 	});
 });
 
-// Dashboard routes (with mock authentication middleware)
-// TODO: Implement proper session-based authentication
-const requireAuth = (req, res, next) => {
-	// Mock authentication - in production, check session/JWT
-	// For now, use a mock user
-	req.user = {
-		studentId: '6414421001',
-		firstName: 'สมชาย',
-		lastName: 'ใจดี',
-		email: 'student@nsru.ac.th',
-		year: 3, // ชั้นปี
-		avatar: null
-	};
-	next();
-};
-
+// Dashboard routes with authentication
 // Helper to render a dashboard view into the layout once
 function renderIntoLayout(req, res, view, opts = {}) {
-	res.render(`dashboard/${view}`, { user: req.user }, (err, html) => {
+	const userData = req.user || req.session.user || {};
+	res.render(`dashboard/${view}`, { user: userData }, (err, html) => {
 		if (err) {
 			console.error('Error rendering view', view, err);
 			return res.status(500).send('Error rendering page');
@@ -290,7 +217,7 @@ function renderIntoLayout(req, res, view, opts = {}) {
 		res.render('layouts/dashboard', {
 			title: opts.title || 'Dashboard',
 			currentPage: opts.currentPage || '',
-			user: req.user,
+			user: userData,
 			body: html
 		});
 	});
@@ -334,9 +261,13 @@ app.get('/dashboard/admin/reports', requireAuth, (req, res) => {
 });
 
 // Logout route
-app.get('/logout', (req, res) => {
-	// TODO: Destroy session
-	res.redirect('/login');
+app.get('/logout', requireAuth, (req, res) => {
+	req.session.destroy((err) => {
+		if (err) {
+			console.error('Logout error:', err);
+		}
+		res.redirect('/login');
+	});
 });
 
 app.listen(port, () => {
