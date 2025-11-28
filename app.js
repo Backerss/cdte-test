@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const session = require('express-session');
 const authRoutes = require('./routes/auth');
 const profileRoutes = require('./routes/profile');
+const adminRoutes = require('./routes/admin');
 const { requireAuth, requireGuest, addUserToLocals } = require('./middleware/auth');
 
 const app = express();
@@ -45,6 +46,7 @@ app.get('/', (req, res) => {
 // Auth routes
 app.use('/', authRoutes);
 app.use('/api', profileRoutes);
+app.use('/', adminRoutes);
 
 // Register routes
 app.get('/register', requireGuest, (req, res) => {

@@ -525,7 +525,11 @@
 <script>
   // Practice history data for dynamic chart switching
   const practiceHistoryData = <%- JSON.stringify(practiceHistory) %>;
-  let currentPracticeId = <%= activePractice.id %>;
+  const currentPracticeId = <%- JSON.stringify(
+    (typeof activePractice !== 'undefined' && activePractice && Object.prototype.hasOwnProperty.call(activePractice, 'id'))
+      ? activePractice.id
+      : null
+  ) %>;
 
   // Function to change practice period view
   function changePracticeView() {

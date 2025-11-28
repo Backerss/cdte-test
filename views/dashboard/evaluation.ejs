@@ -920,6 +920,12 @@ function changeEvalPeriod() {
   const selectedId = parseInt(selector.value);
   currentEvalPeriod = evaluationPracticeHistory.find(p => p.id === selectedId);
   
+  // Guard: if no period found, do nothing
+  if (!currentEvalPeriod) {
+    console.warn('No evaluation period found with id:', selectedId);
+    return;
+  }
+  
   if (currentEvalPeriod.status === 'active') {
     // Show editable current content
     document.getElementById('evalHistoryView').style.display = 'none';
