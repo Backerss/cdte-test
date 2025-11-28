@@ -49,6 +49,34 @@
                 </a>
             </li>
             
+            <% /* Student-only menu items: visible to students and admins. Teachers do not see these. Admin sees all menus. */ %>
+            <% if (user && (user.role === 'student' || user.role === 'admin')) { %>
+            <li class="sidebar-menu-item <%= currentPage === 'school-info' ? 'active' : '' %>">
+                <a href="/dashboard/school-info" class="sidebar-link">
+                    <span class="sidebar-icon">🏫</span>
+                    <span class="sidebar-text">ข้อมูลสถานศึกษา</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item <%= currentPage === 'mentor-info' ? 'active' : '' %>">
+                <a href="/dashboard/mentor-info" class="sidebar-link">
+                    <span class="sidebar-icon">👨‍🏫</span>
+                    <span class="sidebar-text">ข้อมูลครูพี่เลี้ยง</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item <%= currentPage === 'evaluation' ? 'active' : '' %>">
+                <a href="/dashboard/evaluation" class="sidebar-link">
+                    <span class="sidebar-icon">📝</span>
+                    <span class="sidebar-text">การประเมิน</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item <%= currentPage === 'profile' ? 'active' : '' %>">
+                <a href="/dashboard/profile" class="sidebar-link">
+                    <span class="sidebar-icon">👤</span>
+                    <span class="sidebar-text">โปรไฟล์</span>
+                </a>
+            </li>
+            <% } %>
+            
             <!-- Admin Menu Section (visible to teachers and admins only) -->
             <% if (user && (user.role === 'admin' || user.role === 'teacher')) { %>
             <li class="sidebar-menu-divider">
