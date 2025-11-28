@@ -20,6 +20,55 @@
       </p>
     </div>
 
+    <!-- Lesson Plan Upload Section (Separate Task) -->
+    <div class="card" style="margin-bottom:24px;background:linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);border:2px dashed var(--color-primary)">
+      <h3 style="color:var(--color-primary);margin:0 0 16px 0;display:flex;align-items:center;gap:12px">
+        <span>📋</span>
+        การส่งแผนการจัดการเรียนรู้
+        <span style="background:var(--color-warning);color:white;font-size:0.75rem;padding:4px 12px;border-radius:12px;font-weight:600">งานแยก</span>
+      </h3>
+      <p style="margin:0 0 16px 0;color:var(--color-muted)">
+        นักศึกษาทุกชั้นปี กรุณาส่งแผนการจัดการเรียนรู้แยกต่างหากจากการประเมินรายสัปดาห์
+      </p>
+
+      <!-- Lesson Plan Upload UI -->
+      <div style="background:white;padding:20px;border-radius:8px;border:1px solid var(--color-border)">
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px">
+          <input type="file" id="mainLessonPlanInput" accept=".pdf,.doc,.docx,.ppt,.pptx" style="display:none">
+          <button type="button" class="btn btn--primary" onclick="document.getElementById('mainLessonPlanInput').click()" style="display:flex;align-items:center;gap:8px">
+            <span>📎</span>
+            เลือกไฟล์แผนการจัดการเรียนรู้
+          </button>
+          <span id="mainLessonPlanFileName" style="color:var(--color-muted);font-size:0.9rem">ยังไม่ได้เลือกไฟล์</span>
+        </div>
+
+        <div id="mainLessonPlanPreview" style="display:none;background:var(--color-bg);padding:16px;border-radius:8px;border:1px solid var(--color-border)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <strong style="color:var(--color-text)">ตัวอย่างไฟล์:</strong>
+            <button type="button" class="btn btn--danger btn--icon" onclick="removeMainLessonPlan()" title="ลบไฟล์">
+              🗑️
+            </button>
+          </div>
+          <div id="mainLessonPlanPreviewContent"></div>
+        </div>
+
+        <div style="margin-top:16px;text-align:right">
+          <button type="button" class="btn btn--success" onclick="submitLessonPlan()" id="submitLessonPlanBtn" disabled style="display:flex;align-items:center;gap:8px;margin-left:auto">
+            <span>📤</span>
+            ส่งแผนการจัดการเรียนรู้
+          </button>
+        </div>
+      </div>
+      
+      <!-- Lesson Plan Status -->
+      <div id="lessonPlanStatus" style="margin-top:16px;padding:12px;border-radius:8px;background:#fff3cd;color:#856404;display:none">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span>📋</span>
+          <span id="lessonPlanStatusText">สถานะ: รอส่งแผนการจัดการเรียนรู้</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Evaluation Grid: 3 weeks × 3 evaluations -->
     <div style="margin-top:24px">
       <% for (let week = 1; week <= 3; week++) { %>
@@ -685,7 +734,15 @@ const evaluationData = {
   evaluations: {}  // Will store: { evalNum: { date: 'YYYY-MM-DD', answers: {...}, submitted: true } }
 };
 
+// Separate lesson plan data
+const lessonPlanData = {
+  uploaded: false,
+  file: null,
+  submittedDate: null
+};
+
 let currentEvalNum = null;
+let mainLessonPlanFile = null;
 
 // Check if within practice period
 function isWithinPracticePeriod() {
@@ -721,7 +778,150 @@ document.addEventListener('DOMContentLoaded', function() {
       confirmButtonText: 'รับทราบ'
     });
   }
+
+  // Setup main lesson plan upload handler
+  const mainLessonPlanInput = document.getElementById('mainLessonPlanInput');
+  if (mainLessonPlanInput) {
+    mainLessonPlanInput.addEventListener('change', handleMainLessonPlanUpload);
+  }
+  
+  // Load lesson plan status (guard in case function isn't present)
+  if (typeof loadLessonPlanStatus === 'function') {
+    loadLessonPlanStatus();
+  }
 });
+
+// Handle main lesson plan file upload
+function handleMainLessonPlanUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  // Check file size (20MB = 20 * 1024 * 1024 bytes)
+  const maxSize = 20 * 1024 * 1024;
+  if (file.size > maxSize) {
+    Swal.fire({
+      icon: 'error',
+      title: 'ไฟล์ใหญ่เกินไป',
+      text: 'กรุณาเลือกไฟล์ที่มีขนาดไม่เกิน 20MB',
+      confirmButtonText: 'รับทราบ'
+    });
+    e.target.value = '';
+    return;
+  }
+
+  // Check file type
+  const allowedTypes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+  ];
+  
+  if (!allowedTypes.includes(file.type)) {
+    Swal.fire({
+      icon: 'error',
+      title: 'ไฟล์ไม่ถูกต้อง',
+      text: 'กรุณาเลือกไฟล์ PDF, Word หรือ PowerPoint เท่านั้น',
+      confirmButtonText: 'รับทราบ'
+    });
+    e.target.value = '';
+    return;
+  }
+
+  // Store file
+  mainLessonPlanFile = file;
+
+  // Update file name display
+  document.getElementById('mainLessonPlanFileName').textContent = file.name;
+  document.getElementById('mainLessonPlanFileName').style.color = 'var(--color-primary)';
+  
+  // Enable submit button
+  document.getElementById('submitLessonPlanBtn').disabled = false;
+
+  // Show preview
+  showMainLessonPlanPreview(file);
+}
+
+// Show main lesson plan preview
+function showMainLessonPlanPreview(file) {
+  const previewDiv = document.getElementById('mainLessonPlanPreview');
+  const contentDiv = document.getElementById('mainLessonPlanPreviewContent');
+  
+  previewDiv.style.display = 'block';
+
+  // Get file icon based on type
+  let icon = '📄';
+  if (file.type.includes('pdf')) icon = '📕';
+  else if (file.type.includes('word')) icon = '📘';
+  else if (file.type.includes('presentation')) icon = '📙';
+
+  const fileSizeKB = (file.size / 1024).toFixed(2);
+  const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+  const displaySize = file.size > 1024 * 1024 ? `${fileSizeMB} MB` : `${fileSizeKB} KB`;
+
+  contentDiv.innerHTML = `
+    <div style="display:flex;align-items:center;gap:16px;padding:12px;background:var(--color-bg);border-radius:6px">
+      <div style="font-size:3rem">${icon}</div>
+      <div style="flex:1">
+        <div style="font-weight:600;color:var(--color-text);margin-bottom:4px">${file.name}</div>
+        <div style="font-size:0.85rem;color:var(--color-muted)">
+          ขนาด: ${displaySize} | ประเภท: ${getFileTypeName(file.type)}
+        </div>
+        <div style="margin-top:8px">
+          <span style="background:#d4edda;color:#155724;padding:4px 12px;border-radius:12px;font-size:0.8rem;font-weight:500">
+            ✓ พร้อมส่ง
+          </span>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // For PDF files, show embedded preview
+  if (file.type === 'application/pdf') {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      contentDiv.innerHTML += `
+        <div style="margin-top:16px;border:1px solid var(--color-border);border-radius:8px;overflow:hidden">
+          <div style="background:var(--color-bg);padding:8px;font-weight:500;font-size:0.9rem">
+            ตัวอย่าง PDF:
+          </div>
+          <iframe src="${e.target.result}" style="width:100%;height:400px;border:none"></iframe>
+        </div>
+      `;
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+// Get file type display name
+function getFileTypeName(mimeType) {
+  const types = {
+    'application/pdf': 'PDF',
+    'application/msword': 'Word (DOC)',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word (DOCX)',
+    'application/vnd.ms-powerpoint': 'PowerPoint (PPT)',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PowerPoint (PPTX)'
+  };
+  return types[mimeType] || 'ไม่ทราบประเภท';
+}
+
+// Remove main lesson plan
+function removeMainLessonPlan() {
+  mainLessonPlanFile = null;
+  document.getElementById('mainLessonPlanInput').value = '';
+  document.getElementById('mainLessonPlanFileName').textContent = 'ยังไม่ได้เลือกไฟล์';
+  document.getElementById('mainLessonPlanFileName').style.color = 'var(--color-muted)';
+  document.getElementById('mainLessonPlanPreview').style.display = 'none';
+  document.getElementById('submitLessonPlanBtn').disabled = true;
+  
+  Swal.fire({
+    icon: 'success',
+    title: 'ลบไฟล์สำเร็จ',
+    timer: 1500,
+    showConfirmButton: false
+  });
+}
 
 function loadEvaluationStates() {
   // Load from localStorage or API
@@ -777,7 +977,8 @@ function startEvaluation(evalNum) {
     evaluationData.evaluations[evalNum] = {
       date: new Date().toISOString().split('T')[0],
       answers: {},
-      submitted: false
+      submitted: false,
+      lessonPlan: null
     };
     saveEvaluationData();
     loadEvaluationStates();
@@ -796,6 +997,8 @@ function startEvaluation(evalNum) {
       if (radio) radio.checked = true;
     });
   }
+
+
 
   document.getElementById('evaluationModal').style.display = 'flex';
 }
@@ -818,6 +1021,8 @@ function viewEvaluation(evalNum) {
     });
   }
 
+
+
   // Open modal in view-only mode
   document.getElementById('evaluationModal').style.display = 'flex';
   document.querySelectorAll('#evaluationForm input').forEach(input => input.disabled = true);
@@ -832,9 +1037,12 @@ function closeEvaluationModal() {
   }
   document.getElementById('evaluationModal').style.display = 'none';
   currentEvalNum = null;
+  
   // Re-enable inputs for next time
   document.querySelectorAll('#evaluationForm input').forEach(input => input.disabled = false);
   document.querySelector('.modal-footer .btn--primary').style.display = 'block';
+  
+
 }
 
 function saveProgress() {
@@ -868,6 +1076,8 @@ function submitEvaluation() {
     return;
   }
 
+
+
   // Confirm submission
   Swal.fire({
     icon: 'question',
@@ -887,21 +1097,111 @@ function submitEvaluation() {
     if (result.isConfirmed) {
       // Save and mark as submitted
       saveProgress();
+      
       evaluationData.evaluations[currentEvalNum].submitted = true;
       saveEvaluationData();
       loadEvaluationStates();
+      showSuccessAndClose();
+    }
+  });
+}
 
-      Swal.fire({
-        icon: 'success',
-        title: 'ส่งแบบประเมินสำเร็จ',
-        text: `บันทึกผลการประเมินครั้งที่ ${currentEvalNum} เรียบร้อยแล้ว`,
-        confirmButtonText: 'ตกลง'
-      }).then(() => {
-        // Close modal and clear form content (answers preserved in evaluationData)
-        const form = document.getElementById('evaluationForm');
-        if (form) form.reset();
-        closeEvaluationModal();
-      });
+function showSuccessAndClose() {
+  Swal.fire({
+    icon: 'success',
+    title: 'ส่งแบบประเมินสำเร็จ',
+    text: `บันทึกผลการประเมินครั้งที่ ${currentEvalNum} เรียบร้อยแล้ว`,
+    confirmButtonText: 'ตกลง'
+  }).then(() => {
+    // Close modal and clear form content (answers preserved in evaluationData)
+    const form = document.getElementById('evaluationForm');
+    if (form) form.reset();
+    closeEvaluationModal();
+  });
+}
+
+// Load lesson plan status
+function loadLessonPlanStatus() {
+  const saved = localStorage.getItem('lessonPlanData');
+  if (saved) {
+    Object.assign(lessonPlanData, JSON.parse(saved));
+  }
+  
+  const statusDiv = document.getElementById('lessonPlanStatus');
+  const statusText = document.getElementById('lessonPlanStatusText');
+  
+  if (lessonPlanData.uploaded) {
+    statusDiv.style.display = 'block';
+    statusDiv.style.background = '#d4edda';
+    statusDiv.style.color = '#155724';
+    statusText.textContent = `สถานะ: ส่งแผนการจัดการเรียนรู้เรียบร้อยแล้ว (${formatThaiDate(lessonPlanData.submittedDate)})`;
+    
+    // Show uploaded file info
+    document.getElementById('mainLessonPlanFileName').textContent = lessonPlanData.file.name;
+    document.getElementById('mainLessonPlanFileName').style.color = 'var(--color-success)';
+    document.getElementById('submitLessonPlanBtn').textContent = '✅ ส่งแล้ว';
+    document.getElementById('submitLessonPlanBtn').disabled = true;
+  } else {
+    statusDiv.style.display = 'block';
+    statusText.textContent = 'สถานะ: รอส่งแผนการจัดการเรียนรู้';
+  }
+}
+
+// Submit lesson plan
+function submitLessonPlan() {
+  if (!mainLessonPlanFile) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'กรุณาเลือกไฟล์',
+      text: 'กรุณาเลือกแผนการจัดการเรียนรู้ก่อนส่ง',
+      confirmButtonText: 'รับทราบ'
+    });
+    return;
+  }
+  
+  // Confirm submission
+  Swal.fire({
+    icon: 'question',
+    title: 'ยืนยันการส่งแผนการจัดการเรียนรู้',
+    html: `
+      <p>คุณต้องการส่งแผนการจัดการเรียนรู้หรือไม่?</p>
+      <p style="color:var(--color-primary);font-weight:600">${mainLessonPlanFile.name}</p>
+      <p style="color:var(--color-danger);margin-top:12px">
+        <strong>⚠️ หมายเหตุ:</strong> เมื่อส่งแล้วจะไม่สามารถแก้ไขได้อีก
+      </p>
+    `,
+    showCancelButton: true,
+    confirmButtonText: 'ยืนยันส่ง',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#2E3094',
+    cancelButtonColor: '#6c757d'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        lessonPlanData.uploaded = true;
+        lessonPlanData.submittedDate = new Date().toISOString().split('T')[0];
+        lessonPlanData.file = {
+          name: mainLessonPlanFile.name,
+          size: mainLessonPlanFile.size,
+          type: mainLessonPlanFile.type,
+          dataUrl: e.target.result
+        };
+        
+        // Save to localStorage
+        localStorage.setItem('lessonPlanData', JSON.stringify(lessonPlanData));
+        
+        // Update UI
+        loadLessonPlanStatus();
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'ส่งแผนการจัดการเรียนรู้สำเร็จ',
+          text: 'บันทึกแผนการจัดการเรียนรู้เรียบร้อยแล้ว',
+          confirmButtonText: 'ตกลง'
+        });
+      };
+      reader.readAsDataURL(mainLessonPlanFile);
     }
   });
 }
