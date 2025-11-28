@@ -48,6 +48,35 @@
                     <span class="sidebar-text">โปรไฟล์</span>
                 </a>
             </li>
+            
+            <!-- Admin Menu Section -->
+            <li class="sidebar-menu-divider">
+                <span class="sidebar-divider-text">ผู้ดูแลระบบ</span>
+            </li>
+            <li class="sidebar-menu-item <%= currentPage === 'admin-observations' ? 'active' : '' %>">
+                <a href="/dashboard/admin/observations" class="sidebar-link">
+                    <span class="sidebar-icon">👁️‍🗨️</span>
+                    <span class="sidebar-text">จัดการสังเกตุ</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item <%= currentPage === 'admin-users' ? 'active' : '' %>">
+                <a href="/dashboard/admin/users" class="sidebar-link">
+                    <span class="sidebar-icon">👥</span>
+                    <span class="sidebar-text">จัดการบัญชีผู้ใช้</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item <%= currentPage === 'admin-system' ? 'active' : '' %>">
+                <a href="/dashboard/admin/system" class="sidebar-link">
+                    <span class="sidebar-icon">⚙️</span>
+                    <span class="sidebar-text">จัดการระบบ</span>
+                </a>
+            </li>
+            <li class="sidebar-menu-item <%= currentPage === 'admin-reports' ? 'active' : '' %>">
+                <a href="/dashboard/admin/reports" class="sidebar-link">
+                    <span class="sidebar-icon">📊</span>
+                    <span class="sidebar-text">รายงานผลการสังเกตุ</span>
+                </a>
+            </li>
         </ul>
     </nav>
 

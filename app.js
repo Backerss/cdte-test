@@ -316,6 +316,23 @@ app.get('/dashboard/profile', requireAuth, (req, res) => {
 	renderIntoLayout(req, res, 'profile', { title: 'โปรไฟล์', currentPage: 'profile' });
 });
 
+// Admin dashboard routes
+app.get('/dashboard/admin/observations', requireAuth, (req, res) => {
+	renderIntoLayout(req, res, 'admin/observations', { title: 'จัดการสังเกตุ', currentPage: 'admin-observations' });
+});
+
+app.get('/dashboard/admin/users', requireAuth, (req, res) => {
+	renderIntoLayout(req, res, 'admin/users', { title: 'จัดการบัญชีผู้ใช้', currentPage: 'admin-users' });
+});
+
+app.get('/dashboard/admin/system', requireAuth, (req, res) => {
+	renderIntoLayout(req, res, 'admin/system', { title: 'จัดการระบบ', currentPage: 'admin-system' });
+});
+
+app.get('/dashboard/admin/reports', requireAuth, (req, res) => {
+	renderIntoLayout(req, res, 'admin/reports', { title: 'รายงานผลการสังเกตุ', currentPage: 'admin-reports' });
+});
+
 // Logout route
 app.get('/logout', (req, res) => {
 	// TODO: Destroy session

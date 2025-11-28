@@ -1,0 +1,1392 @@
+<%
+  // Mock comprehensive student data for reports
+  const allStudents = [
+    {
+      id: '6414421001',
+      firstName: 'สมชาย',
+      lastName: 'ใจดี',
+      year: 1,
+      evaluationData: {
+        personality: 4.5,
+        teaching: 4.2,
+        planning: 4.0,
+        classroom: 4.3,
+        assessment: 3.8,
+        innovation: 4.6,
+        responsibility: 4.8,
+        punctuality: 4.7
+      }
+    },
+    {
+      id: '6414421002',
+      firstName: 'สมหญิง',
+      lastName: 'รักเรียน',
+      year: 1,
+      evaluationData: {
+        personality: 4.7,
+        teaching: 4.5,
+        planning: 4.3,
+        classroom: 4.6,
+        assessment: 4.2,
+        innovation: 4.8,
+        responsibility: 4.9,
+        punctuality: 4.8
+      }
+    },
+    {
+      id: '6314421001',
+      firstName: 'วิชัย',
+      lastName: 'มานะ',
+      year: 2,
+      evaluationData: {
+        personality: 4.3,
+        teaching: 4.1,
+        planning: 3.9,
+        classroom: 4.2,
+        assessment: 3.7,
+        innovation: 4.4,
+        responsibility: 4.6,
+        punctuality: 4.5
+      }
+    },
+    {
+      id: '6314421002',
+      firstName: 'สุดา',
+      lastName: 'สุขใจ',
+      year: 2,
+      evaluationData: {
+        personality: 4.8,
+        teaching: 4.6,
+        planning: 4.5,
+        classroom: 4.7,
+        assessment: 4.4,
+        innovation: 4.9,
+        responsibility: 5.0,
+        punctuality: 4.9
+      }
+    },
+    {
+      id: '6214421001',
+      firstName: 'ประยุทธ',
+      lastName: 'วิทยา',
+      year: 3,
+      evaluationData: {
+        personality: 4.2,
+        teaching: 4.0,
+        planning: 3.8,
+        classroom: 4.1,
+        assessment: 3.6,
+        innovation: 4.3,
+        responsibility: 4.5,
+        punctuality: 4.4
+      }
+    },
+    {
+      id: '6214421002',
+      firstName: 'อรุณ',
+      lastName: 'ฉลาด',
+      year: 3,
+      evaluationData: {
+        personality: 4.6,
+        teaching: 4.4,
+        planning: 4.2,
+        classroom: 4.5,
+        assessment: 4.1,
+        innovation: 4.7,
+        responsibility: 4.8,
+        punctuality: 4.7
+      }
+    },
+    {
+      id: '6114421001',
+      firstName: 'มานะ',
+      lastName: 'ขยัน',
+      year: 4,
+      evaluationData: {
+        personality: 4.4,
+        teaching: 4.2,
+        planning: 4.0,
+        classroom: 4.3,
+        assessment: 3.9,
+        innovation: 4.5,
+        responsibility: 4.7,
+        punctuality: 4.6
+      }
+    },
+    {
+      id: '6114421002',
+      firstName: 'วรรณา',
+      lastName: 'เก่งการ',
+      year: 4,
+      evaluationData: {
+        personality: 4.9,
+        teaching: 4.7,
+        planning: 4.6,
+        classroom: 4.8,
+        assessment: 4.5,
+        innovation: 5.0,
+        responsibility: 5.0,
+        punctuality: 5.0
+      }
+    }
+  ];
+
+  // Category labels
+  const categoriesLabel = {
+    personality: 'บุคลิกภาพและมนุษยสัมพันธ์',
+    teaching: 'ทักษะการสอน',
+    planning: 'การวางแผนการสอน',
+    classroom: 'การจัดการชั้นเรียน',
+    assessment: 'การวัดและประเมินผล',
+    innovation: 'นวัตกรรมและสื่อการสอน',
+    responsibility: 'ความรับผิดชอบ',
+    punctuality: 'ความตรงต่อเวลา'
+  };
+
+  // Calculate category averages
+  const categoryAverages = {};
+  Object.keys(categoriesLabel).forEach(key => {
+    const total = allStudents.reduce((sum, student) => sum + student.evaluationData[key], 0);
+    categoryAverages[key] = (total / allStudents.length).toFixed(2);
+  });
+
+  // Calculate overall stats
+  const totalStudents = allStudents.length;
+  const grandAverage = (Object.values(categoryAverages).reduce((sum, val) => sum + parseFloat(val), 0) / Object.keys(categoryAverages).length).toFixed(2);
+  
+  // Additional statistics
+  const allScores = allStudents.flatMap(s => Object.values(s.evaluationData));
+  const min = Math.min(...allScores);
+  const max = Math.max(...allScores);
+  const excellent = allScores.filter(s => s >= 4.5).length;
+  const needImprovement = allScores.filter(s => s < 3.5).length;
+%>
+
+<div class="page-content">
+<div class="card">
+<div class="page-header">
+<div style="flex:1">
+<h2 style="margin-top:0;color:var(--color-primary);display:flex;align-items:center;gap:12px">
+  <span>📊</span>
+  รายงานผลการประเมินการฝึกประสบการณ์
+</h2>
+<p class="text-muted">รายงานภาพรวมผลการประเมินของนักศึกษาทุกชั้นปี พร้อมเครื่องมือวิเคราะห์ข้อมูล</p>
+</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;">
+  <button class="btn btn--secondary" onclick="refreshData()">
+    <span>🔄</span> รีเฟรช
+  </button>
+  <button class="btn btn--primary" onclick="openExportModal()">
+    <span>📥</span> Export ข้อมูล
+  </button>
+  <button class="btn btn--primary" onclick="printReport()">
+    <span>🖨️</span> พิมพ์รายงาน
+  </button>
+</div>
+</div>
+
+<!-- Filter Controls -->
+<div class="filter-section">
+  <h3 class="filter-title">🔍 เครื่องมือค้นหาและกรองข้อมูล</h3>
+  <div class="filter-grid">
+    <div class="form-group" style="margin:0;">
+      <label class="form-label">ค้นหานักศึกษา</label>
+      <input type="text" id="searchStudent" class="form-input" placeholder="ชื่อ, รหัสนักศึกษา..." onkeyup="applyFilters()">
+    </div>
+    
+    <div class="form-group" style="margin:0;">
+      <label class="form-label">ชั้นปี</label>
+      <select id="filterYear" class="form-input" onchange="applyFilters()">
+        <option value="">ทุกชั้นปี</option>
+        <option value="1">ปี 1</option>
+        <option value="2">ปี 2</option>
+        <option value="3">ปี 3</option>
+        <option value="4">ปี 4</option>
+      </select>
+    </div>
+
+    <div class="form-group" style="margin:0;">
+      <label class="form-label">ช่วงคะแนน</label>
+      <select id="filterScore" class="form-input" onchange="applyFilters()">
+        <option value="">ทุกระดับ</option>
+        <option value="excellent">ดีมาก (4.5-5.0)</option>
+        <option value="verygood">ดี (4.0-4.49)</option>
+        <option value="good">ปานกลาง (3.5-3.99)</option>
+        <option value="fair">พอใช้ (3.0-3.49)</option>
+        <option value="poor">ปรับปรุง (&lt;3.0)</option>
+      </select>
+    </div>
+
+    <div class="form-group" style="margin:0;">
+      <label class="form-label">เรียงตาม</label>
+      <select id="sortBy" class="form-input" onchange="applyFilters()">
+        <option value="name">ชื่อ (ก-ฮ)</option>
+        <option value="id">รหัสนักศึกษา</option>
+        <option value="year">ชั้นปี</option>
+        <option value="score-desc">คะแนนสูงสุด</option>
+        <option value="score-asc">คะแนนต่ำสุด</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- Overall Statistics Dashboard -->
+<div class="stats-section">
+  <h3 class="section-title">
+    <span>📈</span> สถิติภาพรวม
+  </h3>
+  
+  <div class="stats-overview-grid">
+    <div class="stat-card">
+      <div class="stat-icon">👥</div>
+      <div class="stat-content">
+        <div class="stat-value"><%= totalStudents %></div>
+        <div class="stat-label">นักศึกษาทั้งหมด</div>
+      </div>
+    </div>
+    
+    <div class="stat-card">
+      <div class="stat-icon">⭐</div>
+      <div class="stat-content">
+        <div class="stat-value"><%= grandAverage %></div>
+        <div class="stat-label">คะแนนเฉลี่ยรวม</div>
+      </div>
+    </div>
+    
+    <div class="stat-card">
+      <div class="stat-icon">🏆</div>
+      <div class="stat-content">
+        <div class="stat-value"><%= allStudents.filter(s => {
+          const avg = Object.values(s.evaluationData).reduce((sum, val) => sum + val, 0) / Object.keys(s.evaluationData).length;
+          return avg >= 4.5;
+        }).length %></div>
+        <div class="stat-label">นักศึกษาระดับดีมาก</div>
+      </div>
+    </div>
+    
+    <div class="stat-card">
+      <div class="stat-icon">📚</div>
+      <div class="stat-content">
+        <div class="stat-value"><%= Object.keys(categoriesLabel).length %></div>
+        <div class="stat-label">หัวข้อการประเมิน</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Year Distribution -->
+  <div class="year-distribution">
+    <h4 style="margin:16px 0 12px 0;color:var(--color-text);">การกระจายตามชั้นปี</h4>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(150px, 1fr));gap:12px;">
+      <% for(let year = 1; year <= 4; year++) { 
+        const count = allStudents.filter(s => s.year === year).length;
+      %>
+        <div class="year-badge" style="background:var(--color-bg);padding:12px;border-radius:8px;text-align:center;">
+          <div style="font-size:1.5rem;font-weight:600;color:var(--color-primary);"><%= count %></div>
+          <div style="font-size:0.9rem;color:var(--color-muted);">ชั้นปีที่ <%= year %></div>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- Charts Section -->
+<div class="charts-section">
+  <h3 class="section-title">
+    <span>📊</span> กราฟวิเคราะห์ข้อมูล
+  </h3>
+  
+  <!-- Overall Average Bar Chart -->
+  <div class="card chart-card">
+    <h4 class="chart-title">
+      <span>📊</span> คะแนนเฉลี่ยแต่ละด้าน (ทุกนักศึกษา)
+    </h4>
+    <canvas id="overallBarChart"></canvas>
+  </div>
+
+  <!-- Charts Grid -->
+  <div class="charts-grid">
+    <div class="card chart-card">
+      <h4 class="chart-title">
+        <span>📉</span> แนวโน้มคะแนนตามเวลา
+      </h4>
+      <canvas id="trendLineChart"></canvas>
+    </div>
+    
+    <div class="card chart-card">
+      <h4 class="chart-title">
+        <span>🥧</span> การกระจายระดับคะแนน
+      </h4>
+      <canvas id="distributionPieChart"></canvas>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="card chart-card">
+      <h4 class="chart-title">
+        <span>🕸️</span> เปรียบเทียบทักษะทั้งหมด (Radar)
+      </h4>
+      <canvas id="skillsRadarChart"></canvas>
+    </div>
+    
+    <div class="card chart-card">
+      <h4 class="chart-title">
+        <span>📊</span> เปรียบเทียบตามชั้นปี
+      </h4>
+      <canvas id="yearComparisonChart"></canvas>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="card chart-card">
+      <h4 class="chart-title">
+        <span>🍩</span> สัดส่วนผลการประเมิน
+      </h4>
+      <canvas id="performanceDoughnutChart"></canvas>
+    </div>
+    
+    <div class="card chart-card">
+      <h4 class="chart-title">
+        <span>🗻</span> พื้นที่ครอบคลุมทักษะ
+      </h4>
+      <canvas id="skillsAreaChart"></canvas>
+    </div>
+  </div>
+
+  <div class="card chart-card">
+    <h4 class="chart-title">
+      <span>🔵</span> การกระจายคะแนนนักศึกษา (Scatter Plot)
+    </h4>
+    <canvas id="studentScatterChart"></canvas>
+  </div>
+</div>
+
+<!-- Detailed Student Comparison Table -->
+<div class="table-section">
+  <h3 class="section-title">
+    <span>📋</span> ตารางเปรียบเทียบรายละเอียด
+  </h3>
+  
+  <div class="table-responsive">
+    <table class="data-table" id="studentsTable">
+      <thead>
+        <tr>
+          <th rowspan="2" style="vertical-align:middle;">รหัสนักศึกษา</th>
+          <th rowspan="2" style="vertical-align:middle;">ชื่อ-นามสกุล</th>
+          <th rowspan="2" style="vertical-align:middle;">ชั้นปี</th>
+          <% Object.entries(categoriesLabel).forEach(entry => { %>
+            <th><%= entry[1] %></th>
+          <% }); %>
+          <th rowspan="2" style="vertical-align:middle;background:#f0f9ff;">เฉลี่ย</th>
+          <th rowspan="2" style="vertical-align:middle;">ระดับ</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        <% allStudents.forEach(student => {
+          const studentAvg = Object.values(student.evaluationData).reduce((sum, val) => sum + val, 0) / Object.keys(student.evaluationData).length;
+          const gradeText = studentAvg >= 4.5 ? 'ดีมาก' : studentAvg >= 4 ? 'ดี' : studentAvg >= 3.5 ? 'ปานกลาง' : studentAvg >= 3 ? 'พอใช้' : 'ปรับปรุง';
+          const gradeClass = studentAvg >= 4.5 ? 'grade-excellent' : studentAvg >= 4 ? 'grade-verygood' : studentAvg >= 3.5 ? 'grade-good' : studentAvg >= 3 ? 'grade-fair' : 'grade-poor';
+        %>
+          <tr class="student-row" data-student-id="<%= student.id %>" data-year="<%= student.year %>" data-avg="<%= studentAvg.toFixed(2) %>">
+            <td><strong><%= student.id %></strong></td>
+            <td><%= student.firstName %> <%= student.lastName %></td>
+            <td style="text-align:center;"><span class="year-badge-sm">ปี <%= student.year %></span></td>
+            <% Object.keys(categoriesLabel).forEach(key => {
+              const score = student.evaluationData[key];
+              const scoreClass = score >= 4.5 ? 'score-excellent' : score >= 4 ? 'score-verygood' : score >= 3.5 ? 'score-good' : score >= 3 ? 'score-fair' : 'score-poor';
+            %>
+              <td style="text-align:center;" class="<%= scoreClass %>-cell">
+                <%= score.toFixed(1) %>
+              </td>
+            <% }); %>
+            <td style="text-align:center;background:#f0f9ff;font-weight:700;font-size:1.05rem;">
+              <%= studentAvg.toFixed(2) %>
+            </td>
+            <td style="text-align:center;"><span class="grade-badge <%= gradeClass %>"><%= gradeText %></span></td>
+          </tr>
+        <% }); %>
+      </tbody>
+      <tfoot>
+        <tr style="background:var(--color-primary);color:white;font-weight:600;">
+          <td colspan="3" style="text-align:center;">ค่าเฉลี่ยรวมทุกคน</td>
+          <% Object.keys(categoriesLabel).forEach(key => { %>
+            <td style="text-align:center;"><%= categoryAverages[key] %></td>
+          <% }); %>
+          <td style="text-align:center;background:#1e40af;"><%= grandAverage %></td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+<!-- Category Deep Analysis -->
+<div class="analysis-section">
+  <h3 class="section-title">
+    <span>🔬</span> วิเคราะห์เชิงลึกแต่ละหมวดหมู่
+  </h3>
+  
+  <div class="category-analysis-grid">
+    <% Object.entries(categoriesLabel).forEach(([key, label]) => {
+      const scores = allStudents.map(s => s.evaluationData[key]);
+      const avg = (scores.reduce((sum, val) => sum + val, 0) / scores.length).toFixed(2);
+      const min = Math.min(...scores).toFixed(1);
+      const max = Math.max(...scores).toFixed(1);
+      const excellent = scores.filter(s => s >= 4.5).length;
+      const needImprovement = scores.filter(s => s < 3.5).length;
+    %>
+      <div class="category-card">
+        <div class="category-header">
+          <h4><%= label %></h4>
+          <div class="category-avg"><%= avg %></div>
+        </div>
+        <div class="category-stats">
+          <div class="stat-row">
+            <span class="stat-label">สูงสุด:</span>
+            <span class="stat-value" style="color:#16A34A;"><%= max %></span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">ต่ำสุด:</span>
+            <span class="stat-value" style="color:#DC2626;"><%= min %></span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">ดีมาก:</span>
+            <span class="stat-value"><%= excellent %> คน</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">ต้องพัฒนา:</span>
+            <span class="stat-value"><%= needImprovement %> คน</span>
+          </div>
+        </div>
+      </div>
+    <% }); %>
+  </div>
+</div>
+
+</div>
+</div>
+
+<!-- Export Modal -->
+<div id="exportModal" class="modal-overlay" style="display:none">
+  <div class="modal-content" style="max-width:500px;">
+    <div class="modal-header">
+      <h3>📥 Export ข้อมูล</h3>
+      <button type="button" class="modal-close" onclick="closeExportModal()">×</button>
+    </div>
+    
+    <div class="modal-body" style="padding:24px;">
+      <div class="form-group">
+        <label class="form-label">เลือกรูปแบบการ Export</label>
+        <div style="display:flex;flex-direction:column;gap:12px;margin-top:12px;">
+          <button class="export-option-btn" onclick="exportToPDF()">
+            <span style="font-size:2rem;">📄</span>
+            <div>
+              <div style="font-weight:600;">PDF Document</div>
+              <div style="font-size:0.85rem;color:var(--color-muted);">เหมาะสำหรับการพิมพ์และเก็บเป็นเอกสาร</div>
+            </div>
+          </button>
+          
+          <button class="export-option-btn" onclick="exportToExcel()">
+            <span style="font-size:2rem;">📊</span>
+            <div>
+              <div style="font-weight:600;">Excel Spreadsheet</div>
+              <div style="font-size:0.85rem;color:var(--color-muted);">เหมาะสำหรับการวิเคราะห์และแก้ไขข้อมูล</div>
+            </div>
+          </button>
+          
+          <button class="export-option-btn" onclick="exportToCSV()">
+            <span style="font-size:2rem;">📋</span>
+            <div>
+              <div style="font-weight:600;">CSV File</div>
+              <div style="font-size:0.85rem;color:var(--color-muted);">เหมาะสำหรับนำเข้าระบบอื่นๆ</div>
+            </div>
+          </button>
+          
+          <button class="export-option-btn" onclick="exportToJSON()">
+            <span style="font-size:2rem;">🔧</span>
+            <div>
+              <div style="font-weight:600;">JSON Data</div>
+              <div style="font-size:0.85rem;color:var(--color-muted);">สำหรับนักพัฒนาและการประมวลผลข้อมูล</div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <div class="modal-footer">
+      <button type="button" class="btn btn--secondary" onclick="closeExportModal()">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.filter-section {
+  background: var(--color-bg);
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 32px;
+}
+
+.filter-title {
+  margin: 0 0 16px 0;
+  color: var(--color-text);
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.stats-section {
+  margin-bottom: 32px;
+}
+
+.section-title {
+  color: var(--color-primary);
+  font-size: 1.3rem;
+  margin: 0 0 20px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.stats-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-bg) 100%);
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  border-color: var(--color-primary);
+}
+
+.stat-icon {
+  font-size: 3rem;
+  flex-shrink: 0;
+}
+
+.stat-content {
+  flex: 1;
+}
+
+.stat-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.stat-label {
+  font-size: 0.95rem;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.charts-section {
+  margin-bottom: 32px;
+}
+
+.chart-card {
+  margin-bottom: 24px;
+  padding: 24px;
+}
+
+.chart-title {
+  margin: 0 0 20px 0;
+  color: var(--color-text);
+  font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.table-section {
+  margin-bottom: 32px;
+}
+
+.table-responsive {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.data-table th {
+  background: var(--color-primary);
+  color: white;
+  padding: 12px 8px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.data-table td {
+  padding: 10px 8px;
+  border: 1px solid var(--color-border);
+}
+
+.data-table tbody tr:hover {
+  background: var(--color-bg);
+}
+
+.year-badge-sm {
+  background: var(--color-primary);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.score-excellent-cell { background: rgba(22, 163, 74, 0.1); color: #16A34A; font-weight: 600; }
+.score-verygood-cell { background: rgba(59, 130, 246, 0.1); color: #3B82F6; font-weight: 600; }
+.score-good-cell { background: rgba(251, 180, 37, 0.1); color: #FBB425; font-weight: 600; }
+.score-fair-cell { background: rgba(245, 158, 11, 0.1); color: #F59E0B; font-weight: 600; }
+.score-poor-cell { background: rgba(220, 38, 38, 0.1); color: #DC2626; font-weight: 600; }
+
+.grade-badge {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.grade-excellent { background: #16A34A; color: white; }
+.grade-verygood { background: #3B82F6; color: white; }
+.grade-good { background: #FBB425; color: white; }
+.grade-fair { background: #F59E0B; color: white; }
+.grade-poor { background: #DC2626; color: white; }
+
+.analysis-section {
+  margin-bottom: 32px;
+}
+
+.category-analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.category-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 20px;
+  transition: all 0.3s ease;
+}
+
+.category-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: var(--color-primary);
+}
+
+.category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.category-header h4 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 0.95rem;
+}
+
+.category-avg {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.category-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.stat-row .stat-label {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  margin: 0;
+}
+
+.stat-row .stat-value {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.export-option-btn {
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+}
+
+.export-option-btn:hover {
+  border-color: var(--color-primary);
+  background: var(--color-bg);
+  transform: translateX(4px);
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100000;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-content {
+  background: var(--color-surface);
+  border-radius: 12px;
+  width: 95%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.3s ease;
+  z-index: 100001;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 2px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: var(--color-primary);
+  font-size: 1.3rem;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.8rem;
+  cursor: pointer;
+  color: var(--color-muted);
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: var(--color-danger);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 2px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media print {
+  .page-header button,
+  .filter-section,
+  .modal-overlay {
+    display: none !important;
+  }
+  
+  .card {
+    break-inside: avoid;
+  }
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+// Data from server
+const studentsData = <%- JSON.stringify(allStudents) %>;
+const categoriesLabel = <%- JSON.stringify(categoriesLabel) %>;
+const categoryAverages = <%- JSON.stringify(categoryAverages) %>;
+
+let filteredStudents = [...studentsData];
+
+// Chart.js Configuration
+Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+Chart.defaults.color = '#0F1724';
+
+// 1. Overall Bar Chart
+const overallBarCtx = document.getElementById('overallBarChart');
+if (overallBarCtx) {
+  new Chart(overallBarCtx, {
+    type: 'bar',
+    data: {
+      labels: Object.values(categoriesLabel),
+      datasets: [{
+        label: 'คะแนนเฉลี่ย',
+        data: Object.values(categoryAverages),
+        backgroundColor: ['#2E3094', '#FBB425', '#16A34A', '#DC2626', '#0EA5E9', '#F59E0B', '#8B5CF6', '#EC4899'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (context) => `คะแนน: ${parseFloat(context.parsed.y).toFixed(2)}`
+          }
+        }
+      },
+      scales: {
+        y: { beginAtZero: true, max: 5, title: { display: true, text: 'คะแนนเฉลี่ย' } },
+        x: { ticks: { maxRotation: 45, minRotation: 45 } }
+      }
+    }
+  });
+}
+
+// 2. Trend Line Chart
+const trendLineCtx = document.getElementById('trendLineChart');
+if (trendLineCtx) {
+  new Chart(trendLineCtx, {
+    type: 'line',
+    data: {
+      labels: ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.'],
+      datasets: [{
+        label: 'คะแนนเฉลี่ยรายเดือน',
+        data: [3.9, 4.0, 4.1, 4.15, 4.25, <%= grandAverage %>],
+        borderColor: '#2E3094',
+        backgroundColor: 'rgba(46, 48, 148, 0.1)',
+        tension: 0.4,
+        fill: true,
+        pointRadius: 6,
+        pointBackgroundColor: '#2E3094',
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: true, position: 'top' }
+      },
+      scales: {
+        y: { beginAtZero: true, max: 5, title: { display: true, text: 'คะแนน' } }
+      }
+    }
+  });
+}
+
+// 3. Distribution Pie Chart
+const distributionPieCtx = document.getElementById('distributionPieChart');
+if (distributionPieCtx) {
+  const allScores = studentsData.flatMap(s => Object.values(s.evaluationData));
+  const excellent = allScores.filter(s => s >= 4.5).length;
+  const veryGood = allScores.filter(s => s >= 4 && s < 4.5).length;
+  const good = allScores.filter(s => s >= 3.5 && s < 4).length;
+  const fair = allScores.filter(s => s >= 3 && s < 3.5).length;
+  const poor = allScores.filter(s => s < 3).length;
+
+  new Chart(distributionPieCtx, {
+    type: 'pie',
+    data: {
+      labels: ['ดีมาก', 'ดี', 'ปานกลาง', 'พอใช้', 'ปรับปรุง'],
+      datasets: [{
+        data: [excellent, veryGood, good, fair, poor],
+        backgroundColor: ['#16A34A', '#3B82F6', '#FBB425', '#F59E0B', '#DC2626'],
+        borderWidth: 3,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: {
+          callbacks: {
+            label: (context) => {
+              const total = allScores.length;
+              const percentage = ((context.parsed / total) * 100).toFixed(1);
+              return `${context.label}: ${context.parsed} (${percentage}%)`;
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+// 4. Skills Radar Chart
+const skillsRadarCtx = document.getElementById('skillsRadarChart');
+if (skillsRadarCtx) {
+  new Chart(skillsRadarCtx, {
+    type: 'radar',
+    data: {
+      labels: Object.values(categoriesLabel),
+      datasets: [{
+        label: 'คะแนนเฉลี่ยรวม',
+        data: Object.values(categoryAverages),
+        borderColor: '#2E3094',
+        backgroundColor: 'rgba(46, 48, 148, 0.2)',
+        pointBackgroundColor: '#2E3094',
+        pointBorderColor: '#fff',
+        pointHoverBackgroundColor: '#fff',
+        pointHoverBorderColor: '#2E3094'
+      }, {
+        label: 'เป้าหมาย',
+        data: Array(Object.keys(categoryAverages).length).fill(5),
+        borderColor: '#FBB425',
+        backgroundColor: 'rgba(251, 180, 37, 0.1)',
+        pointBackgroundColor: '#FBB425',
+        borderDash: [5, 5]
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        r: {
+          beginAtZero: true,
+          max: 5,
+          ticks: { stepSize: 1 }
+        }
+      }
+    }
+  });
+}
+
+// 5. Year Comparison Chart
+const yearComparisonCtx = document.getElementById('yearComparisonChart');
+if (yearComparisonCtx) {
+  const yearData = {};
+  for (let year = 1; year <= 4; year++) {
+    const yearStudents = studentsData.filter(s => s.year === year);
+    if (yearStudents.length > 0) {
+      const yearAvg = yearStudents.reduce((sum, s) => {
+        const avg = Object.values(s.evaluationData).reduce((a, b) => a + b, 0) / Object.keys(s.evaluationData).length;
+        return sum + avg;
+      }, 0) / yearStudents.length;
+      yearData[year] = yearAvg;
+    }
+  }
+
+  new Chart(yearComparisonCtx, {
+    type: 'bar',
+    data: {
+      labels: Object.keys(yearData).map(y => `ชั้นปีที่ ${y}`),
+      datasets: [{
+        label: 'คะแนนเฉลี่ย',
+        data: Object.values(yearData),
+        backgroundColor: ['#2E3094', '#FBB425', '#16A34A', '#DC2626'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false }
+      },
+      scales: {
+        y: { beginAtZero: true, max: 5, title: { display: true, text: 'คะแนนเฉลี่ย' } }
+      }
+    }
+  });
+}
+
+// 6. Performance Doughnut Chart
+const performanceDoughnutCtx = document.getElementById('performanceDoughnutChart');
+if (performanceDoughnutCtx) {
+  const studentAvgs = studentsData.map(s => {
+    return Object.values(s.evaluationData).reduce((sum, val) => sum + val, 0) / Object.keys(s.evaluationData).length;
+  });
+
+  const excellent = studentAvgs.filter(a => a >= 4.5).length;
+  const veryGood = studentAvgs.filter(a => a >= 4 && a < 4.5).length;
+  const good = studentAvgs.filter(a => a >= 3.5 && a < 4).length;
+  const needImprovement = studentAvgs.filter(a => a < 3.5).length;
+
+  new Chart(performanceDoughnutCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['ดีมาก', 'ดี', 'ปานกลาง', 'ต้องพัฒนา'],
+      datasets: [{
+        data: [excellent, veryGood, good, needImprovement],
+        backgroundColor: ['#16A34A', '#3B82F6', '#FBB425', '#DC2626'],
+        borderWidth: 3,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'right' },
+        tooltip: {
+          callbacks: {
+            label: (context) => `${context.label}: ${context.parsed} คน`
+          }
+        }
+      }
+    }
+  });
+}
+
+// 7. Skills Area Chart
+const skillsAreaCtx = document.getElementById('skillsAreaChart');
+if (skillsAreaCtx) {
+  new Chart(skillsAreaCtx, {
+    type: 'line',
+    data: {
+      labels: Object.values(categoriesLabel),
+      datasets: [{
+        label: 'คะแนนเฉลี่ยปัจจุบัน',
+        data: Object.values(categoryAverages),
+        borderColor: '#2E3094',
+        backgroundColor: 'rgba(46, 48, 148, 0.3)',
+        fill: true,
+        tension: 0.4
+      }, {
+        label: 'เกณฑ์ดี (4.0)',
+        data: Array(Object.keys(categoryAverages).length).fill(4.0),
+        borderColor: '#FBB425',
+        backgroundColor: 'rgba(251, 180, 37, 0.1)',
+        fill: true,
+        borderDash: [5, 5]
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        y: { beginAtZero: true, max: 5 },
+        x: { ticks: { maxRotation: 45, minRotation: 45 } }
+      }
+    }
+  });
+}
+
+// 8. Student Scatter Chart
+const studentScatterCtx = document.getElementById('studentScatterChart');
+if (studentScatterCtx) {
+  const scatterData = studentsData.map((student, idx) => {
+    const avg = Object.values(student.evaluationData).reduce((sum, val) => sum + val, 0) / Object.keys(student.evaluationData).length;
+    return {
+      x: idx + 1,
+      y: avg,
+      label: `${student.firstName} ${student.lastName}`
+    };
+  });
+
+  new Chart(studentScatterCtx, {
+    type: 'scatter',
+    data: {
+      datasets: [{
+        label: 'คะแนนเฉลี่ยนักศึกษา',
+        data: scatterData,
+        backgroundColor: '#2E3094',
+        borderColor: '#2E3094',
+        pointRadius: 8,
+        pointHoverRadius: 12
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: (context) => `${context.raw.label}: ${context.parsed.y.toFixed(2)}`
+          }
+        }
+      },
+      scales: {
+        x: { title: { display: true, text: 'ลำดับนักศึกษา' } },
+        y: { title: { display: true, text: 'คะแนนเฉลี่ย' }, min: 0, max: 5 }
+      }
+    }
+  });
+}
+
+// Filter Functions
+function applyFilters() {
+  const searchText = document.getElementById('searchStudent').value.toLowerCase();
+  const yearFilter = document.getElementById('filterYear').value;
+  const scoreFilter = document.getElementById('filterScore').value;
+  const sortBy = document.getElementById('sortBy').value;
+
+  // Filter students
+  filteredStudents = studentsData.filter(student => {
+    // Search filter
+    const matchSearch = !searchText || 
+      student.firstName.toLowerCase().includes(searchText) ||
+      student.lastName.toLowerCase().includes(searchText) ||
+      student.id.includes(searchText);
+    
+    // Year filter
+    const matchYear = !yearFilter || student.year.toString() === yearFilter;
+    
+    // Score filter
+    let matchScore = true;
+    if (scoreFilter) {
+      const avg = Object.values(student.evaluationData).reduce((sum, val) => sum + val, 0) / Object.keys(student.evaluationData).length;
+      switch (scoreFilter) {
+        case 'excellent': matchScore = avg >= 4.5; break;
+        case 'verygood': matchScore = avg >= 4 && avg < 4.5; break;
+        case 'good': matchScore = avg >= 3.5 && avg < 4; break;
+        case 'fair': matchScore = avg >= 3 && avg < 3.5; break;
+        case 'poor': matchScore = avg < 3; break;
+      }
+    }
+
+    return matchSearch && matchYear && matchScore;
+  });
+
+  // Sort students
+  filteredStudents.sort((a, b) => {
+    switch (sortBy) {
+      case 'name':
+        return a.firstName.localeCompare(b.firstName, 'th');
+      case 'id':
+        return a.id.localeCompare(b.id);
+      case 'year':
+        return a.year - b.year;
+      case 'score-desc':
+        const avgA = Object.values(a.evaluationData).reduce((sum, val) => sum + val, 0) / Object.keys(a.evaluationData).length;
+        const avgB = Object.values(b.evaluationData).reduce((sum, val) => sum + val, 0) / Object.keys(a.evaluationData).length;
+        return avgB - avgA;
+      case 'score-asc':
+        const avgA2 = Object.values(a.evaluationData).reduce((sum, val) => sum + val, 0) / Object.keys(a.evaluationData).length;
+        const avgB2 = Object.values(b.evaluationData).reduce((sum, val) => sum + val, 0) / Object.keys(a.evaluationData).length;
+        return avgA2 - avgB2;
+      default:
+        return 0;
+    }
+  });
+
+  updateTable();
+}
+
+function updateTable() {
+  const tbody = document.getElementById('tableBody');
+  const rows = tbody.querySelectorAll('.student-row');
+  
+  rows.forEach(row => {
+    const studentId = row.dataset.studentId;
+    const isVisible = filteredStudents.some(s => s.id === studentId);
+    row.style.display = isVisible ? '' : 'none';
+  });
+}
+
+function refreshData() {
+  Swal.fire({
+    title: 'กำลังโหลดข้อมูลใหม่...',
+    allowOutsideClick: false,
+    didOpen: () => {
+      Swal.showLoading();
+    }
+  });
+  
+  setTimeout(() => {
+    location.reload();
+  }, 1000);
+}
+
+function printReport() {
+  window.print();
+}
+
+function openExportModal() {
+  document.getElementById('exportModal').style.display = 'flex';
+}
+
+function closeExportModal() {
+  document.getElementById('exportModal').style.display = 'none';
+}
+
+function exportToPDF() {
+  Swal.fire({
+    title: 'กำลังสร้าง PDF...',
+    html: 'กรุณารอสักครู่',
+    allowOutsideClick: false,
+    didOpen: () => {
+      Swal.showLoading();
+    }
+  });
+  
+  setTimeout(() => {
+    closeExportModal();
+    Swal.fire({
+      icon: 'success',
+      title: 'Export PDF สำเร็จ!',
+      text: 'ไฟล์ได้ถูกดาวน์โหลดแล้ว',
+      timer: 2000
+    });
+  }, 2000);
+}
+
+function exportToExcel() {
+  // Create CSV content
+  let csv = 'รหัสนักศึกษา,ชื่อ-นามสกุล,ชั้นปี';
+  Object.values(categoriesLabel).forEach(label => {
+    csv += `,${label}`;
+  });
+  csv += ',คะแนนเฉลี่ย,ระดับ\n';
+
+  studentsData.forEach(student => {
+    const avg = Object.values(student.evaluationData).reduce((sum, val) => sum + val, 0) / Object.keys(student.evaluationData).length;
+    const grade = avg >= 4.5 ? 'ดีมาก' : avg >= 4 ? 'ดี' : avg >= 3.5 ? 'ปานกลาง' : avg >= 3 ? 'พอใช้' : 'ปรับปรุง';
+    
+    csv += `${student.id},"${student.firstName} ${student.lastName}",${student.year}`;
+    Object.values(student.evaluationData).forEach(score => {
+      csv += `,${score.toFixed(1)}`;
+    });
+    csv += `,${avg.toFixed(2)},${grade}\n`;
+  });
+
+  const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `รายงานผลการประเมิน_${new Date().toISOString().split('T')[0]}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+  
+  closeExportModal();
+  Swal.fire({
+    icon: 'success',
+    title: 'Export Excel สำเร็จ!',
+    text: 'ไฟล์ได้ถูกดาวน์โหลดแล้ว',
+    timer: 2000
+  });
+}
+
+function exportToCSV() {
+  exportToExcel(); // Same as Excel for now
+}
+
+function exportToJSON() {
+  const dataToExport = {
+    exportDate: new Date().toISOString(),
+    totalStudents: studentsData.length,
+    grandAverage: <%= grandAverage %>,
+    categoryAverages: categoryAverages,
+    students: studentsData.map(student => {
+      const avg = Object.values(student.evaluationData).reduce((sum, val) => sum + val, 0) / Object.keys(student.evaluationData).length;
+      return {
+        ...student,
+        average: parseFloat(avg.toFixed(2))
+      };
+    })
+  };
+
+  const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `รายงานผลการประเมิน_${new Date().toISOString().split('T')[0]}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+  
+  closeExportModal();
+  Swal.fire({
+    icon: 'success',
+    title: 'Export JSON สำเร็จ!',
+    text: 'ไฟล์ได้ถูกดาวน์โหลดแล้ว',
+    timer: 2000
+  });
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+  const modal = document.getElementById('exportModal');
+  if (event.target === modal) {
+    closeExportModal();
+  }
+}
+</script>

@@ -1,29 +1,107 @@
 <%
-  // Mock evaluation data
-  const evaluationData = {
-    personality: { label: 'บุคลิกภาพและมนุษยสัมพันธ์', score: 4.5, total: 5 },
-    teaching: { label: 'ทักษะการสอน', score: 4.2, total: 5 },
-    planning: { label: 'การวางแผนการสอน', score: 4.0, total: 5 },
-    classroom: { label: 'การจัดการชั้นเรียน', score: 4.3, total: 5 },
-    assessment: { label: 'การวัดและประเมินผล', score: 3.8, total: 5 },
-    innovation: { label: 'นวัตกรรมและสื่อการสอน', score: 4.6, total: 5 },
-    responsibility: { label: 'ความรับผิดชอบ', score: 4.8, total: 5 },
-    punctuality: { label: 'ความตรงต่อเวลา', score: 4.7, total: 5 }
-  };
-
-  const overallAverage = Object.values(evaluationData).reduce((sum, item) => sum + item.score, 0) / Object.keys(evaluationData).length;
-  
-  // Practice period check
-  const today = new Date();
-  const practicePeriods = [
-    { year: 1, start: new Date('2025-01-01'), end: new Date('2025-01-15'), name: 'ฝึกปฏิบัติวิชาชีพระหว่างเรียน 1' },
-    { year: 2, start: new Date('2025-06-01'), end: new Date('2025-06-30'), name: 'ฝึกปฏิบัติวิชาชีพระหว่างเรียน 2' },
-    { year: 3, start: new Date('2025-03-01'), end: new Date('2025-05-31'), name: 'ฝึกประสบการณ์วิชาชีพครู 1' },
-    { year: 4, start: new Date('2025-10-01'), end: new Date('2025-12-15'), name: 'ฝึกประสบการณ์วิชาชีพครู 2' }
+  // Mock practice history data - แยกตามงวดฝึกแต่ละปี
+  const practiceHistory = [
+    {
+      id: 1,
+      year: 1,
+      period: 'ฝึกปฏิบัติวิชาชีพระหว่างเรียน 1',
+      startDate: new Date('2023-01-02'),
+      endDate: new Date('2023-01-15'),
+      school: {
+        name: 'โรงเรียนวัดไผ่ล้อม',
+        province: 'นครสวรรค์',
+        affiliation: 'สพฐ.'
+      },
+      mentor: {
+        name: 'นายสมชาย ใจดี',
+        position: 'ครูชำนาญการพิเศษ',
+        phone: '081-234-5678'
+      },
+      evaluationData: {
+        personality: { label: 'บุคลิกภาพและมนุษยสัมพันธ์', score: 4.0, total: 5 },
+        teaching: { label: 'ทักษะการสอน', score: 3.8, total: 5 },
+        planning: { label: 'การวางแผนการสอน', score: 3.5, total: 5 },
+        classroom: { label: 'การจัดการชั้นเรียน', score: 3.9, total: 5 },
+        assessment: { label: 'การวัดและประเมินผล', score: 3.6, total: 5 },
+        innovation: { label: 'นวัตกรรมและสื่อการสอน', score: 4.2, total: 5 },
+        responsibility: { label: 'ความรับผิดชอบ', score: 4.5, total: 5 },
+        punctuality: { label: 'ความตรงต่อเวลา', score: 4.3, total: 5 }
+      },
+      status: 'completed'
+    },
+    {
+      id: 2,
+      year: 2,
+      period: 'ฝึกปฏิบัติวิชาชีพระหว่างเรียน 2',
+      startDate: new Date('2024-06-01'),
+      endDate: new Date('2024-06-30'),
+      school: {
+        name: 'โรงเรียนนครสวรรค์',
+        province: 'นครสวรรค์',
+        affiliation: 'สพม.'
+      },
+      mentor: {
+        name: 'นางสาวสมหญิง รักการสอน',
+        position: 'ครูชำนาญการ',
+        phone: '089-876-5432'
+      },
+      evaluationData: {
+        personality: { label: 'บุคลิกภาพและมนุษยสัมพันธ์', score: 4.3, total: 5 },
+        teaching: { label: 'ทักษะการสอน', score: 4.0, total: 5 },
+        planning: { label: 'การวางแผนการสอน', score: 3.8, total: 5 },
+        classroom: { label: 'การจัดการชั้นเรียน', score: 4.1, total: 5 },
+        assessment: { label: 'การวัดและประเมินผล', score: 3.7, total: 5 },
+        innovation: { label: 'นวัตกรรมและสื่อการสอน', score: 4.4, total: 5 },
+        responsibility: { label: 'ความรับผิดชอบ', score: 4.6, total: 5 },
+        punctuality: { label: 'ความตรงต่อเวลา', score: 4.5, total: 5 }
+      },
+      status: 'completed'
+    },
+    {
+      id: 3,
+      year: 3,
+      period: 'ฝึกประสบการณ์วิชาชีพครู 1',
+      startDate: new Date('2025-03-01'),
+      endDate: new Date('2025-05-31'),
+      school: {
+        name: 'โรงเรียนวัดไผ่ล้อม', // กลับไปโรงเรียนเดิม
+        province: 'นครสวรรค์',
+        affiliation: 'สพฐ.'
+      },
+      mentor: {
+        name: 'นายวิชัย มานะดี', // ครูพี่เลี้ยงคนใหม่
+        position: 'ครูเชี่ยวชาญ',
+        phone: '062-111-2233'
+      },
+      evaluationData: {
+        personality: { label: 'บุคลิกภาพและมนุษยสัมพันธ์', score: 4.5, total: 5 },
+        teaching: { label: 'ทักษะการสอน', score: 4.2, total: 5 },
+        planning: { label: 'การวางแผนการสอน', score: 4.0, total: 5 },
+        classroom: { label: 'การจัดการชั้นเรียน', score: 4.3, total: 5 },
+        assessment: { label: 'การวัดและประเมินผล', score: 3.8, total: 5 },
+        innovation: { label: 'นวัตกรรมและสื่อการสอน', score: 4.6, total: 5 },
+        responsibility: { label: 'ความรับผิดชอบ', score: 4.8, total: 5 },
+        punctuality: { label: 'ความตรงต่อเวลา', score: 4.7, total: 5 }
+      },
+      status: 'active' // งวดปัจจุบัน
+    }
   ];
 
-  const currentPractice = practicePeriods.find(p => today >= p.start && today <= p.end);
   const userYear = user.year || 3;
+  
+  // หาว่างวดไหนเป็นงวดปัจจุบัน (active)
+  const currentPracticeRecord = practiceHistory.find(p => p.status === 'active');
+  const today = new Date();
+  
+  // ใช้ข้อมูลจากงวดปัจจุบัน (ถ้ามี) หรือจากงวดล่าสุด
+  const activePractice = currentPracticeRecord || practiceHistory[practiceHistory.length - 1];
+  const evaluationData = activePractice.evaluationData;
+  const overallAverage = Object.values(evaluationData).reduce((sum, item) => sum + item.score, 0) / Object.keys(evaluationData).length;
+  
+  // เช็คว่าอยู่ในช่วงฝึกหรือไม่
+  const isInPracticePeriod = currentPracticeRecord && 
+    today >= currentPracticeRecord.startDate && 
+    today <= currentPracticeRecord.endDate;
 %>
 
 <div class="dashboard-welcome">
@@ -36,22 +114,132 @@
       <strong>นักศึกษาระดับชั้นปีที่ <%= userYear %></strong>
     </p>
     <div style="display:flex;align-items:center;gap:8px;margin-top:12px">
-      <span style="font-size:1.2rem"><%= currentPractice ? '🟢' : '🔵' %></span>
+      <span style="font-size:1.2rem"><%= isInPracticePeriod ? '🟢' : '🔵' %></span>
       <div>
         <strong style="color:var(--color-text)">สถานะ:</strong>
-        <% if (currentPractice) { %>
+        <% if (isInPracticePeriod && currentPracticeRecord) { %>
           <span style="color:var(--color-success);font-weight:600">
-            ขณะนี้อยู่ในช่วง<%= currentPractice.name %>
+            ขณะนี้อยู่ในช่วง <%= currentPracticeRecord.period %>
           </span><br>
           <span class="text-muted" style="font-size:0.9rem">
-            (วันที่ <%= currentPractice.start.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }) %> - 
-            <%= currentPractice.end.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }) %>)
+            (วันที่ <%= currentPracticeRecord.startDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }) %> - 
+            <%= currentPracticeRecord.endDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }) %>)
           </span>
         <% } else { %>
-          <span style="color:var(--color-muted);font-weight:600">No Active Practice Period</span><br>
-          <span class="text-muted" style="font-size:0.9rem">ไม่อยู่ในช่วงฝึกประสบการณ์</span>
+          <span style="color:var(--color-muted);font-weight:600">ไม่อยู่ในช่วงฝึกประสบการณ์</span><br>
+          <span class="text-muted" style="font-size:0.9rem">กรุณารอการกำหนดงวดฝึกจากอาจารย์</span>
         <% } %>
       </div>
+    </div>
+  </div>
+
+  <!-- Practice History Timeline -->
+  <div class="card" style="margin-bottom:24px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <h3 style="margin:0;color:var(--color-text);display:flex;align-items:center;gap:10px">
+        <span>📅</span>
+        ประวัติการฝึกประสบการณ์วิชาชีพ
+      </h3>
+      <div class="form-group" style="margin:0;min-width:250px">
+        <select id="periodSelector" class="form-input" onchange="changePracticeView()" style="padding:8px 12px">
+          <% practiceHistory.slice().reverse().forEach((record, idx) => { %>
+            <option value="<%= record.id %>" <%= record.status === 'active' ? 'selected' : '' %>>
+              <%= record.period %> (<%= record.year === 1 ? 'ปี 1' : record.year === 2 ? 'ปี 2' : record.year === 3 ? 'ปี 3' : 'ปี 4' %>)
+              <%= record.status === 'active' ? ' - ปัจจุบัน' : '' %>
+            </option>
+          <% }); %>
+        </select>
+      </div>
+    </div>
+
+    <!-- Practice Timeline -->
+    <div class="practice-timeline">
+      <% practiceHistory.forEach((record, index) => { 
+        const isActive = record.status === 'active';
+        const isCompleted = record.status === 'completed';
+      %>
+        <div class="timeline-item <%= isActive ? 'timeline-active' : '' %> <%= isCompleted ? 'timeline-completed' : '' %>">
+          <div class="timeline-marker">
+            <% if (isActive) { %>
+              <span style="font-size:1.3rem">🟢</span>
+            <% } else if (isCompleted) { %>
+              <span style="font-size:1.3rem">✅</span>
+            <% } else { %>
+              <span style="font-size:1.3rem">⏳</span>
+            <% } %>
+          </div>
+          
+          <div class="timeline-content">
+            <div class="timeline-header">
+              <h4 style="margin:0 0 8px 0;color:var(--color-primary);font-size:1.1rem">
+                <%= record.period %> 
+                <span style="background:var(--color-primary);color:white;padding:2px 8px;border-radius:8px;font-size:0.75rem;margin-left:8px">
+                  ชั้นปีที่ <%= record.year %>
+                </span>
+                <% if (isActive) { %>
+                  <span style="background:var(--color-success);color:white;padding:2px 8px;border-radius:8px;font-size:0.75rem;margin-left:4px">
+                    ปัจจุบัน
+                  </span>
+                <% } %>
+              </h4>
+              <p class="text-muted" style="margin:0;font-size:0.85rem">
+                📍 <%= record.startDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) %> - 
+                <%= record.endDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) %>
+              </p>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px">
+              <div class="info-box" style="background:var(--color-bg);padding:12px;border-radius:8px">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                  <span style="font-size:1.2rem">🏫</span>
+                  <strong style="color:var(--color-text)">สถานศึกษา</strong>
+                </div>
+                <div style="font-size:0.95rem;color:var(--color-text)">
+                  <%= record.school.name %>
+                </div>
+                <div style="font-size:0.85rem;color:var(--color-muted);margin-top:4px">
+                  จ.<%= record.school.province %> (<%= record.school.affiliation %>)
+                </div>
+              </div>
+
+              <div class="info-box" style="background:var(--color-bg);padding:12px;border-radius:8px">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                  <span style="font-size:1.2rem">👨‍🏫</span>
+                  <strong style="color:var(--color-text)">ครูพี่เลี้ยง</strong>
+                </div>
+                <div style="font-size:0.95rem;color:var(--color-text)">
+                  <%= record.mentor.name %>
+                </div>
+                <div style="font-size:0.85rem;color:var(--color-muted);margin-top:4px">
+                  <%= record.mentor.position %>
+                </div>
+              </div>
+            </div>
+
+            <% if (isCompleted) { 
+              const avg = Object.values(record.evaluationData).reduce((sum, item) => sum + item.score, 0) / Object.keys(record.evaluationData).length;
+            %>
+              <div style="margin-top:12px;padding:10px;background:rgba(22, 163, 74, 0.1);border-left:3px solid var(--color-success);border-radius:6px">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <span style="color:var(--color-text);font-weight:600">📊 คะแนนเฉลี่ย:</span>
+                  <span style="font-size:1.3rem;font-weight:700;color:var(--color-success)">
+                    <%= avg.toFixed(2) %> / 5.0
+                  </span>
+                </div>
+              </div>
+            <% } else if (isActive) { %>
+              <div style="margin-top:12px;padding:10px;background:rgba(59, 130, 246, 0.1);border-left:3px solid #3B82F6;border-radius:6px">
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-size:1.2rem">⚡</span>
+                  <span style="color:var(--color-text);font-weight:600">
+                    กำลังดำเนินการฝึกประสบการณ์...
+                  </span>
+                </div>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      <% }); %>
     </div>
   </div>
 
@@ -287,12 +475,123 @@
   .score-good { background-color: #FBB425; }
   .score-very-good { background-color: #3B82F6; }
   .score-excellent { background-color: #16A34A; }
+
+  /* Practice Timeline Styles */
+  .practice-timeline {
+    position: relative;
+    padding: 20px 0;
+  }
+
+  .timeline-item {
+    position: relative;
+    padding-left: 60px;
+    padding-bottom: 40px;
+  }
+
+  .timeline-item:last-child {
+    padding-bottom: 0;
+  }
+
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: 21px;
+    top: 40px;
+    bottom: -10px;
+    width: 2px;
+    background: var(--color-border);
+  }
+
+  .timeline-item:last-child::before {
+    display: none;
+  }
+
+  .timeline-marker {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 44px;
+    height: 44px;
+    background: var(--color-surface);
+    border: 2px solid var(--color-border);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+  }
+
+  .timeline-active .timeline-marker {
+    border-color: var(--color-success);
+    background: rgba(22, 163, 74, 0.1);
+    box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.1);
+  }
+
+  .timeline-completed .timeline-marker {
+    border-color: var(--color-primary);
+    background: rgba(46, 48, 148, 0.1);
+  }
+
+  .timeline-content {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 16px;
+    transition: all 0.3s ease;
+  }
+
+  .timeline-content:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-color: var(--color-primary);
+  }
+
+  .timeline-active .timeline-content {
+    border-color: var(--color-success);
+    background: linear-gradient(to right, rgba(22, 163, 74, 0.02), var(--color-surface));
+  }
+
+  .timeline-header {
+    margin-bottom: 12px;
+  }
+
+  .info-box {
+    transition: all 0.2s ease;
+  }
+
+  .info-box:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  }
 </style>
 
 <script>
+  // Practice history data for dynamic chart switching
+  const practiceHistoryData = <%- JSON.stringify(practiceHistory) %>;
+  let currentPracticeId = <%= activePractice.id %>;
+
+  // Function to change practice period view
+  function changePracticeView() {
+    const selector = document.getElementById('periodSelector');
+    const selectedId = parseInt(selector.value);
+    currentPracticeId = selectedId;
+    
+    // Find selected practice record
+    const selectedPractice = practiceHistoryData.find(p => p.id === selectedId);
+    if (!selectedPractice) return;
+
+    // Update charts with new data
+    updateChartsWithPeriod(selectedPractice);
+    
+    // Scroll to charts section
+    document.querySelector('.evaluation-chart').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // Initialize with current practice data
+  let evaluationData = <%- JSON.stringify(activePractice.evaluationData) %>;
+  
   // Prepare data for charts
-  const labels = <%- JSON.stringify(Object.values(evaluationData).map(d => d.label)) %>;
-  const scores = <%- JSON.stringify(Object.values(evaluationData).map(d => d.score)) %>;
+  let labels = Object.values(evaluationData).map(d => d.label);
+  let scores = Object.values(evaluationData).map(d => d.score);
   const colors = [
     '#2E3094', // primary
     '#FBB425', // secondary
@@ -308,16 +607,20 @@
   Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   Chart.defaults.color = '#0F1724';
 
+  // Store chart instances for updating
+  let chartInstances = {};
+
   // 1. Line Chart - Progress Over Time (Mock data with monthly progress)
   const lineCtx = document.getElementById('lineChart');
   if (lineCtx) {
-    new Chart(lineCtx, {
+    const overallAvg = scores.reduce((sum, s) => sum + s, 0) / scores.length;
+    chartInstances.lineChart = new Chart(lineCtx, {
       type: 'line',
       data: {
         labels: ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.'],
         datasets: [{
           label: 'คะแนนเฉลี่ยรายเดือน',
-          data: [3.8, 4.0, 4.1, 4.2, 4.3, <%- overallAverage.toFixed(2) %>],
+          data: [3.8, 4.0, 4.1, 4.2, 4.3, overallAvg.toFixed(2)],
           borderColor: '#2E3094',
           backgroundColor: 'rgba(46, 48, 148, 0.1)',
           tension: 0.4,
@@ -352,7 +655,7 @@
     const fair = scores.filter(s => s >= 3 && s < 3.5).length;
     const poor = scores.filter(s => s < 3).length;
 
-    new Chart(pieCtx, {
+    chartInstances.pieChart = new Chart(pieCtx, {
       type: 'pie',
       data: {
         labels: ['ดีมาก (4.5-5)', 'ดี (4-4.49)', 'ปานกลาง (3.5-3.99)', 'พอใช้ (3-3.49)', 'ปรับปรุง (<3)'],
@@ -382,7 +685,7 @@
   if (scatterCtx) {
     const scatterData = scores.map((score, idx) => ({ x: idx + 1, y: score }));
     
-    new Chart(scatterCtx, {
+    chartInstances.scatterChart = new Chart(scatterCtx, {
       type: 'scatter',
       data: {
         datasets: [{
@@ -412,10 +715,10 @@
     });
   }
 
-  // 4. Column Chart (Vertical Bar)
+  // 4. Column Chart (Vertical Bar Chart)
   const columnCtx = document.getElementById('columnChart');
   if (columnCtx) {
-    new Chart(columnCtx, {
+    chartInstances.columnChart = new Chart(columnCtx, {
       type: 'bar',
       data: {
         labels: labels,
@@ -444,7 +747,7 @@
   // 5. Radar Chart
   const radarCtx = document.getElementById('radarChart');
   if (radarCtx) {
-    new Chart(radarCtx, {
+    chartInstances.radarChart = new Chart(radarCtx, {
       type: 'radar',
       data: {
         labels: labels,
@@ -481,7 +784,7 @@
     });
   }
 
-  // 6. Doughnut Chart - Score Level Distribution
+  // 6. Doughnut Chart - Performance Level Distribution
   const doughnutCtx = document.getElementById('doughnutChart');
   if (doughnutCtx) {
     const excellent = scores.filter(s => s >= 4.5).length;
@@ -489,7 +792,7 @@
     const good = scores.filter(s => s >= 3.5 && s < 4).length;
     const needImprovement = scores.filter(s => s < 3.5).length;
 
-    new Chart(doughnutCtx, {
+    chartInstances.doughnutChart = new Chart(doughnutCtx, {
       type: 'doughnut',
       data: {
         labels: ['ดีมาก', 'ดี', 'ปานกลาง', 'ปรับปรุง'],
@@ -517,7 +820,8 @@
   // 7. Area Chart - Comparison
   const areaCtx = document.getElementById('areaChart');
   if (areaCtx) {
-    new Chart(areaCtx, {
+    const overallAvg = scores.reduce((sum, s) => sum + s, 0) / scores.length;
+    chartInstances.areaChart = new Chart(areaCtx, {
       type: 'line',
       data: {
         labels: labels,
@@ -530,7 +834,7 @@
           tension: 0.4
         }, {
           label: 'ค่าเฉลี่ยทั้งหมด',
-          data: Array(scores.length).fill(<%- overallAverage.toFixed(2) %>),
+          data: Array(scores.length).fill(overallAvg.toFixed(2)),
           borderColor: '#FBB425',
           backgroundColor: 'rgba(251, 180, 37, 0.1)',
           fill: true,
@@ -545,6 +849,119 @@
           x: { ticks: { maxRotation: 45, minRotation: 45 } }
         }
       }
+    });
+  }
+
+  // Function to update all charts with new practice period data
+  function updateChartsWithPeriod(practiceRecord) {
+    // Update evaluation data
+    evaluationData = practiceRecord.evaluationData;
+    labels = Object.values(evaluationData).map(d => d.label);
+    scores = Object.values(evaluationData).map(d => d.score);
+    const overallAvg = scores.reduce((sum, s) => sum + s, 0) / scores.length;
+
+    // Update bar chart in page
+    updateBarChart();
+
+    // Update Line Chart
+    if (chartInstances.lineChart) {
+      chartInstances.lineChart.data.datasets[0].data = [3.8, 4.0, 4.1, 4.2, 4.3, overallAvg.toFixed(2)];
+      chartInstances.lineChart.update();
+    }
+
+    // Update Pie Chart
+    if (chartInstances.pieChart) {
+      const excellent = scores.filter(s => s >= 4.5).length;
+      const veryGood = scores.filter(s => s >= 4 && s < 4.5).length;
+      const good = scores.filter(s => s >= 3.5 && s < 4).length;
+      const fair = scores.filter(s => s >= 3 && s < 3.5).length;
+      const poor = scores.filter(s => s < 3).length;
+      chartInstances.pieChart.data.datasets[0].data = [excellent, veryGood, good, fair, poor];
+      chartInstances.pieChart.update();
+    }
+
+    // Update Scatter Chart
+    if (chartInstances.scatterChart) {
+      const scatterData = scores.map((score, idx) => ({ x: idx + 1, y: score }));
+      chartInstances.scatterChart.data.datasets[0].data = scatterData;
+      chartInstances.scatterChart.update();
+    }
+
+    // Update Column Chart
+    if (chartInstances.columnChart) {
+      chartInstances.columnChart.data.labels = labels;
+      chartInstances.columnChart.data.datasets[0].data = scores;
+      chartInstances.columnChart.update();
+    }
+
+    // Update Radar Chart
+    if (chartInstances.radarChart) {
+      chartInstances.radarChart.data.labels = labels;
+      chartInstances.radarChart.data.datasets[0].data = scores;
+      chartInstances.radarChart.update();
+    }
+
+    // Update Doughnut Chart
+    if (chartInstances.doughnutChart) {
+      const excellent = scores.filter(s => s >= 4.5).length;
+      const veryGood = scores.filter(s => s >= 4 && s < 4.5).length;
+      const good = scores.filter(s => s >= 3.5 && s < 4).length;
+      const needImprovement = scores.filter(s => s < 3.5).length;
+      chartInstances.doughnutChart.data.datasets[0].data = [excellent, veryGood, good, needImprovement];
+      chartInstances.doughnutChart.update();
+    }
+
+    // Update Area Chart
+    if (chartInstances.areaChart) {
+      chartInstances.areaChart.data.labels = labels;
+      chartInstances.areaChart.data.datasets[0].data = scores;
+      chartInstances.areaChart.data.datasets[1].data = Array(scores.length).fill(overallAvg.toFixed(2));
+      chartInstances.areaChart.update();
+    }
+
+    // Update overall stats
+    document.querySelector('.stat-box:nth-child(1) .stat-value').textContent = overallAvg.toFixed(2);
+    const grade = overallAvg >= 4.5 ? 'ดีมาก' : overallAvg >= 4 ? 'ดี' : overallAvg >= 3.5 ? 'ปานกลาง' : overallAvg >= 3 ? 'พอใช้' : 'ปรับปรุง';
+    document.querySelector('.stat-box:nth-child(1) div:last-child').textContent = grade;
+    document.querySelector('.stat-box:nth-child(3) .stat-value').textContent = scores.filter(s => s >= 4.5).length;
+  }
+
+  // Function to update the bar chart visualization
+  function updateBarChart() {
+    const chartContainer = document.querySelector('.evaluation-chart');
+    if (!chartContainer) return;
+
+    chartContainer.innerHTML = '';
+    
+    Object.entries(evaluationData).forEach(([key, data]) => {
+      const percentage = (data.score / data.total) * 100;
+      let colorClass = 'score-excellent';
+      if (data.score < 3) colorClass = 'score-poor';
+      else if (data.score < 3.5) colorClass = 'score-fair';
+      else if (data.score < 4) colorClass = 'score-good';
+      else if (data.score < 4.5) colorClass = 'score-very-good';
+
+      const rowHtml = `
+        <div class="chart-row" style="margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span style="font-weight:600;color:var(--color-text);font-size:0.95rem">
+              ${data.label}
+            </span>
+            <span style="font-weight:700;color:var(--color-primary);font-size:1.1rem">
+              ${data.score.toFixed(1)} / ${data.total}
+            </span>
+          </div>
+          <div class="progress-bar" style="background:var(--color-border);height:28px;border-radius:8px;overflow:hidden;position:relative">
+            <div class="progress-fill ${colorClass}" 
+                 style="width:${percentage}%;height:100%;transition:width 0.8s ease;display:flex;align-items:center;padding:0 12px">
+              <span style="color:#fff;font-weight:600;font-size:0.85rem;white-space:nowrap">
+                ${percentage.toFixed(0)}%
+              </span>
+            </div>
+          </div>
+        </div>
+      `;
+      chartContainer.innerHTML += rowHtml;
     });
   }
 </script>

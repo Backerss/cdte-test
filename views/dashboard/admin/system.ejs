@@ -1,0 +1,1195 @@
+<div class="page-content">
+  <div class="card">
+    <div class="page-header">
+      <div>
+        <h2 style="margin-top:0;color:var(--color-primary);display:flex;align-items:center;gap:12px">
+          <span>⚙️</span>
+          จัดการระบบ
+        </h2>
+        <p class="text-muted">ควบคุมสถานะเว็บไซต์ ดู Logs และจัดการระบบหลังบ้าน</p>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn--secondary" onclick="refreshSystemData()">
+          <span>🔄</span> รีเฟรช
+        </button>
+        <button class="btn btn--primary" onclick="openBackupModal()">
+          <span>💾</span> สำรองข้อมูล
+        </button>
+      </div>
+    </div>
+
+    <!-- System Status Control -->
+    <div class="system-section">
+      <h3 class="section-title">
+        <span>🌐</span> สถานะเว็บไซต์
+      </h3>
+
+      <div class="status-control-grid">
+        <div class="status-card active" id="statusOnline" onclick="setSystemStatus('online')">
+          <div class="status-icon">✅</div>
+          <div class="status-label">เปิดใช้งาน</div>
+          <div class="status-desc">ผู้ใช้เข้าถึงได้ปกติ</div>
+        </div>
+
+        <div class="status-card" id="statusMaintenance" onclick="setSystemStatus('maintenance')">
+          <div class="status-icon">🔧</div>
+          <div class="status-label">บำรุงรักษา</div>
+          <div class="status-desc">แสดงหน้าปิดปรับปรุง</div>
+        </div>
+
+        <div class="status-card" id="statusOffline" onclick="setSystemStatus('offline')">
+          <div class="status-icon">🚫</div>
+          <div class="status-label">ปิดชั่วคราว</div>
+          <div class="status-desc">ปิดการเข้าถึงทั้งหมด</div>
+        </div>
+      </div>
+
+      <div class="status-message" id="statusMessage">
+        <strong>สถานะปัจจุบัน:</strong> <span id="currentStatus">เปิดใช้งานปกติ</span>
+        <span style="margin-left:16px;color:var(--color-muted)">อัปเดตล่าสุด: <span id="lastUpdate">-</span></span>
+      </div>
+    </div>
+
+    <!-- System Health Monitoring -->
+    <div class="system-section">
+      <h3 class="section-title">
+        <span>📊</span> สุขภาพระบบ
+      </h3>
+
+      <div class="health-grid">
+        <div class="health-card">
+          <div class="health-icon">🖥️</div>
+          <div class="health-info">
+            <div class="health-label">CPU Usage</div>
+            <div class="health-value" id="cpuUsage">0%</div>
+            <div class="health-bar">
+              <div class="health-bar-fill" id="cpuBar" style="width:0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="health-card">
+          <div class="health-icon">💾</div>
+          <div class="health-info">
+            <div class="health-label">Memory Usage</div>
+            <div class="health-value" id="memoryUsage">0%</div>
+            <div class="health-bar">
+              <div class="health-bar-fill" id="memoryBar" style="width:0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="health-card">
+          <div class="health-icon">⏱️</div>
+          <div class="health-info">
+            <div class="health-label">Uptime</div>
+            <div class="health-value" id="uptime">-</div>
+          </div>
+        </div>
+
+        <div class="health-card">
+          <div class="health-icon">🗄️</div>
+          <div class="health-info">
+            <div class="health-label">Database</div>
+            <div class="health-value" id="dbStatus">
+              <span class="status-badge active">เชื่อมต่อแล้ว</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="system-section">
+      <h3 class="section-title">
+        <span>⚡</span> การจัดการด่วน
+      </h3>
+
+      <div class="quick-actions-grid">
+        <button class="action-btn" onclick="clearCache()">
+          <div class="action-icon">🗑️</div>
+          <div class="action-label">ล้าง Cache</div>
+        </button>
+
+        <button class="action-btn" onclick="restartServer()">
+          <div class="action-icon">🔄</div>
+          <div class="action-label">Restart Server</div>
+        </button>
+
+        <button class="action-btn" onclick="optimizeDatabase()">
+          <div class="action-icon">⚙️</div>
+          <div class="action-label">Optimize DB</div>
+        </button>
+
+        <button class="action-btn" onclick="viewErrorLogs()">
+          <div class="action-icon">⚠️</div>
+          <div class="action-label">Error Logs</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- System Logs Viewer -->
+    <div class="system-section">
+      <h3 class="section-title">
+        <span>📝</span> System Logs
+      </h3>
+
+      <div class="logs-controls">
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+          <select id="logLevel" class="form-input" style="width:auto;min-width:120px;" onchange="filterLogs()">
+            <option value="">ทุกระดับ</option>
+            <option value="info">Info</option>
+            <option value="warning">Warning</option>
+            <option value="error">Error</option>
+            <option value="debug">Debug</option>
+          </select>
+
+          <select id="logCategory" class="form-input" style="width:auto;min-width:150px;" onchange="filterLogs()">
+            <option value="">ทุกหมวดหมู่</option>
+            <option value="auth">Authentication</option>
+            <option value="database">Database</option>
+            <option value="api">API</option>
+            <option value="system">System</option>
+          </select>
+
+          <input type="text" id="logSearch" class="form-input" placeholder="ค้นหา logs..."
+            style="flex:1;min-width:200px;" onkeyup="filterLogs()">
+
+          <button class="btn btn--secondary" onclick="clearLogsDisplay()">
+            <span>🗑️</span> ล้างหน้าจอ
+          </button>
+
+          <button class="btn btn--primary" onclick="exportLogs()">
+            <span>📥</span> Export
+          </button>
+        </div>
+
+        <div class="logs-auto-refresh">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="autoRefresh" onchange="toggleAutoRefresh()" checked>
+            <span>Auto-refresh (5s)</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="logs-viewer" id="logsViewer">
+        <div class="log-entry" style="text-align:center;padding:40px;color:var(--color-muted);">
+          กำลังโหลด logs...
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Activities -->
+    <div class="system-section">
+      <h3 class="section-title">
+        <span>🕐</span> กิจกรรมล่าสุด
+      </h3>
+
+      <div class="activity-list" id="activityList">
+        <!-- Will be populated by JavaScript -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Backup Modal -->
+<div id="backupModal" class="modal-overlay" style="display:none">
+  <div class="modal-content" style="max-width:600px;">
+    <div class="modal-header">
+      <h3>💾 สำรองข้อมูลระบบ</h3>
+      <button type="button" class="modal-close" onclick="closeBackupModal()">×</button>
+    </div>
+
+    <div class="modal-body" style="padding:24px;">
+      <div class="form-group">
+        <label class="form-label">เลือกข้อมูลที่ต้องการสำรอง</label>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="backupDB" checked>
+            <span>🗄️ ฐานข้อมูล</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="backupFiles" checked>
+            <span>📁 ไฟล์อัพโหลด</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="backupConfig" checked>
+            <span>⚙️ การตั้งค่าระบบ</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="backup-info" style="background:var(--color-bg);padding:16px;border-radius:8px;margin-top:16px;">
+        <div style="font-size:0.9rem;color:var(--color-muted);margin-bottom:8px;">📦 Backup ล่าสุด</div>
+        <div style="font-weight:500;" id="lastBackupDate">ยังไม่มีการสำรองข้อมูล</div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn--secondary" onclick="closeBackupModal()">ยกเลิก</button>
+      <button type="button" class="btn btn--primary" onclick="performBackup()">
+        <span>💾</span> เริ่มสำรองข้อมูล
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 32px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .system-section {
+    margin-bottom: 32px;
+    padding-bottom: 32px;
+    border-bottom: 2px solid var(--color-border);
+  }
+
+  .system-section:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .section-title {
+    color: var(--color-primary);
+    font-size: 1.2rem;
+    margin: 0 0 20px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* Status Control */
+  .status-control-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .status-card {
+    background: var(--color-surface);
+    border: 2px solid var(--color-border);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .status-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .status-card.active {
+    border-color: var(--color-primary);
+    background: linear-gradient(135deg, rgba(74, 144, 226, 0.05), rgba(74, 144, 226, 0.1));
+    box-shadow: 0 4px 12px rgba(74, 144, 226, 0.2);
+  }
+
+  .status-icon {
+    font-size: 2.5rem;
+    margin-bottom: 12px;
+  }
+
+  .status-label {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: var(--color-text);
+    margin-bottom: 6px;
+  }
+
+  .status-desc {
+    font-size: 0.85rem;
+    color: var(--color-muted);
+  }
+
+  .status-message {
+    background: var(--color-bg);
+    padding: 16px;
+    border-radius: 8px;
+    border-left: 4px solid var(--color-primary);
+  }
+
+  /* Health Monitoring */
+  .health-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+  }
+
+  .health-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .health-icon {
+    font-size: 2.5rem;
+    flex-shrink: 0;
+  }
+
+  .health-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .health-label {
+    font-size: 0.85rem;
+    color: var(--color-muted);
+    margin-bottom: 6px;
+  }
+
+  .health-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 8px;
+  }
+
+  .health-bar {
+    height: 8px;
+    background: var(--color-bg);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .health-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4CAF50, #8BC34A);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+  }
+
+  .health-bar-fill.warning {
+    background: linear-gradient(90deg, #FF9800, #FFC107);
+  }
+
+  .health-bar-fill.danger {
+    background: linear-gradient(90deg, #F44336, #E91E63);
+  }
+
+  /* Quick Actions */
+  .quick-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+  }
+
+  .action-btn {
+    background: var(--color-surface);
+    border: 2px solid var(--color-border);
+    border-radius: 12px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+  }
+
+  .action-btn:hover {
+    border-color: var(--color-primary);
+    background: var(--color-bg);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .action-icon {
+    font-size: 2rem;
+    margin-bottom: 8px;
+  }
+
+  .action-label {
+    font-weight: 500;
+    color: var(--color-text);
+    font-size: 0.9rem;
+  }
+
+  /* Logs Viewer */
+  .logs-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .logs-auto-refresh label {
+    font-size: 0.9rem;
+    color: var(--color-text);
+  }
+
+  .logs-viewer {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    border-radius: 8px;
+    padding: 16px;
+    max-height: 500px;
+    overflow-y: auto;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 0.85rem;
+    line-height: 1.6;
+  }
+
+  .log-entry {
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    border-left: 3px solid transparent;
+    transition: background 0.2s ease;
+  }
+
+  .log-entry:hover {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .log-entry.info {
+    border-left-color: #4A90E2;
+  }
+
+  .log-entry.warning {
+    border-left-color: #FFA726;
+    background: rgba(255, 167, 38, 0.05);
+  }
+
+  .log-entry.error {
+    border-left-color: #EF5350;
+    background: rgba(239, 83, 80, 0.05);
+  }
+
+  .log-entry.debug {
+    border-left-color: #9E9E9E;
+    opacity: 0.7;
+  }
+
+  .log-timestamp {
+    color: #858585;
+    margin-right: 8px;
+  }
+
+  .log-level {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-right: 8px;
+    text-transform: uppercase;
+  }
+
+  .log-level.info {
+    background: #4A90E2;
+    color: white;
+  }
+
+  .log-level.warning {
+    background: #FFA726;
+    color: white;
+  }
+
+  .log-level.error {
+    background: #EF5350;
+    color: white;
+  }
+
+  .log-level.debug {
+    background: #9E9E9E;
+    color: white;
+  }
+
+  .log-category {
+    color: #569CD6;
+    margin-right: 8px;
+  }
+
+  .log-message {
+    color: #d4d4d4;
+  }
+
+  /* Activity List */
+  .activity-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .activity-item {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    align-items: start;
+    gap: 16px;
+  }
+
+  .activity-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+  }
+
+  .activity-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .activity-title {
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 4px;
+  }
+
+  .activity-desc {
+    font-size: 0.9rem;
+    color: var(--color-muted);
+    margin-bottom: 6px;
+  }
+
+  .activity-time {
+    font-size: 0.8rem;
+    color: var(--color-muted);
+  }
+
+  .status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+
+  .status-badge.active {
+    background: #e8f5e9;
+    color: #2e7d32;
+  }
+
+  .status-badge.inactive {
+    background: #ffebee;
+    color: #c62828;
+  }
+
+  /* Modal Styles */
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .modal-content {
+    background: var(--color-surface);
+    border-radius: 12px;
+    width: 95%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+    animation: slideUp 0.3s ease;
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 2px solid var(--color-border);
+    background: var(--color-bg);
+  }
+
+  .modal-header h3 {
+    margin: 0;
+    color: var(--color-primary);
+    font-size: 1.3rem;
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    font-size: 1.8rem;
+    cursor: pointer;
+    color: var(--color-muted);
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    line-height: 1;
+  }
+
+  .modal-close:hover {
+    color: var(--color-danger);
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 20px 24px;
+    border-top: 2px solid var(--color-border);
+    background: var(--color-bg);
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Scrollbar Styling for Logs */
+  .logs-viewer::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .logs-viewer::-webkit-scrollbar-track {
+    background: #2d2d2d;
+    border-radius: 4px;
+  }
+
+  .logs-viewer::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 4px;
+  }
+
+  .logs-viewer::-webkit-scrollbar-thumb:hover {
+    background: #777;
+  }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+  // System state
+  let systemStatus = 'online';
+  let autoRefreshInterval = null;
+  let currentLogs = [];
+  let filteredLogs = [];
+
+  // Mock data generators
+  function generateMockLogs() {
+    const levels = ['info', 'warning', 'error', 'debug'];
+    const categories = ['auth', 'database', 'api', 'system'];
+    const messages = [
+      'User login successful',
+      'Database connection established',
+      'API request processed',
+      'Cache cleared successfully',
+      'Session expired',
+      'File upload completed',
+      'Email sent to user',
+      'Password reset requested',
+      'Database query executed',
+      'Authentication token refreshed',
+      'System health check passed',
+      'Backup completed successfully'
+    ];
+
+    const now = new Date();
+    return Array.from({ length: 50 }, (_, i) => ({
+      timestamp: new Date(now.getTime() - (i * 30000)).toISOString(),
+      level: levels[Math.floor(Math.random() * levels.length)],
+      category: categories[Math.floor(Math.random() * categories.length)],
+      message: messages[Math.floor(Math.random() * messages.length)]
+    }));
+  }
+
+  function generateMockActivities() {
+    return [
+      {
+        icon: '👤',
+        title: 'ผู้ใช้ใหม่ลงทะเบียน',
+        desc: 'สมชาย ใจดี (6501001) ได้ลงทะเบียนเข้าสู่ระบบ',
+        time: '5 นาทีที่แล้ว'
+      },
+      {
+        icon: '🔄',
+        title: 'อัปเดตข้อมูลโปรไฟล์',
+        desc: 'สมหญิง รักเรียน แก้ไขข้อมูลโปรไฟล์',
+        time: '15 นาทีที่แล้ว'
+      },
+      {
+        icon: '💾',
+        title: 'สำรองข้อมูลอัตโนมัติ',
+        desc: 'ระบบทำการสำรองข้อมูลสำเร็จ (245 MB)',
+        time: '1 ชั่วโมงที่แล้ว'
+      },
+      {
+        icon: '⚠️',
+        title: 'การเข้าสู่ระบบล้มเหลว',
+        desc: 'มีความพยายามเข้าสู่ระบบล้มเหลว 3 ครั้ง',
+        time: '2 ชั่วโมงที่แล้ว'
+      },
+      {
+        icon: '📧',
+        title: 'ส่งอีเมลการแจ้งเตือน',
+        desc: 'ส่งอีเมลแจ้งเตือนไปยังผู้ใช้ 45 คน',
+        time: '3 ชั่วโมงที่แล้ว'
+      }
+    ];
+  }
+
+  // Initialize page
+  document.addEventListener('DOMContentLoaded', function () {
+    initializeSystemData();
+    loadLogs();
+    loadActivities();
+    updateSystemHealth();
+
+    // Start auto-refresh
+    toggleAutoRefresh();
+
+    // Update time display
+    updateLastUpdateTime();
+    setInterval(updateLastUpdateTime, 1000);
+  });
+
+  function initializeSystemData() {
+    systemStatus = 'online';
+    updateStatusDisplay();
+  }
+
+  function setSystemStatus(status) {
+    systemStatus = status;
+
+    // Update UI
+    document.querySelectorAll('.status-card').forEach(card => {
+      card.classList.remove('active');
+    });
+    document.getElementById(`status${status.charAt(0).toUpperCase() + status.slice(1)}`).classList.add('active');
+
+    updateStatusDisplay();
+
+    // Show confirmation
+    const statusText = {
+      online: 'เปิดใช้งานปกติ',
+      maintenance: 'โหมดบำรุงรักษา',
+      offline: 'ปิดชั่วคราว'
+    };
+
+    Swal.fire({
+      icon: 'success',
+      title: 'เปลี่ยนสถานะสำเร็จ',
+      text: `เว็บไซต์เปลี่ยนเป็นโหมด "${statusText[status]}" แล้ว`,
+      timer: 2000,
+      showConfirmButton: false
+    });
+  }
+
+  function updateStatusDisplay() {
+    const statusText = {
+      online: 'เปิดใช้งานปกติ ✅',
+      maintenance: 'อยู่ระหว่างบำรุงรักษา 🔧',
+      offline: 'ปิดชั่วคราว 🚫'
+    };
+
+    document.getElementById('currentStatus').textContent = statusText[systemStatus];
+  }
+
+  function updateLastUpdateTime() {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('th-TH', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    document.getElementById('lastUpdate').textContent = timeStr;
+  }
+
+  function updateSystemHealth() {
+    // Simulate CPU usage
+    const cpu = Math.floor(Math.random() * 30) + 20; // 20-50%
+    document.getElementById('cpuUsage').textContent = `${cpu}%`;
+    const cpuBar = document.getElementById('cpuBar');
+    cpuBar.style.width = `${cpu}%`;
+    cpuBar.className = 'health-bar-fill';
+    if (cpu > 70) cpuBar.classList.add('danger');
+    else if (cpu > 50) cpuBar.classList.add('warning');
+
+    // Simulate Memory usage
+    const memory = Math.floor(Math.random() * 40) + 30; // 30-70%
+    document.getElementById('memoryUsage').textContent = `${memory}%`;
+    const memoryBar = document.getElementById('memoryBar');
+    memoryBar.style.width = `${memory}%`;
+    memoryBar.className = 'health-bar-fill';
+    if (memory > 80) memoryBar.classList.add('danger');
+    else if (memory > 60) memoryBar.classList.add('warning');
+
+    // Uptime
+    const hours = Math.floor(Math.random() * 100) + 24;
+    const days = Math.floor(hours / 24);
+    const remainingHours = hours % 24;
+    document.getElementById('uptime').textContent = `${days}d ${remainingHours}h`;
+  }
+
+  function loadLogs() {
+    currentLogs = generateMockLogs();
+    filteredLogs = [...currentLogs];
+    renderLogs();
+  }
+
+  function renderLogs() {
+    const viewer = document.getElementById('logsViewer');
+
+    if (filteredLogs.length === 0) {
+      viewer.innerHTML = `
+      <div class="log-entry" style="text-align:center;padding:40px;color:#858585;">
+        ไม่พบ logs ที่ตรงกับเงื่อนไขการค้นหา
+      </div>
+    `;
+      return;
+    }
+
+    viewer.innerHTML = filteredLogs.map(log => {
+      const time = new Date(log.timestamp).toLocaleTimeString('th-TH');
+      return `
+      <div class="log-entry ${log.level}">
+        <span class="log-timestamp">[${time}]</span>
+        <span class="log-level ${log.level}">${log.level}</span>
+        <span class="log-category">[${log.category}]</span>
+        <span class="log-message">${log.message}</span>
+      </div>
+    `;
+    }).join('');
+
+    // Auto-scroll to bottom
+    viewer.scrollTop = viewer.scrollHeight;
+  }
+
+  function filterLogs() {
+    const level = document.getElementById('logLevel').value;
+    const category = document.getElementById('logCategory').value;
+    const search = document.getElementById('logSearch').value.toLowerCase();
+
+    filteredLogs = currentLogs.filter(log => {
+      const matchLevel = !level || log.level === level;
+      const matchCategory = !category || log.category === category;
+      const matchSearch = !search || log.message.toLowerCase().includes(search);
+
+      return matchLevel && matchCategory && matchSearch;
+    });
+
+    renderLogs();
+  }
+
+  function clearLogsDisplay() {
+    Swal.fire({
+      title: 'ล้างหน้าจอ Logs?',
+      text: 'การกระทำนี้จะล้าง logs ที่แสดงบนหน้าจอ',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'ยืนยัน',
+      cancelButtonText: 'ยกเลิก'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        currentLogs = [];
+        filteredLogs = [];
+        renderLogs();
+        Swal.fire({
+          icon: 'success',
+          title: 'ล้างหน้าจอสำเร็จ',
+          timer: 1500,
+          showConfirmButton: false
+        });
+      }
+    });
+  }
+
+  function exportLogs() {
+    const data = filteredLogs.map(log =>
+      `[${log.timestamp}] [${log.level.toUpperCase()}] [${log.category}] ${log.message}`
+    ).join('\n');
+
+    const blob = new Blob([data], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `system-logs-${new Date().toISOString().split('T')[0]}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Export สำเร็จ',
+      text: 'ดาวน์โหลดไฟล์ logs แล้ว',
+      timer: 2000,
+      showConfirmButton: false
+    });
+  }
+
+  function toggleAutoRefresh() {
+    const checkbox = document.getElementById('autoRefresh');
+
+    if (checkbox.checked) {
+      autoRefreshInterval = setInterval(() => {
+        // Add new log entry
+        const levels = ['info', 'warning', 'error', 'debug'];
+        const categories = ['auth', 'database', 'api', 'system'];
+        const messages = [
+          'Heartbeat check passed',
+          'Request processed',
+          'Database connection verified',
+          'Cache hit',
+          'Session validated'
+        ];
+
+        const newLog = {
+          timestamp: new Date().toISOString(),
+          level: levels[Math.floor(Math.random() * levels.length)],
+          category: categories[Math.floor(Math.random() * categories.length)],
+          message: messages[Math.floor(Math.random() * messages.length)]
+        };
+
+        currentLogs.unshift(newLog);
+        if (currentLogs.length > 100) currentLogs.pop();
+
+        filterLogs();
+        updateSystemHealth();
+      }, 5000);
+    } else {
+      if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+      }
+    }
+  }
+
+  function loadActivities() {
+    const activities = generateMockActivities();
+    const container = document.getElementById('activityList');
+
+    container.innerHTML = activities.map(activity => `
+    <div class="activity-item">
+      <div class="activity-icon">${activity.icon}</div>
+      <div class="activity-content">
+        <div class="activity-title">${activity.title}</div>
+        <div class="activity-desc">${activity.desc}</div>
+        <div class="activity-time">🕐 ${activity.time}</div>
+      </div>
+    </div>
+  `).join('');
+  }
+
+  function refreshSystemData() {
+    Swal.fire({
+      title: 'กำลังรีเฟรชข้อมูล...',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+
+    setTimeout(() => {
+      loadLogs();
+      loadActivities();
+      updateSystemHealth();
+
+      Swal.fire({
+        icon: 'success',
+        title: 'รีเฟรชสำเร็จ',
+        timer: 1500,
+        showConfirmButton: false
+      });
+    }, 1000);
+  }
+
+  function clearCache() {
+    Swal.fire({
+      title: 'ล้าง Cache?',
+      text: 'การล้าง cache อาจส่งผลต่อความเร็วของระบบชั่วคราว',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'ยืนยัน',
+      cancelButtonText: 'ยกเลิก'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        Swal.fire({
+          title: 'กำลังล้าง Cache...',
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+
+        setTimeout(() => {
+          Swal.fire({
+            icon: 'success',
+            title: 'ล้าง Cache สำเร็จ',
+            text: 'ระบบจะทำงานได้อย่างมีประสิทธิภาพมากขึ้น',
+            timer: 2000
+          });
+        }, 1500);
+      }
+    });
+  }
+
+  function restartServer() {
+    Swal.fire({
+      title: 'Restart Server?',
+      text: 'ผู้ใช้ทั้งหมดจะถูกออกจากระบบชั่วคราว',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'ยืนยัน',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#d33'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        Swal.fire({
+          icon: 'info',
+          title: 'การ Restart Server',
+          text: 'ฟีเจอร์นี้ยังไม่เปิดใช้งานในโหมด Demo',
+          timer: 2000
+        });
+      }
+    });
+  }
+
+  function optimizeDatabase() {
+    Swal.fire({
+      title: 'Optimize Database?',
+      text: 'การดำเนินการนี้อาจใช้เวลาสักครู่',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'ยืนยัน',
+      cancelButtonText: 'ยกเลิก'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        Swal.fire({
+          title: 'กำลัง Optimize...',
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+
+        setTimeout(() => {
+          Swal.fire({
+            icon: 'success',
+            title: 'Optimize สำเร็จ',
+            text: 'ประสิทธิภาพของฐานข้อมูลดีขึ้น 15%',
+            timer: 2000
+          });
+        }, 2000);
+      }
+    });
+  }
+
+  function viewErrorLogs() {
+    const errorLogs = currentLogs.filter(log => log.level === 'error');
+
+    if (errorLogs.length === 0) {
+      Swal.fire({
+        icon: 'success',
+        title: 'ไม่พบ Error',
+        text: 'ระบบทำงานปกติดี ไม่มี error ในขณะนี้',
+        timer: 2000
+      });
+      return;
+    }
+
+    document.getElementById('logLevel').value = 'error';
+    filterLogs();
+
+    Swal.fire({
+      icon: 'info',
+      title: `พบ ${errorLogs.length} Errors`,
+      text: 'แสดง error logs ในหน้าจอด้านล่าง',
+      timer: 2000
+    });
+  }
+
+  function openBackupModal() {
+    document.getElementById('backupModal').style.display = 'flex';
+
+    // Set last backup date
+    const lastBackup = new Date();
+    lastBackup.setDate(lastBackup.getDate() - 1);
+    document.getElementById('lastBackupDate').textContent = lastBackup.toLocaleString('th-TH');
+  }
+
+  function closeBackupModal() {
+    document.getElementById('backupModal').style.display = 'none';
+  }
+
+  function performBackup() {
+    const backupDB = document.getElementById('backupDB').checked;
+    const backupFiles = document.getElementById('backupFiles').checked;
+    const backupConfig = document.getElementById('backupConfig').checked;
+
+    if (!backupDB && !backupFiles && !backupConfig) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'กรุณาเลือกข้อมูล',
+        text: 'กรุณาเลือกข้อมูลที่ต้องการสำรองอย่างน้อย 1 รายการ'
+      });
+      return;
+    }
+
+    closeBackupModal();
+
+    Swal.fire({
+      title: 'กำลังสำรองข้อมูล...',
+      html: 'กรุณารอสักครู่<br><b>0%</b>',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+
+        let progress = 0;
+        const interval = setInterval(() => {
+          progress += 10;
+          Swal.getHtmlContainer().querySelector('b').textContent = `${progress}%`;
+
+          if (progress >= 100) {
+            clearInterval(interval);
+
+            Swal.fire({
+              icon: 'success',
+              title: 'สำรองข้อมูลสำเร็จ',
+              text: 'ข้อมูลถูกสำรองไว้เรียบร้อยแล้ว',
+              timer: 2000
+            });
+
+            // Update last backup date
+            document.getElementById('lastBackupDate').textContent = new Date().toLocaleString('th-TH');
+          }
+        }, 300);
+      }
+    });
+  }
+
+  // Close modal when clicking outside
+  window.onclick = function (event) {
+    const modal = document.getElementById('backupModal');
+    if (event.target === modal) {
+      closeBackupModal();
+    }
+  }
+</script>

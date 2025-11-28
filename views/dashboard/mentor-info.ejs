@@ -1,12 +1,119 @@
+<%
+  // Mock mentor history data สำหรับแต่ละงวดฝึก
+  const mentorPracticeHistory = [
+    {
+      id: 1,
+      year: 1,
+      period: 'ฝึกปฏิบัติวิชาชีพระหว่างเรียน 1',
+      mentorData: {
+        firstName: 'สมชาย',
+        lastName: 'ใจดี',
+        position: 'ครูชำนาญการพิเศษ (คศ.3)',
+        phone: '081-234-5678',
+        email: 'somchai@pailom.ac.th',
+        education: ['ค.บ. เทคโนโลยีดิจิทัลเพื่อการศึกษา', 'ค.ม. หลักสูตรและการสอน'],
+        experience: 15,
+        department: 'วิทยาศาสตร์และเทคโนโลยี',
+        teachingSubjects: [
+          { subject: 'วิทยาการคำนวณ', grades: ['ป.4', 'ป.5', 'ป.6'] },
+          { subject: 'คอมพิวเตอร์', grades: ['ป.1', 'ป.2', 'ป.3'] }
+        ]
+      },
+      status: 'completed'
+    },
+    {
+      id: 2,
+      year: 2,
+      period: 'ฝึกปฏิบัติวิชาชีพระหว่างเรียน 2',
+      mentorData: {
+        firstName: 'สมหญิง',
+        lastName: 'รักการสอน',
+        position: 'ครูชำนาญการ (คศ.2)',
+        phone: '089-876-5432',
+        email: 'somying@nakhonsawan.ac.th',
+        education: ['ค.บ. คอมพิวเตอร์ศึกษา', 'วท.ม. เทคโนโลยีสารสนเทศ'],
+        experience: 10,
+        department: 'วิทยาศาสตร์และเทคโนโลยี',
+        teachingSubjects: [
+          { subject: 'วิทยาการคำนวณ', grades: ['ม.1', 'ม.2', 'ม.3'] },
+          { subject: 'เทคโนโลยีสารสนเทศ', grades: ['ม.4', 'ม.5', 'ม.6'] }
+        ]
+      },
+      status: 'completed'
+    },
+    {
+      id: 3,
+      year: 3,
+      period: 'ฝึกประสบการณ์วิชาชีพครู 1',
+      mentorData: null, // ยังไม่กรอกข้อมูล
+      status: 'active'
+    }
+  ];
+
+  const activeMentorPeriod = mentorPracticeHistory.find(p => p.status === 'active');
+  const currentMentorData = activeMentorPeriod && activeMentorPeriod.mentorData;
+%>
+
 <div class="page-content">
   <div class="card">
-    <h2 style="margin-top:0;color:var(--color-primary);display:flex;align-items:center;gap:12px">
-      <span>👨‍🏫</span>
-      ข้อมูลครูพี่เลี้ยง
-    </h2>
-    <p class="text-muted">จัดการข้อมูลครูที่ปรึกษาและครูพี่เลี้ยง</p>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;gap:16px;flex-wrap:wrap">
+      <div>
+        <h2 style="margin:0 0 8px 0;color:var(--color-primary);display:flex;align-items:center;gap:12px">
+          <span>👨‍🏫</span>
+          ข้อมูลครูพี่เลี้ยง
+        </h2>
+        <p class="text-muted" style="margin:0">จัดการข้อมูลครูที่ปรึกษาและครูพี่เลี้ยง</p>
+      </div>
+      
+      <div class="form-group" style="margin:0;min-width:300px">
+        <label class="form-label">เลือกงวดฝึกประสบการณ์</label>
+        <select id="mentorPeriodSelector" class="form-input" onchange="changeMentorPeriod()" style="padding:10px 14px">
+          <% mentorPracticeHistory.slice().reverse().forEach((record) => { %>
+            <option value="<%= record.id %>" <%= record.status === 'active' ? 'selected' : '' %>>
+              <%= record.period %> (ปี <%= record.year %>)
+              <%= record.status === 'active' ? ' - ปัจจุบัน' : '' %>
+            </option>
+          <% }); %>
+        </select>
+      </div>
+    </div>
 
-    <form class="dashboard-form" style="margin-top:24px">
+    <!-- แสดงประวัติงวดที่ผ่านมา (Read-only) -->
+    <div id="mentorHistoryView" style="display:none">
+      <div style="background:rgba(251,180,37,0.1);border-left:4px solid var(--color-secondary);padding:16px;border-radius:8px;margin-bottom:24px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <span style="font-size:1.3rem">📚</span>
+          <strong style="color:var(--color-text);font-size:1.1rem">ข้อมูลย้อนหลัง (Read-Only)</strong>
+        </div>
+        <p style="margin:0;color:var(--color-muted);font-size:0.9rem">
+          คุณกำลังดูข้อมูลครูพี่เลี้ยงจากงวดฝึกที่ผ่านมาแล้ว ไม่สามารถแก้ไขได้
+        </p>
+      </div>
+      <div id="mentorHistoryContent" class="readonly-form"></div>
+    </div>
+
+    <!-- ฟอร์มสำหรับงวดปัจจุบัน (Editable) -->
+    <form id="mentorCurrentForm" class="dashboard-form" style="margin-top:24px" onsubmit="return saveMentorInfo(event)">
+      <!-- ปุ่มเลือกจากประวัติเก่า -->
+      <div style="background:var(--color-bg);border:2px dashed var(--color-border);padding:16px;border-radius:10px;margin-bottom:24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <span style="font-size:1.3rem">💡</span>
+              <strong style="color:var(--color-text)">ต้องการใช้ข้อมูลครูพี่เลี้ยงจากงวดก่อนหน้าหรือไม่?</strong>
+            </div>
+            <p style="margin:0;color:var(--color-muted);font-size:0.9rem">
+              หากคุณกลับไปฝึกที่โรงเรียนเดิมและได้ครูพี่เลี้ยงคนเดิม สามารถเลือกดึงข้อมูลจากประวัติได้
+            </p>
+          </div>
+          <button type="button" class="btn btn--secondary" onclick="showMentorHistoryModal()" style="white-space:nowrap">
+            📋 เลือกจากประวัติ
+          </button>
+        </div>
+      </div>
+
+      <!-- Personal Information -->
+      <div class="form-section">
       <!-- Personal Information -->
       <div class="form-section">
         <h3 class="form-section-title">ข้อมูลส่วนตัว</h3>
@@ -127,6 +234,83 @@
         </button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Modal: Select Mentor from History -->
+<div id="mentorHistoryModal" class="modal-overlay" style="display:none">
+  <div class="modal-content" style="max-width:700px">
+    <div class="modal-header">
+      <h3>เลือกครูพี่เลี้ยงจากประวัติการฝึกงานก่อนหน้า</h3>
+      <button type="button" class="modal-close" onclick="closeMentorHistoryModal()">×</button>
+    </div>
+    
+    <div class="modal-body">
+      <p style="color:var(--color-muted);margin:0 0 20px 0;font-size:0.95rem">
+        เลือกครูพี่เลี้ยงที่เคยดูแลคุณในงวดก่อนหน้า ข้อมูลจะถูกคัดลอกมาให้โดยอัตโนมัติ
+      </p>
+      
+      <div id="mentorHistoryList" class="mentor-history-list">
+        <% mentorPracticeHistory.filter(p => p.mentorData && p.status !== 'active').forEach((record) => { %>
+          <div class="mentor-card" onclick="selectMentorFromHistory(<%= record.id %>)">
+            <div class="mentor-card-header">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div class="mentor-avatar">👨‍🏫</div>
+                <div>
+                  <h4 style="margin:0 0 4px 0;color:var(--color-primary);font-size:1.1rem">
+                    <%= record.mentorData.firstName %> <%= record.mentorData.lastName %>
+                  </h4>
+                  <p style="margin:0;font-size:0.85rem;color:var(--color-muted)">
+                    <%= record.mentorData.position %>
+                  </p>
+                </div>
+              </div>
+              <span class="period-badge">
+                <%= record.period %>
+              </span>
+            </div>
+            
+            <div class="mentor-card-body">
+              <div class="mentor-info-row">
+                <span class="mentor-info-label">📞 เบอร์โทร:</span>
+                <span><%= record.mentorData.phone %></span>
+              </div>
+              <div class="mentor-info-row">
+                <span class="mentor-info-label">📧 อีเมล:</span>
+                <span><%= record.mentorData.email %></span>
+              </div>
+              <div class="mentor-info-row">
+                <span class="mentor-info-label">👔 กลุ่มสาระ:</span>
+                <span><%= record.mentorData.department %></span>
+              </div>
+              <div class="mentor-info-row">
+                <span class="mentor-info-label">⏱️ ประสบการณ์:</span>
+                <span><%= record.mentorData.experience %> ปี</span>
+              </div>
+            </div>
+            
+            <div class="mentor-card-footer">
+              <button type="button" class="btn-select-mentor">
+                ✓ เลือกครูท่านนี้
+              </button>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+      
+      <% if (mentorPracticeHistory.filter(p => p.mentorData && p.status !== 'active').length === 0) { %>
+        <div style="text-align:center;padding:40px;color:var(--color-muted)">
+          <div style="font-size:3rem;margin-bottom:16px">📋</div>
+          <p>ยังไม่มีประวัติครูพี่เลี้ยงจากงวดก่อนหน้า</p>
+        </div>
+      <% } %>
+    </div>
+    
+    <div class="modal-footer">
+      <button type="button" class="btn btn--secondary" onclick="closeMentorHistoryModal()">
+        ปิด
+      </button>
+    </div>
   </div>
 </div>
 
@@ -461,6 +645,168 @@
 .btn--secondary:hover {
   background: var(--color-text);
 }
+
+/* Mentor History Modal Styles */
+.mentor-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.mentor-card {
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.mentor-card:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.mentor-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.mentor-avatar {
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem;
+}
+
+.period-badge {
+  background: var(--color-primary);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mentor-card-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.mentor-info-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mentor-info-label {
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.mentor-card-footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-select-mentor {
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-select-mentor:hover {
+  background: var(--color-secondary);
+  transform: scale(1.05);
+}
+
+/* Read-only view styles */
+.readonly-form {
+  max-width: 100%;
+}
+
+.readonly-section {
+  margin-bottom: 32px;
+  padding: 20px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+.readonly-title {
+  color: var(--color-primary);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.readonly-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.readonly-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.readonly-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.readonly-item label {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.readonly-item div {
+  font-size: 1rem;
+  color: var(--color-text);
+  font-weight: 600;
+  padding: 8px 12px;
+  background: var(--color-bg);
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+}
+
+.grade-tag-readonly {
+  display: inline-block;
+  background: var(--color-primary);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
 </style>
 
 <script>
@@ -571,16 +917,236 @@ function removeTeachingSubject(index) {
   updateTeachingDisplay();
 }
 
+// Mentor period management
+const mentorData = <%- JSON.stringify(mentorPracticeHistory) %>;
+let currentMentorPeriodId = <%= activeMentorPeriod ? activeMentorPeriod.id : 'null' %>;
+
+function changeMentorPeriod() {
+  const selector = document.getElementById('mentorPeriodSelector');
+  const selectedId = parseInt(selector.value);
+  currentMentorPeriodId = selectedId;
+  
+  const selectedPeriod = mentorData.find(p => p.id === selectedId);
+  if (!selectedPeriod) return;
+  
+  if (selectedPeriod.status === 'active') {
+    // แสดงฟอร์มแก้ไขได้
+    document.getElementById('mentorCurrentForm').style.display = 'block';
+    document.getElementById('mentorHistoryView').style.display = 'none';
+    
+    // ถ้ามีข้อมูล ให้โหลดเข้าฟอร์ม
+    if (selectedPeriod.mentorData) {
+      loadMentorDataToForm(selectedPeriod.mentorData);
+    } else {
+      // ยังไม่มีข้อมูล ล้างฟอร์ม
+      document.getElementById('mentorCurrentForm').reset();
+      teachingSubjects = [];
+      updateTeachingDisplay();
+    }
+  } else {
+    // งวดเก่า - แสดงแบบ read-only
+    document.getElementById('mentorCurrentForm').style.display = 'none';
+    document.getElementById('mentorHistoryView').style.display = 'block';
+    
+    if (selectedPeriod.mentorData) {
+      displayReadOnlyMentorData(selectedPeriod.mentorData);
+    } else {
+      document.getElementById('mentorHistoryContent').innerHTML = `
+        <div style="text-align:center;padding:40px;color:var(--color-muted)">
+          <div style="font-size:3rem;margin-bottom:16px">👨‍🏫</div>
+          <p>ยังไม่มีข้อมูลครูพี่เลี้ยงสำหรับงวดนี้</p>
+        </div>
+      `;
+    }
+  }
+}
+
+function loadMentorDataToForm(data) {
+  const form = document.getElementById('mentorCurrentForm');
+  
+  // ข้อมูลส่วนตัว
+  const inputs = form.querySelectorAll('input[type="text"]');
+  if (inputs[0]) inputs[0].value = data.firstName || '';
+  if (inputs[1]) inputs[1].value = data.lastName || '';
+  
+  // วิทยฐานะ
+  const positionSelect = form.querySelector('select');
+  if (positionSelect) {
+    // หาค่าที่ตรงกับ position
+    const options = Array.from(positionSelect.options);
+    const matchOption = options.find(opt => opt.text.includes(data.position.split('(')[0].trim()));
+    if (matchOption) positionSelect.value = matchOption.value;
+  }
+  
+  // โทรศัพท์และอีเมล
+  const telInput = form.querySelector('input[type="tel"]');
+  const emailInput = form.querySelector('input[type="email"]');
+  if (telInput) telInput.value = data.phone || '';
+  if (emailInput) emailInput.value = data.email || '';
+  
+  // วุฒิการศึกษา - เคลียร์แล้วเพิ่มใหม่
+  const eduContainer = document.getElementById('educationContainer');
+  if (eduContainer && data.education) {
+    eduContainer.innerHTML = '';
+    data.education.forEach((edu, idx) => {
+      if (idx === 0) {
+        eduContainer.innerHTML = `
+          <div class="education-entry" style="display:flex;gap:8px;align-items:flex-end;margin-bottom:12px">
+            <div class="form-group" style="flex:1;margin:0">
+              <label class="form-label">วุฒิการศึกษา</label>
+              <input type="text" class="form-input education-input" value="${edu}">
+            </div>
+            <button type="button" class="btn btn--danger btn--icon" onclick="removeEducation(this)" style="padding:10px 16px">✕</button>
+          </div>
+        `;
+      } else {
+        const entry = document.createElement('div');
+        entry.className = 'education-entry';
+        entry.style.cssText = 'display:flex;gap:8px;align-items:flex-end;margin-bottom:12px';
+        entry.innerHTML = `
+          <div class="form-group" style="flex:1;margin:0">
+            <input type="text" class="form-input education-input" value="${edu}">
+          </div>
+          <button type="button" class="btn btn--danger btn--icon" onclick="removeEducation(this)" style="padding:10px 16px">✕</button>
+        `;
+        eduContainer.appendChild(entry);
+      }
+    });
+  }
+  
+  // ประสบการณ์การสอน
+  const expInput = form.querySelector('input[type="number"]');
+  if (expInput) expInput.value = data.experience || '';
+  
+  // กลุ่มสาระ
+  const deptSelect = form.querySelectorAll('select')[1];
+  if (deptSelect) deptSelect.value = data.department || '';
+  
+  // รายวิชาที่สอน
+  if (data.teachingSubjects) {
+    teachingSubjects = [...data.teachingSubjects];
+    updateTeachingDisplay();
+  }
+}
+
+function displayReadOnlyMentorData(data) {
+  const content = document.getElementById('mentorHistoryContent');
+  content.innerHTML = `
+    <div class="readonly-section">
+      <h3 class="readonly-title">👤 ข้อมูลส่วนตัว</h3>
+      <div class="readonly-grid">
+        <div class="readonly-item">
+          <label>ชื่อ:</label>
+          <div>${data.firstName}</div>
+        </div>
+        <div class="readonly-item">
+          <label>นามสกุล:</label>
+          <div>${data.lastName}</div>
+        </div>
+        <div class="readonly-item full-width">
+          <label>วิทยฐานะ:</label>
+          <div>${data.position}</div>
+        </div>
+        <div class="readonly-item">
+          <label>เบอร์โทรศัพท์:</label>
+          <div>${data.phone}</div>
+        </div>
+        <div class="readonly-item">
+          <label>อีเมล:</label>
+          <div>${data.email}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="readonly-section">
+      <h3 class="readonly-title">🎓 วุฒิการศึกษา</h3>
+      <ul style="margin:0;padding-left:24px;color:var(--color-text)">
+        ${data.education.map(edu => `<li style="margin-bottom:8px;font-weight:600">${edu}</li>`).join('')}
+      </ul>
+    </div>
+
+    <div class="readonly-section">
+      <h3 class="readonly-title">💼 ประสบการณ์การสอน</h3>
+      <div class="readonly-grid">
+        <div class="readonly-item">
+          <label>อายุราชการ / ประสบการณ์:</label>
+          <div>${data.experience} ปี</div>
+        </div>
+        <div class="readonly-item">
+          <label>กลุ่มสาระการเรียนรู้:</label>
+          <div>${data.department}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="readonly-section">
+      <h3 class="readonly-title">📚 รายวิชาที่สอน</h3>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        ${data.teachingSubjects.map(item => `
+          <div style="background:var(--color-bg);padding:12px 16px;border-radius:8px;border:1px solid var(--color-border)">
+            <div style="font-weight:700;color:var(--color-primary);margin-bottom:6px">${item.subject}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              ${item.grades.map(g => `<span class="grade-tag-readonly">${g}</span>`).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function showMentorHistoryModal() {
+  document.getElementById('mentorHistoryModal').style.display = 'flex';
+}
+
+function closeMentorHistoryModal() {
+  document.getElementById('mentorHistoryModal').style.display = 'none';
+}
+
+function selectMentorFromHistory(periodId) {
+  const selectedPeriod = mentorData.find(p => p.id === periodId);
+  if (!selectedPeriod || !selectedPeriod.mentorData) return;
+  
+  // โหลดข้อมูลเข้าฟอร์ม
+  loadMentorDataToForm(selectedPeriod.mentorData);
+  
+  // ปิด modal
+  closeMentorHistoryModal();
+  
+  // แสดง notification
+  alert(`✓ คัดลอกข้อมูลครูพี่เลี้ยงจาก ${selectedPeriod.period} เรียบร้อยแล้ว!\n\nคุณสามารถแก้ไขข้อมูลได้ตามต้องการก่อนบันทึก`);
+}
+
+function saveMentorInfo(event) {
+  event.preventDefault();
+  
+  // จำลองการบันทึกข้อมูล
+  alert('บันทึกข้อมูลครูพี่เลี้ยงสำเร็จ! 🎉\n(ในระบบจริงจะบันทึกลง database)');
+  
+  return false;
+}
+
 // Close modal when clicking outside
 document.addEventListener('DOMContentLoaded', function() {
-  const modal = document.getElementById('teachingModal');
-  if (modal) {
-    modal.addEventListener('click', function(e) {
+  const teachingModal = document.getElementById('teachingModal');
+  if (teachingModal) {
+    teachingModal.addEventListener('click', function(e) {
       if (e.target === this) {
         closeTeachingModal();
       }
     });
   }
+  
+  const historyModal = document.getElementById('mentorHistoryModal');
+  if (historyModal) {
+    historyModal.addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeMentorHistoryModal();
+      }
+    });
+  }
+  
   updateTeachingDisplay();
+  changeMentorPeriod();
 });
 </script>

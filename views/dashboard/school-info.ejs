@@ -1,12 +1,103 @@
+<%
+  // Mock practice history สำหรับเลือกงวด
+  const schoolPracticeHistory = [
+    {
+      id: 1,
+      year: 1,
+      period: 'ฝึกปฏิบัติวิชาชีพระหว่างเรียน 1',
+      schoolData: {
+        name: 'โรงเรียนวัดไผ่ล้อม',
+        affiliation: 'สำนักงานคณะกรรมการการศึกษาขั้นพื้นฐาน',
+        address: '123 ถนนพหลโยธิน',
+        subdistrict: 'ไผ่ล้อม',
+        amphoe: 'เมืองนครสวรรค์',
+        province: 'นครสวรรค์',
+        postcode: '60000',
+        gradeLevels: ['ป.1', 'ป.2', 'ป.3', 'ป.4', 'ป.5', 'ป.6'],
+        studentCount: 350,
+        teacherCount: 28,
+        classroomCount: 18,
+        phone: '056-123456',
+        email: 'info@pailom.ac.th',
+        principal: 'นายสมชาย ใจดี'
+      },
+      status: 'completed'
+    },
+    {
+      id: 2,
+      year: 2,
+      period: 'ฝึกปฏิบัติวิชาชีพระหว่างเรียน 2',
+      schoolData: {
+        name: 'โรงเรียนนครสวรรค์',
+        affiliation: 'สังกัดสำนักงานเขตพื้นที่การศึกษามัธยมศึกษา',
+        address: '789 ถนนสวรรค์วิถี',
+        subdistrict: 'ปากน้ำโพ',
+        amphoe: 'เมืองนครสวรรค์',
+        province: 'นครสวรรค์',
+        postcode: '60000',
+        gradeLevels: ['ม.1', 'ม.2', 'ม.3', 'ม.4', 'ม.5', 'ม.6'],
+        studentCount: 1250,
+        teacherCount: 85,
+        classroomCount: 42,
+        phone: '056-234567',
+        email: 'info@nakhonsawan.ac.th',
+        principal: 'นางสาววิไล สุขสม'
+      },
+      status: 'completed'
+    },
+    {
+      id: 3,
+      year: 3,
+      period: 'ฝึกประสบการณ์วิชาชีพครู 1',
+      schoolData: null, // ยังไม่กรอกข้อมูล
+      status: 'active'
+    }
+  ];
+
+  const activePeriod = schoolPracticeHistory.find(p => p.status === 'active');
+  const currentSchoolData = activePeriod && activePeriod.schoolData;
+%>
+
 <div class="page-content">
   <div class="card">
-    <h2 style="margin-top:0;color:var(--color-primary);display:flex;align-items:center;gap:12px">
-      <span>🏫</span>
-      ข้อมูลสถานศึกษา
-    </h2>
-    <p class="text-muted">จัดการข้อมูลสถานที่ฝึกประสบการณ์วิชาชีพ</p>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;gap:16px;flex-wrap:wrap">
+      <div>
+        <h2 style="margin:0 0 8px 0;color:var(--color-primary);display:flex;align-items:center;gap:12px">
+          <span>🏫</span>
+          ข้อมูลสถานศึกษา
+        </h2>
+        <p class="text-muted" style="margin:0">จัดการข้อมูลสถานที่ฝึกประสบการณ์วิชาชีพ</p>
+      </div>
+      
+      <div class="form-group" style="margin:0;min-width:300px">
+        <label class="form-label">เลือกงวดฝึกประสบการณ์</label>
+        <select id="periodSelector" class="form-input" onchange="changePeriod()" style="padding:10px 14px">
+          <% schoolPracticeHistory.slice().reverse().forEach((record) => { %>
+            <option value="<%= record.id %>" <%= record.status === 'active' ? 'selected' : '' %>>
+              <%= record.period %> (ปี <%= record.year %>)
+              <%= record.status === 'active' ? ' - ปัจจุบัน' : '' %>
+            </option>
+          <% }); %>
+        </select>
+      </div>
+    </div>
 
-    <form class="dashboard-form" style="margin-top:24px">
+    <!-- แสดงประวัติงวดที่ผ่านมา (Read-only) -->
+    <div id="historyView" style="display:none">
+      <div style="background:rgba(251,180,37,0.1);border-left:4px solid var(--color-secondary);padding:16px;border-radius:8px;margin-bottom:24px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <span style="font-size:1.3rem">📚</span>
+          <strong style="color:var(--color-text);font-size:1.1rem">ข้อมูลย้อนหลัง (Read-Only)</strong>
+        </div>
+        <p style="margin:0;color:var(--color-muted);font-size:0.9rem">
+          คุณกำลังดูข้อมูลงวดฝึกที่ผ่านมาแล้ว ไม่สามารถแก้ไขได้
+        </p>
+      </div>
+      <div id="historyContent" class="readonly-form"></div>
+    </div>
+
+    <!-- ฟอร์มสำหรับงวดปัจจุบัน (Editable) -->
+    <form id="currentForm" class="dashboard-form" style="margin-top:24px" onsubmit="return saveSchoolInfo(event)">
       <!-- Basic School Information -->
       <div class="form-section">
         <h3 class="form-section-title">ข้อมูลพื้นฐาน</h3>
@@ -457,6 +548,82 @@
 .btn--secondary:hover {
   background: var(--color-text);
 }
+
+/* Read-only view styles */
+.readonly-form {
+  max-width: 100%;
+}
+
+.readonly-section {
+  margin-bottom: 32px;
+  padding: 20px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+}
+
+.readonly-title {
+  color: var(--color-primary);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.readonly-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+}
+
+.readonly-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.readonly-item.full-width {
+  grid-column: 1 / -1;
+}
+
+.readonly-item label {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.readonly-item div {
+  font-size: 1rem;
+  color: var(--color-text);
+  font-weight: 600;
+  padding: 8px 12px;
+  background: var(--color-bg);
+  border-radius: 6px;
+  border: 1px solid var(--color-border);
+}
+
+.grade-tags-readonly {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+  background: var(--color-bg);
+  border-radius: 8px;
+}
+
+.grade-tag-readonly {
+  display: inline-block;
+  background: var(--color-primary);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
 </style>
 
 <script>
@@ -579,6 +746,181 @@ document.getElementById('gradeLevelModal').addEventListener('click', function(e)
   }
 });
 
+// Practice period management
+const practiceData = <%- JSON.stringify(schoolPracticeHistory) %>;
+let currentPeriodId = <%= activePeriod ? activePeriod.id : 'null' %>;
+
+function changePeriod() {
+  const selector = document.getElementById('periodSelector');
+  const selectedId = parseInt(selector.value);
+  currentPeriodId = selectedId;
+  
+  const selectedPeriod = practiceData.find(p => p.id === selectedId);
+  if (!selectedPeriod) return;
+  
+  if (selectedPeriod.status === 'active') {
+    // แสดงฟอร์มแก้ไขได้
+    document.getElementById('currentForm').style.display = 'block';
+    document.getElementById('historyView').style.display = 'none';
+    
+    // ถ้ามีข้อมูล ให้โหลดเข้าฟอร์ม
+    if (selectedPeriod.schoolData) {
+      loadDataToForm(selectedPeriod.schoolData);
+    } else {
+      // ยังไม่มีข้อมูล ล้างฟอร์ม
+      document.getElementById('currentForm').reset();
+      selectedGrades = [];
+      updateGradeDisplay();
+    }
+  } else {
+    // งวดเก่า - แสดงแบบ read-only
+    document.getElementById('currentForm').style.display = 'none';
+    document.getElementById('historyView').style.display = 'block';
+    
+    if (selectedPeriod.schoolData) {
+      displayReadOnlyData(selectedPeriod.schoolData);
+    } else {
+      document.getElementById('historyContent').innerHTML = `
+        <div style="text-align:center;padding:40px;color:var(--color-muted)">
+          <div style="font-size:3rem;margin-bottom:16px">📋</div>
+          <p>ยังไม่มีข้อมูลสถานศึกษาสำหรับงวดนี้</p>
+        </div>
+      `;
+    }
+  }
+}
+
+function loadDataToForm(data) {
+  // โหลดข้อมูลเข้าฟอร์ม
+  const form = document.getElementById('currentForm');
+  form.querySelector('input[type="text"]').value = data.name || '';
+  document.getElementById('affiliationSelect').value = data.affiliation || '';
+  form.querySelector('input[placeholder*="ถนน"]').value = data.address || '';
+  document.getElementById('subdistrictInput').value = data.subdistrict || '';
+  document.getElementById('amphoeInput').value = data.amphoe || '';
+  document.getElementById('provinceInput').value = data.province || '';
+  document.getElementById('postcodeInput').value = data.postcode || '';
+  
+  // โหลด grade levels
+  if (data.gradeLevels && data.gradeLevels.length > 0) {
+    selectedGrades = [...data.gradeLevels];
+    // เช็คใน modal
+    document.querySelectorAll('#gradeLevelModal input[type="checkbox"]').forEach(cb => {
+      cb.checked = selectedGrades.includes(cb.value);
+    });
+    updateGradeDisplay();
+  }
+  
+  // โหลดสถิติ
+  const statInputs = form.querySelectorAll('input[type="number"]');
+  if (statInputs[0]) statInputs[0].value = data.studentCount || '';
+  if (statInputs[1]) statInputs[1].value = data.teacherCount || '';
+  if (statInputs[2]) statInputs[2].value = data.classroomCount || '';
+  
+  // โหลดข้อมูลติดต่อ
+  const contactInputs = form.querySelectorAll('.form-section:last-of-type input');
+  if (contactInputs[0]) contactInputs[0].value = data.phone || '';
+  if (contactInputs[1]) contactInputs[1].value = data.email || '';
+  if (contactInputs[2]) contactInputs[2].value = data.principal || '';
+}
+
+function displayReadOnlyData(data) {
+  const content = document.getElementById('historyContent');
+  content.innerHTML = `
+    <div class="readonly-section">
+      <h3 class="readonly-title">📝 ข้อมูลพื้นฐาน</h3>
+      <div class="readonly-grid">
+        <div class="readonly-item">
+          <label>ชื่อสถานศึกษา:</label>
+          <div>${data.name}</div>
+        </div>
+        <div class="readonly-item">
+          <label>สังกัด:</label>
+          <div>${data.affiliation}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="readonly-section">
+      <h3 class="readonly-title">📍 ที่อยู่</h3>
+      <div class="readonly-grid">
+        <div class="readonly-item full-width">
+          <label>ที่อยู่:</label>
+          <div>${data.address}</div>
+        </div>
+        <div class="readonly-item">
+          <label>ตำบล:</label>
+          <div>${data.subdistrict}</div>
+        </div>
+        <div class="readonly-item">
+          <label>อำเภอ:</label>
+          <div>${data.amphoe}</div>
+        </div>
+        <div class="readonly-item">
+          <label>จังหวัด:</label>
+          <div>${data.province}</div>
+        </div>
+        <div class="readonly-item">
+          <label>รหัสไปรษณีย์:</label>
+          <div>${data.postcode}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="readonly-section">
+      <h3 class="readonly-title">🎓 ระดับชั้นที่เปิดสอน</h3>
+      <div class="grade-tags-readonly">
+        ${data.gradeLevels.map(g => `<span class="grade-tag-readonly">${g}</span>`).join('')}
+      </div>
+    </div>
+
+    <div class="readonly-section">
+      <h3 class="readonly-title">📊 สถิติโรงเรียน</h3>
+      <div class="readonly-grid">
+        <div class="readonly-item">
+          <label>จำนวนนักเรียน:</label>
+          <div>${data.studentCount} คน</div>
+        </div>
+        <div class="readonly-item">
+          <label>จำนวนครู:</label>
+          <div>${data.teacherCount} คน</div>
+        </div>
+        <div class="readonly-item">
+          <label>จำนวนห้องเรียน:</label>
+          <div>${data.classroomCount} ห้อง</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="readonly-section">
+      <h3 class="readonly-title">📞 ข้อมูลติดต่อ</h3>
+      <div class="readonly-grid">
+        <div class="readonly-item">
+          <label>เบอร์โทรศัพท์:</label>
+          <div>${data.phone}</div>
+        </div>
+        <div class="readonly-item">
+          <label>อีเมล:</label>
+          <div>${data.email}</div>
+        </div>
+        <div class="readonly-item full-width">
+          <label>ผู้อำนวยการโรงเรียน:</label>
+          <div>${data.principal}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function saveSchoolInfo(event) {
+  event.preventDefault();
+  
+  // จำลองการบันทึกข้อมูล
+  alert('บันทึกข้อมูลสถานศึกษาสำเร็จ! 🎉\n(ในระบบจริงจะบันทึกลง database)');
+  
+  return false;
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
   updateGradeDisplay();
@@ -586,6 +928,8 @@ document.addEventListener('DOMContentLoaded', function() {
   onAffiliationChange();
   // Load Thai address dataset and bind autocomplete
   loadThaiAddressData();
+  // Initialize period view
+  changePeriod();
 });
 
 // --- Address autocomplete using kongvut single API ---
