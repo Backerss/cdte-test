@@ -49,7 +49,8 @@
                 </a>
             </li>
             
-            <!-- Admin Menu Section -->
+            <!-- Admin Menu Section (visible to teachers and admins only) -->
+            <% if (user && (user.role === 'admin' || user.role === 'teacher')) { %>
             <li class="sidebar-menu-divider">
                 <span class="sidebar-divider-text">ผู้ดูแลระบบ</span>
             </li>
@@ -77,6 +78,7 @@
                     <span class="sidebar-text">รายงานผลการสังเกตุ</span>
                 </a>
             </li>
+            <% } %>
         </ul>
     </nav>
 
