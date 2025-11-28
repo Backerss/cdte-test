@@ -5,6 +5,9 @@
     : user.studentId || 'ผู้ใช้';
   const userYear = user.year || 1;
   
+  // Check if user is pure admin (admin role without student ID)
+  const isPureAdmin = user && user.role === 'admin' && !user.studentId;
+  
   // TODO: ดึงข้อมูลจาก database
   // ตอนนี้ใช้ค่าเริ่มต้นไปก่อน
   const practiceHistory = [];
@@ -33,13 +36,27 @@
 %>
 
 <div class="dashboard-welcome">
-  <!-- Personal Greeting Card -->
-  <div class="card greeting-card" style="margin-bottom:24px;background:linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface) 100%);border-left:4px solid var(--color-primary)">
-    <h2 style="margin:0 0 12px 0;color:var(--color-primary);font-size:1.75rem">
-      สวัสดี, <%= user.firstName %> <%= user.lastName %> 👋
-    </h2>
-    <p style="color:var(--color-text);margin:0 0 8px 0;font-size:1.1rem">
-      <strong>นักศึกษาระดับชั้นปีที่ <%= userYear %></strong>
+  <% if (isPureAdmin) { %>
+    <!-- Admin Greeting Card -->
+    <div class="card greeting-card" style="margin-bottom:24px;background:linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);border:none;color:white;">
+      <h2 style="margin:0 0 12px 0;color:white;font-size:1.75rem">
+        สวัสดี, ผู้ดูแลระบบ 🔧
+      </h2>
+      <p style="color:white;margin:0 0 8px 0;font-size:1.1rem;opacity:0.9">
+        <strong>คุณเข้าสู่ระบบในฐานะผู้ดูแลระบบ</strong>
+      </p>
+      <p style="color:white;margin:0;font-size:0.95rem;opacity:0.8">
+        หน้านี้แสดงข้อมูลสำหรับนักศึกษาเท่านั้น - หากต้องการดูข้อมูลนักศึกษา กรุณาเข้าสู่ระบบด้วยรหัสนักศึกษา
+      </p>
+    </div>
+  <% } else { %>
+    <!-- Personal Greeting Card -->
+    <div class="card greeting-card" style="margin-bottom:24px;background:linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface) 100%);border-left:4px solid var(--color-primary)">
+      <h2 style="margin:0 0 12px 0;color:var(--color-primary);font-size:1.75rem">
+        สวัสดี, <%= user.firstName %> <%= user.lastName %> 👋
+      </h2>
+      <p style="color:var(--color-text);margin:0 0 8px 0;font-size:1.1rem">
+        <strong>นักศึกษาระดับชั้นปีที่ <%= userYear %></strong>
     </p>
     <div style="display:flex;align-items:center;gap:8px;margin-top:12px">
       <span style="font-size:1.2rem"><%= isInPracticePeriod ? '🟢' : '🔵' %></span>
@@ -402,6 +419,7 @@
       </div>
     </div>
   </div>
+  <% } %>
 </div>
 
 <style>

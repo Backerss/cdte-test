@@ -11,6 +11,9 @@
   const currentMentorData = activeMentorPeriod && activeMentorPeriod.mentorData;
   const hasPractice = mentorPractice.length > 0;
   const hasActive = !!activeMentorPeriod;
+
+  // Check if user is pure admin (admin role without student ID)
+  const isPureAdmin = user && user.role === 'admin' && !user.studentId;
 %>
 
 <div class="page-content">
@@ -41,7 +44,15 @@
       </div>
     </div>
 
-    <% if (!hasActive) { %>
+    <% if (isPureAdmin) { %>
+      <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+          <span style="font-size: 1.5rem;">🔒</span>
+          <h3 style="margin: 0; font-size: 1.2rem;">สำหรับผู้ดูแลระบบเท่านั้น</h3>
+        </div>
+        <p style="margin: 0; font-size: 1rem; line-height: 1.5; opacity: 0.95;">คุณเข้าสู่ระบบในฐานะ <strong>ผู้ดูแลระบบ</strong> ซึ่งไม่สามารถกรอกข้อมูลครูพี่เลี้ยงได้<br>หากต้องการกรอกข้อมูล กรุณาเข้าสู่ระบบด้วยรหัสนักศึกษา</p>
+      </div>
+    <% } else if (!hasActive) { %>
       <div id="noMentorActiveBanner" style="background:#fff3cd;border-left:4px solid #ffc107;padding:12px;border-radius:8px;margin-bottom:16px;color:#856404">
         ⚠️ ยังไม่มีงวดการฝึกที่ถูกตั้งค่าเป็น "ปัจจุบัน" — คุณไม่สามารถกรอกข้อมูลครูพี่เลี้ยงได้จนกว่าจะมีการตั้งงวดฝึกที่ใช้งานอยู่
       </div>
@@ -62,6 +73,7 @@
     </div>
 
     <!-- ฟอร์มสำหรับงวดปัจจุบัน (Editable) -->
+    <% if (!isPureAdmin) { %>
     <form id="mentorCurrentForm" class="dashboard-form" style="margin-top:24px" onsubmit="return saveMentorInfo(event)">
       <!-- ปุ่มเลือกจากประวัติเก่า -->
       <div style="background:var(--color-bg);border:2px dashed var(--color-border);padding:16px;border-radius:10px;margin-bottom:24px">
@@ -203,6 +215,7 @@
         </button>
       </div>
     </form>
+    <% } %>
   </div>
 </div>
 
@@ -892,6 +905,7 @@ let currentMentorPeriodId = <%= activeMentorPeriod ? activeMentorPeriod.id : 'nu
 
 const hasPractice = <%= mentorPractice.length > 0 ? 'true' : 'false' %>;
 const hasActive = <%= activeMentorPeriod ? 'true' : 'false' %>;
+const isPureAdminClient = <%= isPureAdmin ? 'true' : 'false' %>;
 
 function changeMentorPeriod() {
   const selector = document.getElementById('mentorPeriodSelector');
@@ -1120,7 +1134,12 @@ document.addEventListener('DOMContentLoaded', function() {
   
   updateTeachingDisplay();
 
-  if (!hasPractice) {
+  if (isPureAdminClient) {
+    // Pure admin - disable all interactions
+    document.querySelectorAll('input, select, button, textarea').forEach(el => {
+      if (!el.classList.contains('modal-close')) el.disabled = true;
+    });
+  } else if (!hasPractice) {
     // No practice periods - disable everything in the form
     const form = document.getElementById('mentorCurrentForm');
     if (form) {
@@ -1136,6 +1155,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  changeMentorPeriod();
+  if (!isPureAdminClient) changeMentorPeriod();
 });
 </script>

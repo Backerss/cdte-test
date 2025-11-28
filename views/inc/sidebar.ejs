@@ -24,33 +24,11 @@
                     <span class="sidebar-text">หน้าหลัก</span>
                 </a>
             </li>
-            <li class="sidebar-menu-item <%= currentPage === 'school-info' ? 'active' : '' %>">
-                <a href="/dashboard/school-info" class="sidebar-link">
-                    <span class="sidebar-icon">🏫</span>
-                    <span class="sidebar-text">ข้อมูลสถานศึกษา</span>
-                </a>
-            </li>
-            <li class="sidebar-menu-item <%= currentPage === 'mentor-info' ? 'active' : '' %>">
-                <a href="/dashboard/mentor-info" class="sidebar-link">
-                    <span class="sidebar-icon">👨‍🏫</span>
-                    <span class="sidebar-text">ข้อมูลครูพี่เลี้ยง</span>
-                </a>
-            </li>
-            <li class="sidebar-menu-item <%= currentPage === 'evaluation' ? 'active' : '' %>">
-                <a href="/dashboard/evaluation" class="sidebar-link">
-                    <span class="sidebar-icon">📝</span>
-                    <span class="sidebar-text">การประเมิน</span>
-                </a>
-            </li>
-            <li class="sidebar-menu-item <%= currentPage === 'profile' ? 'active' : '' %>">
-                <a href="/dashboard/profile" class="sidebar-link">
-                    <span class="sidebar-icon">👤</span>
-                    <span class="sidebar-text">โปรไฟล์</span>
-                </a>
-            </li>
+            <!-- Student links are rendered below only when `isStudentUser` is true -->
             
-            <% /* Student-only menu items: visible to students and admins. Teachers do not see these. Admin sees all menus. */ %>
-            <% if (user && (user.role === 'student' || user.role === 'admin')) { %>
+            <% /* Student-only menu items: visible only when the user has a numeric studentId (real student or admin who also has a studentId) */ %>
+            <% const isStudentUser = (user && user.studentId && /^\d+$/.test(String(user.studentId))); %>
+            <% if (isStudentUser) { %>
             <li class="sidebar-menu-item <%= currentPage === 'school-info' ? 'active' : '' %>">
                 <a href="/dashboard/school-info" class="sidebar-link">
                     <span class="sidebar-icon">🏫</span>

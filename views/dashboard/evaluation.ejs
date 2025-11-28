@@ -13,6 +13,9 @@
 
   const hasPractice = evalPractice.length > 0;
   const hasActive = !!activeEvalPeriod;
+
+  // Check if user is pure admin (admin role without student ID)
+  const isPureAdmin = user && user.role === 'admin' && !user.studentId;
 %>
 
 <div class="page-content">
@@ -43,7 +46,15 @@
       </div>
     </div>
 
-    <% if (!hasActive) { %>
+    <% if (isPureAdmin) { %>
+      <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+          <span style="font-size: 1.5rem;">🔒</span>
+          <h3 style="margin: 0; font-size: 1.2rem;">สำหรับผู้ดูแลระบบเท่านั้น</h3>
+        </div>
+        <p style="margin: 0; font-size: 1rem; line-height: 1.5; opacity: 0.95;">คุณเข้าสู่ระบบในฐานะ <strong>ผู้ดูแลระบบ</strong> ซึ่งไม่สามารถทำการประเมินได้<br>หากต้องการทำการประเมิน กรุณาเข้าสู่ระบบด้วยรหัสนักศึกษา</p>
+      </div>
+    <% } else if (!hasActive) { %>
       <div id="noEvalActiveBanner" style="background:#fff3cd;border-left:4px solid #ffc107;padding:12px;border-radius:8px;margin-bottom:16px;color:#856404">
         ⚠️ ยังไม่มีงวดการฝึกที่ถูกตั้งค่าเป็น "ปัจจุบัน" — คุณไม่สามารถทำการประเมินได้จนกว่าจะมีการตั้งงวดฝึกที่ใช้งานอยู่
       </div>
@@ -64,6 +75,7 @@
     </div>
 
     <!-- ส่วนสำหรับงวดปัจจุบัน (Editable) -->
+    <% if (!isPureAdmin) { %>
     <div id="evalCurrentContent">
         <!-- Practice Period Info -->
         <div class="info-banner" style="background:var(--color-bg);border-left:4px solid var(--color-primary);padding:16px;border-radius:8px;margin-bottom:24px">
@@ -187,6 +199,7 @@
         </div>
       <% } %>
     </div>
+    <% } %>
   </div>
 </div>
 
@@ -894,6 +907,7 @@ const evaluationPracticeHistory = <%- JSON.stringify(evalPractice) %>;
 
 const hasPractice = <%= evalPractice.length > 0 ? 'true' : 'false' %>;
 const hasActive = <%= activeEvalPeriod ? 'true' : 'false' %>;
+const isPureAdminClient = <%= isPureAdmin ? 'true' : 'false' %>;
 
 let currentEvalPeriod = evaluationPracticeHistory.find(p => p.status === 'active') || (evaluationPracticeHistory.length > 0 ? evaluationPracticeHistory[evaluationPracticeHistory.length - 1] : null);
 let currentEvalNum = null;
@@ -1720,9 +1734,14 @@ function saveEvaluationData() {
   // fetch('/api/evaluation/save', { method: 'POST', body: JSON.stringify(currentEvalPeriod) })
 }
 
-// Disable form when no practice or no active
+// Disable form when pure admin, no practice or no active
 document.addEventListener('DOMContentLoaded', function() {
-  if (!hasPractice || !hasActive) {
+  if (isPureAdminClient) {
+    // Pure admin - disable all interactions
+    document.querySelectorAll('input, select, button, textarea').forEach(el => {
+      if (!el.classList.contains('modal-close')) el.disabled = true;
+    });
+  } else if (!hasPractice || !hasActive) {
     const currentContent = document.getElementById('evalCurrentContent');
     if (currentContent) {
       // Disable all inputs, textareas, and buttons in current content area

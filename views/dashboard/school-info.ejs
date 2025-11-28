@@ -13,6 +13,9 @@
   const hasPractice = practiceHistory.length > 0;
   const hasActive = !!activePeriod;
 
+  // Check if user is pure admin (admin role without student ID)
+  const isPureAdmin = user && user.role === 'admin' && !user.studentId;
+
   const currentSchoolData = activePeriod && activePeriod.schoolData;
 %>
 
@@ -44,7 +47,15 @@
       </div>
     </div>
 
-    <% if (!hasActive) { %>
+    <% if (isPureAdmin) { %>
+      <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+          <span style="font-size: 1.5rem;">🔒</span>
+          <h3 style="margin: 0; font-size: 1.2rem;">สำหรับผู้ดูแลระบบเท่านั้น</h3>
+        </div>
+        <p style="margin: 0; font-size: 1rem; line-height: 1.5; opacity: 0.95;">คุณเข้าสู่ระบบในฐานะ <strong>ผู้ดูแลระบบ</strong> ซึ่งไม่สามารถกรอกข้อมูลสถานศึกษาได้<br>หากต้องการกรอกข้อมูล กรุณาเข้าสู่ระบบด้วยรหัสนักศึกษา</p>
+      </div>
+    <% } else if (!hasActive) { %>
       <div id="noActiveBanner" style="background:#fff3cd;border-left:4px solid #ffc107;padding:12px;border-radius:8px;margin-bottom:16px;color:#856404">
         ⚠️ ยังไม่มีงวดการฝึกที่ถูกตั้งค่าในสถานะ "ปัจจุบัน" — คุณไม่สามารถกรอกข้อมูลสถานศึกษาได้จนกว่าจะมีการตั้งงวดฝึกที่ใช้งานอยู่
       </div>
@@ -65,6 +76,7 @@
     </div>
 
     <!-- ฟอร์มสำหรับงวดปัจจุบัน (Editable) -->
+    <% if (!isPureAdmin) { %>
     <form id="currentForm" class="dashboard-form" style="margin-top:24px" onsubmit="return saveSchoolInfo(event)">
       <!-- Basic School Information -->
       <div class="form-section">
@@ -202,6 +214,7 @@
         </button>
       </div>
     </form>
+    <% } %>
   </div>
 </div>
 
@@ -720,6 +733,7 @@ let currentPeriodId = <%= activePeriod ? activePeriod.id : 'null' %>;
 
 const hasPractice = <%= practiceHistory.length > 0 ? 'true' : 'false' %>;
 const hasActive = <%= activePeriod ? 'true' : 'false' %>;
+const isPureAdminClient = <%= isPureAdmin ? 'true' : 'false' %>;
 
 function changePeriod() {
   const selector = document.getElementById('periodSelector');
@@ -900,7 +914,14 @@ document.addEventListener('DOMContentLoaded', function() {
   // Load Thai address dataset and bind autocomplete
   loadThaiAddressData();
   // Initialize period view
-  if (!hasPractice) {
+  if (isPureAdminClient) {
+    // Pure admin - disable all interactions except navigation
+    const periodSelector = document.getElementById('periodSelector');
+    if (periodSelector) periodSelector.disabled = true;
+    document.querySelectorAll('input, select, button, textarea').forEach(el => {
+      if (!el.classList.contains('modal-close')) el.disabled = true;
+    });
+  } else if (!hasPractice) {
     // No practice periods at all - disable the form
     const form = document.getElementById('currentForm');
     if (form) {
@@ -917,7 +938,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  changePeriod();
+  if (!isPureAdminClient) changePeriod();
 });
 
 // --- Address autocomplete using kongvut single API ---

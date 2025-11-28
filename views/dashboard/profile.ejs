@@ -1,3 +1,8 @@
+<%
+  // Check if user is pure admin (admin role without student ID)
+  const isPureAdmin = user && user.role === 'admin' && !user.studentId;
+%>
+
 <div class="page-content">
   <div class="card">
     <h2 style="margin-top:0;color:var(--color-primary);display:flex;align-items:center;gap:12px">
@@ -5,6 +10,16 @@
       โปรไฟล์
     </h2>
     <p class="text-muted">จัดการข้อมูลส่วนตัวของคุณ</p>
+
+    <% if (isPureAdmin) { %>
+      <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+          <span style="font-size: 1.5rem;">🔒</span>
+          <h3 style="margin: 0; font-size: 1.2rem;">สำหรับผู้ดูแลระบบเท่านั้น</h3>
+        </div>
+        <p style="margin: 0; font-size: 1rem; line-height: 1.5; opacity: 0.95;">คุณเข้าสู่ระบบในฐานะ <strong>ผู้ดูแลระบบ</strong> ซึ่งไม่สามารถแก้ไขข้อมูลโปรไฟล์ได้<br>หากต้องการแก้ไขข้อมูล กรุณาเข้าสู่ระบบด้วยรหัสนักศึกษา</p>
+      </div>
+    <% } else { %>
 
     <form id="profileForm" class="dashboard-form" style="margin-top:24px">
       <!-- Profile Picture Section -->
@@ -137,6 +152,7 @@
         </button>
       </div>
     </form>
+    <% } %>
   </div>
 </div>
 
@@ -443,6 +459,17 @@ async function loadProfile() {
 }
 
 loadProfile();
+
+// Check if user is pure admin and disable form if needed
+const isPureAdminClient = <%= isPureAdmin ? 'true' : 'false' %>;
+if (isPureAdminClient) {
+  document.addEventListener('DOMContentLoaded', function() {
+    // Disable all form inputs and buttons for pure admin
+    document.querySelectorAll('input, select, button, textarea').forEach(el => {
+      if (!el.classList.contains('modal-close')) el.disabled = true;
+    });
+  });
+}
 
 // Upload avatar helper - returns avatarUrl
 async function uploadAvatarIfNeeded() {
