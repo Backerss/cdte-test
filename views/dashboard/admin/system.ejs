@@ -50,84 +50,6 @@
       </div>
     </div>
 
-    <!-- System Health Monitoring -->
-    <div class="system-section">
-      <h3 class="section-title">
-        <span>📊</span> สุขภาพระบบ
-      </h3>
-
-      <div class="health-grid">
-        <div class="health-card">
-          <div class="health-icon">🖥️</div>
-          <div class="health-info">
-            <div class="health-label">CPU Usage</div>
-            <div class="health-value" id="cpuUsage">0%</div>
-            <div class="health-bar">
-              <div class="health-bar-fill" id="cpuBar" style="width:0%"></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="health-card">
-          <div class="health-icon">💾</div>
-          <div class="health-info">
-            <div class="health-label">Memory Usage</div>
-            <div class="health-value" id="memoryUsage">0%</div>
-            <div class="health-bar">
-              <div class="health-bar-fill" id="memoryBar" style="width:0%"></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="health-card">
-          <div class="health-icon">⏱️</div>
-          <div class="health-info">
-            <div class="health-label">Uptime</div>
-            <div class="health-value" id="uptime">-</div>
-          </div>
-        </div>
-
-        <div class="health-card">
-          <div class="health-icon">🗄️</div>
-          <div class="health-info">
-            <div class="health-label">Database</div>
-            <div class="health-value" id="dbStatus">
-              <span class="status-badge active">เชื่อมต่อแล้ว</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Quick Actions -->
-    <div class="system-section">
-      <h3 class="section-title">
-        <span>⚡</span> การจัดการด่วน
-      </h3>
-
-      <div class="quick-actions-grid">
-        <button class="action-btn" onclick="clearCache()">
-          <div class="action-icon">🗑️</div>
-          <div class="action-label">ล้าง Cache</div>
-        </button>
-
-        <button class="action-btn" onclick="restartServer()">
-          <div class="action-icon">🔄</div>
-          <div class="action-label">Restart Server</div>
-        </button>
-
-        <button class="action-btn" onclick="optimizeDatabase()">
-          <div class="action-icon">⚙️</div>
-          <div class="action-label">Optimize DB</div>
-        </button>
-
-        <button class="action-btn" onclick="viewErrorLogs()">
-          <div class="action-icon">⚠️</div>
-          <div class="action-label">Error Logs</div>
-        </button>
-      </div>
-    </div>
-
     <!-- System Logs Viewer -->
     <div class="system-section">
       <h3 class="section-title">
@@ -693,69 +615,7 @@
   let autoRefreshInterval = null;
   let currentLogs = [];
   let filteredLogs = [];
-
-  // Mock data generators
-  function generateMockLogs() {
-    const levels = ['info', 'warning', 'error', 'debug'];
-    const categories = ['auth', 'database', 'api', 'system'];
-    const messages = [
-      'User login successful',
-      'Database connection established',
-      'API request processed',
-      'Cache cleared successfully',
-      'Session expired',
-      'File upload completed',
-      'Email sent to user',
-      'Password reset requested',
-      'Database query executed',
-      'Authentication token refreshed',
-      'System health check passed',
-      'Backup completed successfully'
-    ];
-
-    const now = new Date();
-    return Array.from({ length: 50 }, (_, i) => ({
-      timestamp: new Date(now.getTime() - (i * 30000)).toISOString(),
-      level: levels[Math.floor(Math.random() * levels.length)],
-      category: categories[Math.floor(Math.random() * categories.length)],
-      message: messages[Math.floor(Math.random() * messages.length)]
-    }));
-  }
-
-  function generateMockActivities() {
-    return [
-      {
-        icon: '👤',
-        title: 'ผู้ใช้ใหม่ลงทะเบียน',
-        desc: 'สมชาย ใจดี (6501001) ได้ลงทะเบียนเข้าสู่ระบบ',
-        time: '5 นาทีที่แล้ว'
-      },
-      {
-        icon: '🔄',
-        title: 'อัปเดตข้อมูลโปรไฟล์',
-        desc: 'สมหญิง รักเรียน แก้ไขข้อมูลโปรไฟล์',
-        time: '15 นาทีที่แล้ว'
-      },
-      {
-        icon: '💾',
-        title: 'สำรองข้อมูลอัตโนมัติ',
-        desc: 'ระบบทำการสำรองข้อมูลสำเร็จ (245 MB)',
-        time: '1 ชั่วโมงที่แล้ว'
-      },
-      {
-        icon: '⚠️',
-        title: 'การเข้าสู่ระบบล้มเหลว',
-        desc: 'มีความพยายามเข้าสู่ระบบล้มเหลว 3 ครั้ง',
-        time: '2 ชั่วโมงที่แล้ว'
-      },
-      {
-        icon: '📧',
-        title: 'ส่งอีเมลการแจ้งเตือน',
-        desc: 'ส่งอีเมลแจ้งเตือนไปยังผู้ใช้ 45 คน',
-        time: '3 ชั่วโมงที่แล้ว'
-      }
-    ];
-  }
+  let currentActivities = [];
 
   // Initialize page
   document.addEventListener('DOMContentLoaded', function () {
@@ -772,35 +632,120 @@
     setInterval(updateLastUpdateTime, 1000);
   });
 
-  function initializeSystemData() {
-    systemStatus = 'online';
-    updateStatusDisplay();
+  async function initializeSystemData() {
+    try {
+      const response = await fetch('/api/system/status');
+      const result = await response.json();
+      
+      if (result.success) {
+        systemStatus = result.status || 'online';
+        
+        // Update UI
+        document.querySelectorAll('.status-card').forEach(card => {
+          card.classList.remove('active');
+        });
+        const statusElement = document.getElementById(`status${systemStatus.charAt(0).toUpperCase() + systemStatus.slice(1)}`);
+        if (statusElement) {
+          statusElement.classList.add('active');
+        }
+        
+        updateStatusDisplay();
+      } else {
+        systemStatus = 'online';
+        updateStatusDisplay();
+      }
+    } catch (error) {
+      console.error('Error loading system status:', error);
+      systemStatus = 'online';
+      updateStatusDisplay();
+    }
   }
 
   function setSystemStatus(status) {
-    systemStatus = status;
-
-    // Update UI
-    document.querySelectorAll('.status-card').forEach(card => {
-      card.classList.remove('active');
-    });
-    document.getElementById(`status${status.charAt(0).toUpperCase() + status.slice(1)}`).classList.add('active');
-
-    updateStatusDisplay();
-
-    // Show confirmation
     const statusText = {
       online: 'เปิดใช้งานปกติ',
       maintenance: 'โหมดบำรุงรักษา',
       offline: 'ปิดชั่วคราว'
     };
 
+    const statusDesc = {
+      online: 'ผู้ใช้สามารถเข้าถึงระบบได้ตามปกติ',
+      maintenance: 'ระบบจะแสดงหน้าปิดปรับปรุง ผู้ใช้จะไม่สามารถเข้าถึงได้',
+      offline: 'ปิดการเข้าถึงทั้งหมดชั่วคราว'
+    };
+
+    // สอบถามก่อนดำเนินการ
     Swal.fire({
-      icon: 'success',
-      title: 'เปลี่ยนสถานะสำเร็จ',
-      text: `เว็บไซต์เปลี่ยนเป็นโหมด "${statusText[status]}" แล้ว`,
-      timer: 2000,
-      showConfirmButton: false
+      title: `ยืนยันการเปลี่ยนสถานะ?`,
+      html: `
+        <div style="text-align:left;">
+          <p style="margin:12px 0;"><strong>สถานะใหม่:</strong> ${statusText[status]}</p>
+          <p style="margin:12px 0;color:var(--color-muted);">${statusDesc[status]}</p>
+          <p style="margin:12px 0;padding:12px;background:#fff3cd;border-radius:6px;border-left:4px solid #ffc107;">
+            ⚠️ <strong>คำเตือน:</strong> การเปลี่ยนสถานะจะมีผลต่อผู้ใช้ทั้งหมดทันที
+          </p>
+        </div>
+      `,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'ยืนยันการเปลี่ยน',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: status === 'offline' ? '#d33' : '#2E3094'
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        // แสดง Loading
+        Swal.fire({
+          title: 'กำลังเปลี่ยนสถานะ...',
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+
+        try {
+          // เรียก API เพื่อเปลี่ยนสถานะ
+          const response = await fetch('/api/system/status', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ status })
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            systemStatus = status;
+
+            // Update UI
+            document.querySelectorAll('.status-card').forEach(card => {
+              card.classList.remove('active');
+            });
+            document.getElementById(`status${status.charAt(0).toUpperCase() + status.slice(1)}`).classList.add('active');
+            updateStatusDisplay();
+
+            Swal.fire({
+              icon: 'success',
+              title: 'เปลี่ยนสถานะสำเร็จ',
+              text: `ระบบเปลี่ยนเป็น "${statusText[status]}" แล้ว`,
+              timer: 2000,
+              showConfirmButton: false
+            });
+
+            // โหลดกิจกรรมใหม่
+            loadActivities();
+          } else {
+            throw new Error(result.message || 'เกิดข้อผิดพลาด');
+          }
+        } catch (error) {
+          console.error('Error changing system status:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'เกิดข้อผิดพลาด',
+            text: 'ไม่สามารถเปลี่ยนสถานะได้ กรุณาลองใหม่'
+          });
+        }
+      }
     });
   }
 
@@ -824,36 +769,29 @@
     document.getElementById('lastUpdate').textContent = timeStr;
   }
 
-  function updateSystemHealth() {
-    // Simulate CPU usage
-    const cpu = Math.floor(Math.random() * 30) + 20; // 20-50%
-    document.getElementById('cpuUsage').textContent = `${cpu}%`;
-    const cpuBar = document.getElementById('cpuBar');
-    cpuBar.style.width = `${cpu}%`;
-    cpuBar.className = 'health-bar-fill';
-    if (cpu > 70) cpuBar.classList.add('danger');
-    else if (cpu > 50) cpuBar.classList.add('warning');
 
-    // Simulate Memory usage
-    const memory = Math.floor(Math.random() * 40) + 30; // 30-70%
-    document.getElementById('memoryUsage').textContent = `${memory}%`;
-    const memoryBar = document.getElementById('memoryBar');
-    memoryBar.style.width = `${memory}%`;
-    memoryBar.className = 'health-bar-fill';
-    if (memory > 80) memoryBar.classList.add('danger');
-    else if (memory > 60) memoryBar.classList.add('warning');
 
-    // Uptime
-    const hours = Math.floor(Math.random() * 100) + 24;
-    const days = Math.floor(hours / 24);
-    const remainingHours = hours % 24;
-    document.getElementById('uptime').textContent = `${days}d ${remainingHours}h`;
-  }
-
-  function loadLogs() {
-    currentLogs = generateMockLogs();
-    filteredLogs = [...currentLogs];
-    renderLogs();
+  async function loadLogs() {
+    try {
+      const response = await fetch('/api/system/logs');
+      const result = await response.json();
+      
+      if (result.success) {
+        currentLogs = result.logs || [];
+        filteredLogs = [...currentLogs];
+        renderLogs();
+      } else {
+        console.error('Failed to load logs:', result.message);
+        currentLogs = [];
+        filteredLogs = [];
+        renderLogs();
+      }
+    } catch (error) {
+      console.error('Error loading logs:', error);
+      currentLogs = [];
+      filteredLogs = [];
+      renderLogs();
+    }
   }
 
   function renderLogs() {
@@ -949,30 +887,9 @@
     const checkbox = document.getElementById('autoRefresh');
 
     if (checkbox.checked) {
-      autoRefreshInterval = setInterval(() => {
-        // Add new log entry
-        const levels = ['info', 'warning', 'error', 'debug'];
-        const categories = ['auth', 'database', 'api', 'system'];
-        const messages = [
-          'Heartbeat check passed',
-          'Request processed',
-          'Database connection verified',
-          'Cache hit',
-          'Session validated'
-        ];
-
-        const newLog = {
-          timestamp: new Date().toISOString(),
-          level: levels[Math.floor(Math.random() * levels.length)],
-          category: categories[Math.floor(Math.random() * categories.length)],
-          message: messages[Math.floor(Math.random() * messages.length)]
-        };
-
-        currentLogs.unshift(newLog);
-        if (currentLogs.length > 100) currentLogs.pop();
-
-        filterLogs();
-        updateSystemHealth();
+      autoRefreshInterval = setInterval(async () => {
+        await loadLogs();
+        await loadActivities();
       }, 5000);
     } else {
       if (autoRefreshInterval) {
@@ -982,23 +899,97 @@
     }
   }
 
-  function loadActivities() {
-    const activities = generateMockActivities();
-    const container = document.getElementById('activityList');
-
-    container.innerHTML = activities.map(activity => `
-    <div class="activity-item">
-      <div class="activity-icon">${activity.icon}</div>
-      <div class="activity-content">
-        <div class="activity-title">${activity.title}</div>
-        <div class="activity-desc">${activity.desc}</div>
-        <div class="activity-time">🕐 ${activity.time}</div>
-      </div>
-    </div>
-  `).join('');
+  async function loadActivities() {
+    try {
+      const response = await fetch('/api/system/activities');
+      const result = await response.json();
+      
+      if (result.success) {
+        currentActivities = result.activities || [];
+        renderActivities();
+      } else {
+        console.error('Failed to load activities:', result.message);
+        currentActivities = [];
+        renderActivities();
+      }
+    } catch (error) {
+      console.error('Error loading activities:', error);
+      currentActivities = [];
+      renderActivities();
+    }
   }
 
-  function refreshSystemData() {
+  function renderActivities() {
+    const container = document.getElementById('activityList');
+
+    if (currentActivities.length === 0) {
+      container.innerHTML = `
+        <div style="text-align:center;padding:40px;color:var(--color-muted);">
+          <div style="font-size:2.5rem;margin-bottom:16px;">💭</div>
+          <p>ยังไม่มีกิจกรรมล่าสุด</p>
+        </div>
+      `;
+      return;
+    }
+
+    container.innerHTML = currentActivities.map(activity => {
+      const iconMap = {
+        'login': '🔑',
+        'logout': '🚻',
+        'register': '👤',
+        'update': '🔄',
+        'delete': '🗑️',
+        'create': '➕',
+        'upload': '📎',
+        'download': '📎',
+        'error': '⚠️',
+        'success': '✅',
+        'system': '⚙️',
+        'backup': '💾'
+      };
+
+      const icon = iconMap[activity.type] || '📝';
+      const timeAgo = formatTimeAgo(activity.timestamp);
+
+      return `
+        <div class="activity-item">
+          <div class="activity-icon">${icon}</div>
+          <div class="activity-content">
+            <div class="activity-title">${escapeHtml(activity.title)}</div>
+            <div class="activity-desc">${escapeHtml(activity.description)}</div>
+            <div class="activity-time">🕐 ${timeAgo}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function formatTimeAgo(timestamp) {
+    const now = new Date();
+    const time = new Date(timestamp);
+    const diff = Math.floor((now - time) / 1000); // วินาที
+
+    if (diff < 60) return 'เมื่อสักครู่';
+    if (diff < 3600) return `${Math.floor(diff / 60)} นาทีที่แล้ว`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} ชั่วโมงที่แล้ว`;
+    if (diff < 2592000) return `${Math.floor(diff / 86400)} วันที่แล้ว`;
+    
+    return time.toLocaleDateString('th-TH', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  async function refreshSystemData() {
     Swal.fire({
       title: 'กำลังรีเฟรชข้อมูล...',
       allowOutsideClick: false,
@@ -1007,10 +998,11 @@
       }
     });
 
-    setTimeout(() => {
-      loadLogs();
-      loadActivities();
-      updateSystemHealth();
+    try {
+      await Promise.all([
+        loadLogs(),
+        loadActivities()
+      ]);
 
       Swal.fire({
         icon: 'success',
@@ -1018,112 +1010,14 @@
         timer: 1500,
         showConfirmButton: false
       });
-    }, 1000);
-  }
-
-  function clearCache() {
-    Swal.fire({
-      title: 'ล้าง Cache?',
-      text: 'การล้าง cache อาจส่งผลต่อความเร็วของระบบชั่วคราว',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'ยืนยัน',
-      cancelButtonText: 'ยกเลิก'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        Swal.fire({
-          title: 'กำลังล้าง Cache...',
-          allowOutsideClick: false,
-          didOpen: () => {
-            Swal.showLoading();
-          }
-        });
-
-        setTimeout(() => {
-          Swal.fire({
-            icon: 'success',
-            title: 'ล้าง Cache สำเร็จ',
-            text: 'ระบบจะทำงานได้อย่างมีประสิทธิภาพมากขึ้น',
-            timer: 2000
-          });
-        }, 1500);
-      }
-    });
-  }
-
-  function restartServer() {
-    Swal.fire({
-      title: 'Restart Server?',
-      text: 'ผู้ใช้ทั้งหมดจะถูกออกจากระบบชั่วคราว',
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'ยืนยัน',
-      cancelButtonText: 'ยกเลิก',
-      confirmButtonColor: '#d33'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        Swal.fire({
-          icon: 'info',
-          title: 'การ Restart Server',
-          text: 'ฟีเจอร์นี้ยังไม่เปิดใช้งานในโหมด Demo',
-          timer: 2000
-        });
-      }
-    });
-  }
-
-  function optimizeDatabase() {
-    Swal.fire({
-      title: 'Optimize Database?',
-      text: 'การดำเนินการนี้อาจใช้เวลาสักครู่',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: 'ยืนยัน',
-      cancelButtonText: 'ยกเลิก'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        Swal.fire({
-          title: 'กำลัง Optimize...',
-          allowOutsideClick: false,
-          didOpen: () => {
-            Swal.showLoading();
-          }
-        });
-
-        setTimeout(() => {
-          Swal.fire({
-            icon: 'success',
-            title: 'Optimize สำเร็จ',
-            text: 'ประสิทธิภาพของฐานข้อมูลดีขึ้น 15%',
-            timer: 2000
-          });
-        }, 2000);
-      }
-    });
-  }
-
-  function viewErrorLogs() {
-    const errorLogs = currentLogs.filter(log => log.level === 'error');
-
-    if (errorLogs.length === 0) {
+    } catch (error) {
+      console.error('Error refreshing data:', error);
       Swal.fire({
-        icon: 'success',
-        title: 'ไม่พบ Error',
-        text: 'ระบบทำงานปกติดี ไม่มี error ในขณะนี้',
-        timer: 2000
+        icon: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        text: 'ไม่สามารถรีเฟรชข้อมูลได้'
       });
-      return;
     }
-
-    document.getElementById('logLevel').value = 'error';
-    filterLogs();
-
-    Swal.fire({
-      icon: 'info',
-      title: `พบ ${errorLogs.length} Errors`,
-      text: 'แสดง error logs ในหน้าจอด้านล่าง',
-      timer: 2000
-    });
   }
 
   function openBackupModal() {

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const { db } = require('../config/firebaseAdmin');
+const { logActivity, logSystem } = require('./system');
 
 // POST /register - สมัครสมาชิก
 router.post('/register', async (req, res) => {
@@ -63,6 +64,19 @@ router.post('/register', async (req, res) => {
         // บันทึกลง Firestore โดยใช้ studentId เป็น document ID
         await userRef.set(userData);
 
+        // บันทึก Activity Log
+        await logActivity(
+            'register',
+            'ลงทะเบียนผู้ใช้ใหม่',
+            `นักศึกษารหัส ${studentId} ได้ลงทะเบียนเข้าสู่ระบบ`,
+            studentId,
+            `นักศึกษา ${studentId}`,
+            { studentId }
+        );
+
+        // บันทึก System Log
+        await logSystem('info', 'auth', `New user registered: ${studentId}`, studentId);
+
         res.status(201).json({
             success: true,
             message: 'สมัครสมาชิกสำเร็จ กรุณาเข้าสู่ระบบ'
@@ -70,6 +84,7 @@ router.post('/register', async (req, res) => {
 
     } catch (error) {
         console.error('Register error:', error);
+        await logSystem('error', 'auth', `Registration failed: ${error.message}`, 'system');
         res.status(500).json({
             success: false,
             message: 'เกิดข้อผิดพลาดในการสมัครสมาชิก'
@@ -157,6 +172,23 @@ router.post('/login', async (req, res) => {
         req.session.userId = userSnap.id;
         req.session.user = sessionUser;
 
+        // บันทึก Activity Log
+        await logActivity(
+            'login',
+            'เข้าสู่ระบบ',
+            `${sessionUser.firstName} ${sessionUser.lastName} (${sessionUser.role}) เข้าสู่ระบบ`,
+            identifier,
+            `${sessionUser.firstName} ${sessionUser.lastName}`,
+            { 
+                role: sessionUser.role,
+                studentId: sessionUser.studentId,
+                staffCode: sessionUser.staffCode
+            }
+        );
+
+        // บันทึก System Log
+        await logSystem('info', 'auth', `User logged in: ${identifier} (${sessionUser.role})`, identifier);
+
         res.json({
             success: true,
             message: 'เข้าสู่ระบบสำเร็จ',
@@ -165,6 +197,7 @@ router.post('/login', async (req, res) => {
 
     } catch (error) {
         console.error('Login error:', error);
+        await logSystem('error', 'auth', `Login failed: ${error.message}`, identifier || 'unknown');
         res.status(500).json({
             success: false,
             message: 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ'
@@ -173,7 +206,23 @@ router.post('/login', async (req, res) => {
 });
 
 // POST /logout - ออกจากระบบ
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
+    const user = req.session.user;
+    
+    // บันทึก Activity Log ก่อนทำลาย session
+    if (user) {
+        await logActivity(
+            'logout',
+            'ออกจากระบบ',
+            `${user.firstName} ${user.lastName} (${user.role}) ออกจากระบบ`,
+            user.studentId || user.staffCode || user.id,
+            `${user.firstName} ${user.lastName}`,
+            { role: user.role }
+        );
+        
+        await logSystem('info', 'auth', `User logged out: ${user.studentId || user.staffCode} (${user.role})`, user.studentId || user.staffCode);
+    }
+    
     req.session.destroy((err) => {
         if (err) {
             return res.status(500).json({
