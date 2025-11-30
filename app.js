@@ -7,7 +7,7 @@ const profileRoutes = require('./routes/profile');
 const adminRoutes = require('./routes/admin');
 const observationsRoutes = require('./routes/observations');
 const systemRoutes = require('./routes/system');
-const { requireAuth, requireGuest, addUserToLocals } = require('./middleware/auth');
+const { requireAuth, requireGuest, addUserToLocals, checkSessionSecurity } = require('./middleware/auth');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -24,17 +24,23 @@ app.set('view cache', false);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session middleware
+// Session middleware with enhanced security
 app.use(session({
-  secret: 'your-secret-key-change-this-in-production', // TODO: ใช้ค่าจาก .env
+  secret: process.env.SESSION_SECRET || 'cdte-super-secret-key-2025-change-in-production',
   resave: false,
   saveUninitialized: false,
+  name: 'cdte.sid', // เปลี่ยนชื่อ cookie เพื่อความปลอดภัย
   cookie: {
-    secure: false, // ตั้งเป็น true ถ้าใช้ HTTPS
-    httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 ชั่วโมง
-  }
+    secure: false, // ตั้งเป็น true ใน production ที่ใช้ HTTPS
+    httpOnly: true, // ป้านกัน XSS
+    sameSite: 'strict', // ป้านกัน CSRF
+    maxAge: 48 * 60 * 60 * 1000 // 48 ชั่วโมง (default)
+  },
+  rolling: true // ต่ออายุ session ทุกครั้งทวี่ user ใช้งาน
 }));
+
+// Check session security (ป้องกัน Session Hijacking)
+app.use(checkSessionSecurity);
 
 // Add user to locals for all views
 app.use(addUserToLocals);

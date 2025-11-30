@@ -53,7 +53,11 @@
           </div>
         </div>
 
-        <div style="text-align:right;margin-bottom:18px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.9rem;">
+            <input type="checkbox" id="rememberMe" name="rememberMe" style="cursor:pointer;">
+            <span>จดจำฉันไว้ (15 วัน)</span>
+          </label>
           <a href="/forgot-password" style="color:var(--color-primary);text-decoration:none;font-size:0.9rem">ลืมรหัสผ่าน?</a>
         </div>
 
@@ -72,12 +76,41 @@
     const form = document.getElementById('loginForm');
     const studentIdInput = document.getElementById('studentId');
     const passwordInput = document.getElementById('password');
+    const rememberMeInput = document.getElementById('rememberMe');
+
+    // ตรวจสอบ error parameter จาก URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    
+    if (error === 'session_expired') {
+      Swal.fire({
+        icon: 'warning',
+        title: 'หมดเวลาเข้าใช้งาน',
+        text: 'เซสชันของคุณหมดอายุแล้ว กรุณาเข้าสู่ระบบอีกครั้ง',
+        confirmButtonColor: '#2E3094'
+      });
+    } else if (error === 'session_inactive') {
+      Swal.fire({
+        icon: 'info',
+        title: 'หมดเวลาไม่มีกิจกรรม',
+        text: 'คุณไม่มีกิจกรรมนานเกิน  2 ชั่วโมง กรุณาเข้าสู่ระบบอีกครั้ง',
+        confirmButtonColor: '#2E3094'
+      });
+    } else if (error === 'session_required') {
+      Swal.fire({
+        icon: 'info',
+        title: 'กรุณาเข้าสู่ระบบ',
+        text: 'คุณต้องเข้าสู่ระบบก่อนเข้าถึงหน้านี้',
+        confirmButtonColor: '#2E3094'
+      });
+    }
 
     form.addEventListener('submit', async function(e) {
       e.preventDefault();
 
       const studentId = studentIdInput.value.trim();
       const password = passwordInput.value;
+      const rememberMe = rememberMeInput.checked;
 
       // Client-side validation
       if (!studentId) {
@@ -129,19 +162,24 @@
           },
           body: JSON.stringify({
             studentId,
-            password
+            password,
+            rememberMe
           })
         });
 
         const data = await response.json();
 
         if (response.ok) {
+          const sessionInfo = rememberMe 
+            ? 'จดจำเซสชันไว้ 15 วัน' 
+            : 'เซสชันหมดอายุใน 48 ชั่วโมง';
+          
           await Swal.fire({
             icon: 'success',
             title: 'เข้าสู่ระบบสำเร็จ!',
-            text: data.message || 'ยินดีต้อนรับ',
+            html: `${data.message || 'ยินดีต้อนรับ'}<br><small style="color:#666;">${sessionInfo}</small>`,
             confirmButtonColor: '#16A34A',
-            timer: 1500,
+            timer: 2000,
             showConfirmButton: false
           });
           // Redirect to dashboard or home

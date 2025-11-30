@@ -169,30 +169,48 @@ router.post('/login', async (req, res) => {
             room: userData.room || null
         };
 
+        // ตั้งค่า session
         req.session.userId = userSnap.id;
         req.session.user = sessionUser;
+        req.session.createdAt = Date.now();
+        req.session.lastActivity = Date.now();
+        req.session.rememberMe = req.body.rememberMe || false;
+        
+        // ตั้งค่า session fingerprint เพื่อความปลอดภัย
+        req.session.userAgent = req.headers['user-agent'];
+        req.session.ipAddress = req.ip || req.connection.remoteAddress;
+
+        // ตั้งค่า cookie maxAge ตาม remember me
+        if (req.session.rememberMe) {
+            req.session.cookie.maxAge = 15 * 24 * 60 * 60 * 1000; // 15 วัน
+        } else {
+            req.session.cookie.maxAge = 48 * 60 * 60 * 1000; // 48 ชั่วโมง
+        }
 
         // บันทึก Activity Log
         await logActivity(
             'login',
             'เข้าสู่ระบบ',
-            `${sessionUser.firstName} ${sessionUser.lastName} (${sessionUser.role}) เข้าสู่ระบบ`,
+            `${sessionUser.firstName} ${sessionUser.lastName} (${sessionUser.role}) เข้าสู่ระบบ${req.session.rememberMe ? ' (จดจำฉัน)' : ''}`,
             identifier,
             `${sessionUser.firstName} ${sessionUser.lastName}`,
             { 
                 role: sessionUser.role,
                 studentId: sessionUser.studentId,
-                staffCode: sessionUser.staffCode
+                staffCode: sessionUser.staffCode,
+                rememberMe: req.session.rememberMe,
+                ipAddress: req.session.ipAddress
             }
         );
 
         // บันทึก System Log
-        await logSystem('info', 'auth', `User logged in: ${identifier} (${sessionUser.role})`, identifier);
+        await logSystem('info', 'auth', `User logged in: ${identifier} (${sessionUser.role})${req.session.rememberMe ? ' [Remember Me]' : ''}`, identifier);
 
         res.json({
             success: true,
             message: 'เข้าสู่ระบบสำเร็จ',
-            redirectTo: '/dashboard'
+            redirectTo: '/dashboard',
+            sessionExpiry: req.session.rememberMe ? '15 วัน' : '48 ชั่วโมง'
         });
 
     } catch (error) {
