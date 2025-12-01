@@ -791,6 +791,7 @@
 }
 </style>
 
+<script src="/js/observation-utils.js"></script>
 <script>
 let teachingSubjects = [];
 
@@ -899,45 +900,96 @@ function removeTeachingSubject(index) {
   updateTeachingDisplay();
 }
 
-// Mentor period management
-const mentorData = <%- JSON.stringify(mentorPractice) %>;
-let currentMentorPeriodId = <%= activeMentorPeriod ? activeMentorPeriod.id : 'null' %>;
-
-const hasPractice = <%= mentorPractice.length > 0 ? 'true' : 'false' %>;
-const hasActive = <%= activeMentorPeriod ? 'true' : 'false' %>;
+// Mentor period management (will be loaded from API)
 const isPureAdminClient = <%= isPureAdmin ? 'true' : 'false' %>;
+
+// Expose server-side flags to client JS
+const hasPractice = <%= hasPractice ? 'true' : 'false' %>;
+const hasActive = <%= hasActive ? 'true' : 'false' %>;
+
+// Expose mentor practice data and current/active period id to client
+let mentorData = <%- JSON.stringify(mentorPractice || []) %>;
+let currentMentorPeriodId = <%- JSON.stringify((typeof activeMentorPeriodId !== 'undefined') ? activeMentorPeriodId : (activeMentorPeriod ? activeMentorPeriod.id : null)) %>;
 
 function changeMentorPeriod() {
   const selector = document.getElementById('mentorPeriodSelector');
-  const selectedId = parseInt(selector.value);
+  const selectedId = selector.value;
   currentMentorPeriodId = selectedId;
-  
-  const selectedPeriod = mentorData.find(p => p.id === selectedId);
-  if (!selectedPeriod) return;
-  
-  if (selectedPeriod.status === 'active') {
-    // แสดงฟอร์มแก้ไขได้
-    document.getElementById('mentorCurrentForm').style.display = 'block';
-    document.getElementById('mentorHistoryView').style.display = 'none';
-    
-    // ถ้ามีข้อมูล ให้โหลดเข้าฟอร์ม
+  let selectedPeriod = null;
+  const nowMs = Date.now();
+
+  // Helper to get ms from various date formats (Firestore Timestamp or ISO string)
+  const getMillis = (val) => {
+    try {
+      if (!val) return null;
+      if (typeof val.toDate === 'function') return val.toDate().getTime();
+      if (val._seconds) return val._seconds * 1000;
+      if (typeof val === 'string') return new Date(val).getTime();
+      return null;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  // Try ObservationUtils first (handles latest API data)
+  if (window.ObservationUtils && typeof ObservationUtils.getObservationById === 'function') {
+    try {
+      selectedPeriod = ObservationUtils.getObservationById(selectedId) || ObservationUtils.data.all.find(o => String(o.id) === String(selectedId));
+    } catch (err) {
+      console.warn('ObservationUtils error', err);
+    }
+  }
+
+  // Fallback to server-provided mentorData
+  if (!selectedPeriod) {
+    selectedPeriod = mentorData.find(p => String(p.id) === String(selectedId));
+  }
+
+  if (!selectedPeriod) {
+    console.warn('Observation/mentor period not found:', selectedId);
+    return;
+  }
+
+  // Determine active by explicit status OR by date range (fallback)
+  const startMs = getMillis(selectedPeriod.startDate || selectedPeriod.start || selectedPeriod.periodStart);
+  const endMs = getMillis(selectedPeriod.endDate || selectedPeriod.end || selectedPeriod.periodEnd);
+  const withinDates = startMs && endMs ? (nowMs >= startMs && nowMs <= endMs) : false;
+  const isActive = selectedPeriod.status === 'active' || withinDates;
+
+  const form = document.getElementById('mentorCurrentForm');
+
+  if (isActive) {
+    // Show editable form and enable inputs
+    if (form) {
+      form.style.display = 'block';
+      form.querySelectorAll('input,textarea,select,button').forEach(el => {
+        if (!el.classList.contains('modal-close')) el.disabled = false;
+      });
+    }
+    const historyView = document.getElementById('mentorHistoryView');
+    if (historyView) historyView.style.display = 'none';
+
+    // Load data into form if available, otherwise reset
     if (selectedPeriod.mentorData) {
       loadMentorDataToForm(selectedPeriod.mentorData);
-    } else {
-      // ยังไม่มีข้อมูล ล้างฟอร์ม
-      document.getElementById('mentorCurrentForm').reset();
+    } else if (form) {
+      form.reset();
       teachingSubjects = [];
       updateTeachingDisplay();
     }
   } else {
-    // งวดเก่า - แสดงแบบ read-only
-    document.getElementById('mentorCurrentForm').style.display = 'none';
-    document.getElementById('mentorHistoryView').style.display = 'block';
-    
+    // Show read-only view and disable inputs
+    if (form) {
+      form.style.display = 'none';
+    }
+    const historyView = document.getElementById('mentorHistoryView');
+    if (historyView) historyView.style.display = 'block';
+
     if (selectedPeriod.mentorData) {
       displayReadOnlyMentorData(selectedPeriod.mentorData);
     } else {
-      document.getElementById('mentorHistoryContent').innerHTML = `
+      const historyContent = document.getElementById('mentorHistoryContent');
+      if (historyContent) historyContent.innerHTML = `
         <div style="text-align:center;padding:40px;color:var(--color-muted)">
           <div style="font-size:3rem;margin-bottom:16px">👨‍🏫</div>
           <p>ยังไม่มีข้อมูลครูพี่เลี้ยงสำหรับงวดนี้</p>
@@ -1113,7 +1165,7 @@ function saveMentorInfo(event) {
 }
 
 // Close modal when clicking outside
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
   const teachingModal = document.getElementById('teachingModal');
   if (teachingModal) {
     teachingModal.addEventListener('click', function(e) {
@@ -1133,6 +1185,21 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   updateTeachingDisplay();
+  // Populate mentor period selector using ObservationUtils (like school-info)
+  if (window.ObservationUtils && typeof ObservationUtils.populateObservationSelector === 'function') {
+    try {
+      await ObservationUtils.populateObservationSelector('mentorPeriodSelector', currentMentorPeriodId, { includeEmpty: false, showActiveFirst: true });
+      
+      // Hide server-side warning banner if active observation exists
+      const activePeriod = ObservationUtils.getActiveObservation();
+      if (activePeriod) {
+        const banner = document.getElementById('noMentorActiveBanner');
+        if (banner) banner.style.display = 'none';
+      }
+    } catch (err) {
+      console.warn('Could not populate mentorPeriodSelector:', err);
+    }
+  }
 
   if (isPureAdminClient) {
     // Pure admin - disable all interactions

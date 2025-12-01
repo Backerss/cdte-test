@@ -607,6 +607,7 @@
 }
 </style>
 
+<script src="/js/observation-utils.js"></script>
 <script>
 let selectedGrades = [];
 
@@ -727,21 +728,22 @@ document.getElementById('gradeLevelModal').addEventListener('click', function(e)
   }
 });
 
-// Practice period management
-const practiceData = <%- JSON.stringify(practiceHistory) %>;
-let currentPeriodId = <%= activePeriod ? activePeriod.id : 'null' %>;
-
-const hasPractice = <%= practiceHistory.length > 0 ? 'true' : 'false' %>;
-const hasActive = <%= activePeriod ? 'true' : 'false' %>;
+// Practice period management (load from API instead of server-side)
 const isPureAdminClient = <%= isPureAdmin ? 'true' : 'false' %>;
+
+let practiceData = [];
+let currentPeriodId = null;
 
 function changePeriod() {
   const selector = document.getElementById('periodSelector');
-  const selectedId = parseInt(selector.value);
+  const selectedId = selector.value;
   currentPeriodId = selectedId;
   
-  const selectedPeriod = practiceData.find(p => p.id === selectedId);
-  if (!selectedPeriod) return;
+  const selectedPeriod = ObservationUtils.getObservationById(selectedId);
+  if (!selectedPeriod) {
+    console.warn('Observation not found:', selectedId);
+    return;
+  }
   
   if (selectedPeriod.status === 'active') {
     // แสดงฟอร์มแก้ไขได้
@@ -907,34 +909,65 @@ function saveSchoolInfo(event) {
 }
 
 // Initialize
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
   updateGradeDisplay();
   // Ensure grade options reflect current affiliation on load
   onAffiliationChange();
   // Load Thai address dataset and bind autocomplete
   loadThaiAddressData();
-  // Initialize period view
-  if (isPureAdminClient) {
-    // Pure admin - disable all interactions except navigation
-    const periodSelector = document.getElementById('periodSelector');
-    if (periodSelector) periodSelector.disabled = true;
-    document.querySelectorAll('input, select, button, textarea').forEach(el => {
-      if (!el.classList.contains('modal-close')) el.disabled = true;
+  
+  // Load observations from API
+  try {
+    await ObservationUtils.populateObservationSelector('periodSelector', null, {
+      includeEmpty: false,
+      showActiveFirst: true
     });
-  } else if (!hasPractice) {
-    // No practice periods at all - disable the form
+    
+    practiceData = ObservationUtils.data.all;
+    const activePeriod = ObservationUtils.getActiveObservation();
+    currentPeriodId = activePeriod ? activePeriod.id : (practiceData.length > 0 ? practiceData[0].id : null);
+    
+    // Hide server-side warning banner if active observation exists
+    if (activePeriod) {
+      const banner = document.getElementById('noActiveBanner');
+      if (banner) banner.style.display = 'none';
+    }
+    
+    // Initialize period view
+    if (isPureAdminClient) {
+      // Pure admin - disable all interactions except navigation
+      const periodSelector = document.getElementById('periodSelector');
+      if (periodSelector) periodSelector.disabled = true;
+      document.querySelectorAll('input, select, button, textarea').forEach(el => {
+        if (!el.classList.contains('modal-close')) el.disabled = true;
+      });
+    } else if (practiceData.length === 0) {
+      // No practice periods at all - disable the form
+      const form = document.getElementById('currentForm');
+      if (form) {
+        form.querySelectorAll('input,select,textarea,button').forEach(el => el.disabled = true);
+      }
+    } else if (!activePeriod) {
+      // There are periods but none active - disable inputs until an active one is selected
+      const form = document.getElementById('currentForm');
+      if (form) {
+        form.querySelectorAll('input,textarea').forEach(el => el.disabled = true);
+        // keep selectors like periodSelector enabled so user can choose
+        const buttons = form.querySelectorAll('button[type="submit"],button[type="reset"]');
+        buttons.forEach(b => b.disabled = true);
+      }
+    }
+    
+    // Load current period data
+    if (currentPeriodId) {
+      changePeriod();
+    }
+  } catch (error) {
+    console.error('Error loading observations:', error);
+    // Disable form if API fails
     const form = document.getElementById('currentForm');
     if (form) {
       form.querySelectorAll('input,select,textarea,button').forEach(el => el.disabled = true);
-    }
-  } else if (!hasActive) {
-    // There are periods but none active - disable inputs until an active one is selected
-    const form = document.getElementById('currentForm');
-    if (form) {
-      form.querySelectorAll('input,textarea').forEach(el => el.disabled = true);
-      // keep selectors like periodSelector enabled so user can choose
-      const buttons = form.querySelectorAll('button[type="submit"],button[type="reset"]');
-      buttons.forEach(b => b.disabled = true);
     }
   }
 

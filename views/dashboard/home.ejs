@@ -10,32 +10,6 @@
   
   // Check if user is admin or teacher (for showing admin dashboard)
   const isAdminOrTeacher = user && (user.role === 'admin' || user.role === 'teacher');
-  
-  // TODO: ดึงข้อมูลจาก database
-  // ตอนนี้ใช้ค่าเริ่มต้นไปก่อน
-  const practiceHistory = [];
-  const currentPracticeRecord = null;
-  const today = new Date();
-  
-  // ถ้ายังไม่มีข้อมูลฝึกงาน ให้แสดงข้อความเริ่มต้น
-  const activePractice = currentPracticeRecord || {
-    school: { name: 'ยังไม่ได้ลงทะเบียนสถานศึกษา', province: '-', affiliation: '-' },
-    mentor: { name: 'ยังไม่ได้ระบุครูพี่เลี้ยง', position: '-', phone: '-' },
-    evaluationData: {},
-    period: 'ยังไม่มีงวดฝึก',
-    status: 'pending'
-  };
-  
-  const evaluationData = activePractice.evaluationData || {};
-  const hasEvaluation = Object.keys(evaluationData).length > 0;
-  const overallAverage = hasEvaluation 
-    ? Object.values(evaluationData).reduce((sum, item) => sum + item.score, 0) / Object.keys(evaluationData).length 
-    : 0;
-  
-  // เช็คว่าอยู่ในช่วงฝึกหรือไม่
-  const isInPracticePeriod = currentPracticeRecord && 
-    today >= currentPracticeRecord.startDate && 
-    today <= currentPracticeRecord.endDate;
 %>
 
 <div class="dashboard-welcome">
@@ -186,7 +160,6 @@
       // โหลดข้อมูลภาพรวมสำหรับผู้ดูแลระบบ
       async function loadAdminDashboard() {
         try {
-          // โหลดข้อมูล observations
           const response = await fetch('/api/observations');
           const result = await response.json();
           
@@ -194,7 +167,6 @@
             const observations = result.observations;
             const activeObs = observations.filter(o => o.status === 'active');
             
-            // คำนวณสถิติ
             let totalStudents = 0;
             let completedEvaluations = 0;
             
@@ -207,13 +179,11 @@
               ? Math.round((completedEvaluations / totalStudents) * 100) 
               : 0;
             
-            // อัปเดต UI
             document.getElementById('activeObservationsCount').textContent = activeObs.length;
             document.getElementById('totalStudentsCount').textContent = totalStudents;
             document.getElementById('completedEvaluationsCount').textContent = completedEvaluations;
             document.getElementById('completionRate').textContent = completionRate + '%';
             
-            // แสดงรายการ observations
             renderActiveObservations(activeObs);
           }
         } catch (error) {
@@ -277,893 +247,95 @@
         }
       }
       
-      // โหลดข้อมูลเมื่อหน้าเพจพร้อม
       document.addEventListener('DOMContentLoaded', loadAdminDashboard);
     </script>
 
   <% } else { %>
-    <!-- Personal Greeting Card -->
-    <div class="card greeting-card" style="margin-bottom:24px;background:linear-gradient(135deg, var(--color-surface) 0%, var(--color-surface) 100%);border-left:4px solid var(--color-primary)">
-      <h2 style="margin:0 0 12px 0;color:var(--color-primary);font-size:1.75rem">
-        สวัสดี, <%= user.firstName %> <%= user.lastName %> 👋
-      </h2>
-      <p style="color:var(--color-text);margin:0 0 8px 0;font-size:1.1rem">
-        <strong>นักศึกษาระดับชั้นปีที่ <%= userYear %></strong>
-    </p>
-    <div style="display:flex;align-items:center;gap:8px;margin-top:12px">
-      <span style="font-size:1.2rem"><%= isInPracticePeriod ? '🟢' : '🔵' %></span>
-      <div>
-        <strong style="color:var(--color-text)">สถานะ:</strong>
-        <% if (isInPracticePeriod && currentPracticeRecord) { %>
-          <span style="color:var(--color-success);font-weight:600">
-            ขณะนี้อยู่ในช่วง <%= currentPracticeRecord.period %>
-          </span><br>
-          <span class="text-muted" style="font-size:0.9rem">
-            (วันที่ <%= currentPracticeRecord.startDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }) %> - 
-            <%= currentPracticeRecord.endDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'long', year: 'numeric' }) %>)
-          </span>
-        <% } else { %>
-          <span style="color:var(--color-muted);font-weight:600">ไม่อยู่ในช่วงฝึกประสบการณ์</span><br>
-          <span class="text-muted" style="font-size:0.9rem">กรุณารอการกำหนดงวดฝึกจากอาจารย์</span>
-        <% } %>
+    <!-- =====================================================
+         STUDENT DASHBOARD - ดึงข้อมูลจาก Firebase จริง
+         ===================================================== -->
+    
+    <!-- โหลด CSS เฉพาะสำหรับหน้านักศึกษา -->
+    <link rel="stylesheet" href="/css/student-home.css">
+    
+    <!-- Container หลัก - จะถูก populate โดย JavaScript -->
+    <div id="studentDashboardContent">
+      <!-- Loading state -->
+      <div class="loading-container">
+        <div class="loading-spinner"></div>
+        <p>กำลังโหลดข้อมูล...</p>
       </div>
     </div>
-  </div>
+    
+    <!-- Greeting Section (จะถูก render โดย JS) -->
+    <div id="greetingSection"></div>
+    
+    <!-- Active Observation Section -->
+    <div id="activeObservationSection"></div>
+    
+    <!-- Practice History Section -->
+    <div id="practiceHistorySection"></div>
+    
+    <!-- Evaluation Summary Section -->
+    <div id="evaluationSummarySection"></div>
+    
+    <!-- Lesson Plans Section (ปี 2-3 เท่านั้น) -->
+    <div id="lessonPlansSection"></div>
+    
+    <!-- Quick Access Menu -->
+    <div class="quick-access-grid" id="quickAccessSection">
+      <a href="/dashboard/school-info" class="quick-access-card">
+        <div class="quick-access-icon" style="background:rgba(46, 48, 148, 0.1);color:#2E3094;">🏫</div>
+        <h4 class="quick-access-title">ข้อมูลสถานศึกษา</h4>
+        <p class="quick-access-desc">จัดการข้อมูลสถานที่ฝึกประสบการณ์</p>
+      </a>
 
-  <!-- Practice History Timeline -->
-  <div class="card" style="margin-bottom:24px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-      <h3 style="margin:0;color:var(--color-text);display:flex;align-items:center;gap:10px">
-        <span>📅</span>
-        ประวัติการฝึกประสบการณ์วิชาชีพ
-      </h3>
-      <div class="form-group" style="margin:0;min-width:250px">
-        <select id="periodSelector" class="form-input" onchange="changePracticeView()" style="padding:8px 12px">
-          <% practiceHistory.slice().reverse().forEach((record, idx) => { %>
-            <option value="<%= record.id %>" <%= record.status === 'active' ? 'selected' : '' %>>
-              <%= record.period %> (<%= record.year === 1 ? 'ปี 1' : record.year === 2 ? 'ปี 2' : record.year === 3 ? 'ปี 3' : 'ปี 4' %>)
-              <%= record.status === 'active' ? ' - ปัจจุบัน' : '' %>
-            </option>
-          <% }); %>
-        </select>
-      </div>
+      <a href="/dashboard/mentor-info" class="quick-access-card">
+        <div class="quick-access-icon" style="background:rgba(59, 130, 246, 0.1);color:#3B82F6;">👨‍🏫</div>
+        <h4 class="quick-access-title">ข้อมูลครูพี่เลี้ยง</h4>
+        <p class="quick-access-desc">จัดการข้อมูลครูที่ปรึกษา</p>
+      </a>
+
+      <a href="/dashboard/evaluation" class="quick-access-card">
+        <div class="quick-access-icon" style="background:rgba(22, 163, 74, 0.1);color:#16A34A;">📝</div>
+        <h4 class="quick-access-title">การประเมิน</h4>
+        <p class="quick-access-desc">เริ่มทำแบบประเมินใหม่</p>
+      </a>
+
+      <a href="/dashboard/history" class="quick-access-card">
+        <div class="quick-access-icon" style="background:rgba(251, 180, 37, 0.1);color:#FBB425;">📋</div>
+        <h4 class="quick-access-title">ประวัติการประเมิน</h4>
+        <p class="quick-access-desc">ดูประวัติและผลการประเมิน</p>
+      </a>
     </div>
 
-    <!-- Practice Timeline -->
-    <div class="practice-timeline">
-      <% if (practiceHistory.length === 0) { %>
-        <div style="text-align:center;padding:60px 20px;color:var(--color-muted)">
-          <div style="font-size:4rem;margin-bottom:16px">📋</div>
-          <h3 style="color:var(--color-text);margin-bottom:8px">ยังไม่มีประวัติการฝึก</h3>
-          <p style="margin:0">กรุณากรอกข้อมูลสถานศึกษาและครูพี่เลี้ยงเพื่อเริ่มต้นการฝึก</p>
-          <a href="/dashboard/school-info" class="btn btn--primary" style="margin-top:20px;display:inline-block">
-            เริ่มลงทะเบียน
-          </a>
-        </div>
-      <% } else { %>
-        <% practiceHistory.forEach((record, index) => { 
-          const isActive = record.status === 'active';
-          const isCompleted = record.status === 'completed';
-        %>
-          <div class="timeline-item <%= isActive ? 'timeline-active' : '' %> <%= isCompleted ? 'timeline-completed' : '' %>">
-            <div class="timeline-marker">
-              <% if (isActive) { %>
-                <span style="font-size:1.3rem">🟢</span>
-              <% } else if (isCompleted) { %>
-                <span style="font-size:1.3rem">✅</span>
-              <% } else { %>
-                <span style="font-size:1.3rem">⏳</span>
-              <% } %>
-            </div>
-            
-            <div class="timeline-content">
-              <div class="timeline-header">
-                <h4 style="margin:0 0 8px 0;color:var(--color-primary);font-size:1.1rem">
-                  <%= record.period %> 
-                <span style="background:var(--color-primary);color:white;padding:2px 8px;border-radius:8px;font-size:0.75rem;margin-left:8px">
-                  ชั้นปีที่ <%= record.year %>
-                </span>
-                <% if (isActive) { %>
-                  <span style="background:var(--color-success);color:white;padding:2px 8px;border-radius:8px;font-size:0.75rem;margin-left:4px">
-                    ปัจจุบัน
-                  </span>
-                <% } %>
-              </h4>
-              <p class="text-muted" style="margin:0;font-size:0.85rem">
-                📍 <%= record.startDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) %> - 
-                <%= record.endDate.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) %>
-              </p>
-            </div>
+    <!-- Stats Section -->
+    <div id="statsSection"></div>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px">
-              <div class="info-box" style="background:var(--color-bg);padding:12px;border-radius:8px">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-                  <span style="font-size:1.2rem">🏫</span>
-                  <strong style="color:var(--color-text)">สถานศึกษา</strong>
-                </div>
-                <div style="font-size:0.95rem;color:var(--color-text)">
-                  <%= record.school.name %>
-                </div>
-                <div style="font-size:0.85rem;color:var(--color-muted);margin-top:4px">
-                  จ.<%= record.school.province %> (<%= record.school.affiliation %>)
-                </div>
-              </div>
-
-              <div class="info-box" style="background:var(--color-bg);padding:12px;border-radius:8px">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-                  <span style="font-size:1.2rem">👨‍🏫</span>
-                  <strong style="color:var(--color-text)">ครูพี่เลี้ยง</strong>
-                </div>
-                <div style="font-size:0.95rem;color:var(--color-text)">
-                  <%= record.mentor.name %>
-                </div>
-                <div style="font-size:0.85rem;color:var(--color-muted);margin-top:4px">
-                  <%= record.mentor.position %>
-                </div>
-              </div>
-            </div>
-
-            <% if (isCompleted) { 
-              const avg = Object.values(record.evaluationData).reduce((sum, item) => sum + item.score, 0) / Object.keys(record.evaluationData).length;
-            %>
-              <div style="margin-top:12px;padding:10px;background:rgba(22, 163, 74, 0.1);border-left:3px solid var(--color-success);border-radius:6px">
-                <div style="display:flex;justify-content:space-between;align-items:center">
-                  <span style="color:var(--color-text);font-weight:600">📊 คะแนนเฉลี่ย:</span>
-                  <span style="font-size:1.3rem;font-weight:700;color:var(--color-success)">
-                    <%= avg.toFixed(2) %> / 5.0
-                  </span>
-                </div>
-              </div>
-            <% } else if (isActive) { %>
-              <div style="margin-top:12px;padding:10px;background:rgba(59, 130, 246, 0.1);border-left:3px solid #3B82F6;border-radius:6px">
-                <div style="display:flex;align-items:center;gap:8px">
-                  <span style="font-size:1.2rem">⚡</span>
-                  <span style="color:var(--color-text);font-weight:600">
-                    กำลังดำเนินการฝึกประสบการณ์...
-                  </span>
-                </div>
-              </div>
-            <% } %>
-          </div>
-        </div>
-        <% }); %>
-      <% } %>
-    </div>
-  </div>
-
-  <!-- Overall Performance Summary -->
-  <% if (hasEvaluation) { %>
-  <div class="card" style="margin-bottom:24px">
-    <h3 style="margin-top:0;color:var(--color-text);display:flex;align-items:center;gap:10px">
-      <span>📊</span>
-      สรุปผลการประเมินโดยรวม
-    </h3>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:20px;margin-top:20px">
-      <div class="stat-box" style="text-align:center;padding:20px;background:var(--color-bg);border-radius:10px">
-        <div style="font-size:2.5rem;font-weight:700;color:var(--color-primary)">
-          <%= overallAverage.toFixed(2) %>
-        </div>
-        <div class="text-muted" style="font-size:0.95rem;margin-top:8px">คะแนนเฉลี่ยโดยรวม</div>
-        <div style="font-size:0.85rem;color:var(--color-success);margin-top:4px;font-weight:600">
-          <%= overallAverage >= 4.5 ? 'ดีมาก' : overallAverage >= 4 ? 'ดี' : overallAverage >= 3.5 ? 'ปานกลาง' : overallAverage >= 3 ? 'พอใช้' : 'ปรับปรุง' %>
-        </div>
-      </div>
-      <div class="stat-box" style="text-align:center;padding:20px;background:var(--color-bg);border-radius:10px">
-        <div style="font-size:2.5rem;font-weight:700;color:var(--color-success)">
-          <%= Object.keys(evaluationData).length %>
-        </div>
-        <div class="text-muted" style="font-size:0.95rem;margin-top:8px">หัวข้อการประเมิน</div>
-      </div>
-      <div class="stat-box" style="text-align:center;padding:20px;background:var(--color-bg);border-radius:10px">
-        <div style="font-size:2.5rem;font-weight:700;color:var(--color-secondary)">
-          <%= Object.values(evaluationData).filter(d => d.score >= 4.5).length %>
-        </div>
-        <div class="text-muted" style="font-size:0.95rem;margin-top:8px">ด้านที่ได้คะแนนดีมาก</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Evaluation Charts -->
-  <div class="card" style="margin-bottom:24px">
-    <h3 style="margin-top:0;color:var(--color-text);display:flex;align-items:center;gap:10px">
-      <span>📈</span>
-      กราฟแสดงผลการประเมินแต่ละด้าน
-    </h3>
-    <p class="text-muted" style="margin:0 0 24px 0;font-size:0.9rem">
-      มาตรวัด: 1-1.99 (ปรับปรุง) | 2-2.99 (พอใช้) | 3-3.99 (ปานกลาง) | 4-4.49 (ดี) | 4.5-5 (ดีมาก)
-    </p>
-
-    <!-- Bar Chart -->
-    <div class="evaluation-chart">
-      <% Object.entries(evaluationData).forEach(([key, data]) => { 
-        const percentage = (data.score / data.total) * 100;
-        let colorClass = 'score-excellent';
-        if (data.score < 3) colorClass = 'score-poor';
-        else if (data.score < 3.5) colorClass = 'score-fair';
-        else if (data.score < 4) colorClass = 'score-good';
-        else if (data.score < 4.5) colorClass = 'score-very-good';
-      %>
-        <div class="chart-row" style="margin-bottom:16px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-            <span style="font-weight:600;color:var(--color-text);font-size:0.95rem">
-              <%= data.label %>
-            </span>
-            <span style="font-weight:700;color:var(--color-primary);font-size:1.1rem">
-              <%= data.score.toFixed(1) %> / <%= data.total %>
-            </span>
-          </div>
-          <div class="progress-bar" style="background:var(--color-border);height:28px;border-radius:8px;overflow:hidden;position:relative">
-            <div class="progress-fill <%= colorClass %>" 
-                 style="width:<%= percentage %>%;height:100%;transition:width 0.8s ease;display:flex;align-items:center;padding:0 12px">
-              <span style="color:#fff;font-weight:600;font-size:0.85rem;white-space:nowrap">
-                <%= percentage.toFixed(0) %>%
-              </span>
-            </div>
-          </div>
-        </div>
-      <% }); %>
-    </div>
-  </div>
-
-
-  <!-- Advanced Charts Section -->
-  <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(450px, 1fr));gap:24px;margin-bottom:24px">
-    <!-- Line Chart - Progress Over Time -->
-    <div class="card">
-      <h3 style="margin-top:0;color:var(--color-text);display:flex;align-items:center;gap:10px">
-        <span>📉</span>
-        กราฟเส้นแสดงพัฒนาการตามเวลา
-      </h3>
-      <canvas id="lineChart" style="max-height:300px"></canvas>
-    </div>
-
-    <!-- Pie Chart - Score Distribution -->
-    <div class="card">
-      <h3 style="margin-top:0;color:var(--color-text);display:flex;align-items:center;gap:10px">
-        <span>🥧</span>
-        กราฟวงกลมสัดส่วนคะแนน
-      </h3>
-      <canvas id="pieChart" style="max-height:300px"></canvas>
-    </div>
-  </div>
-
-  <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(450px, 1fr));gap:24px;margin-bottom:24px">
-    <!-- Scatter Plot -->
-    <div class="card">
-      <h3 style="margin-top:0;color:var(--color-text);display:flex;align-items:center;gap:10px">
-        <span>🔵</span>
-        กราฟจุด (Scatter Plot)
-      </h3>
-      <canvas id="scatterChart" style="max-height:300px"></canvas>
-    </div>
-
-    <!-- Column Chart (Vertical Bar) -->
-    <div class="card">
-      <h3 style="margin-top:0;color:var(--color-text);display:flex;align-items:center;gap:10px">
-        <span>📊</span>
-        กราฟแท่งแนวตั้ง
-      </h3>
-      <canvas id="columnChart" style="max-height:300px"></canvas>
-    </div>
-  </div>
-
-  <!-- Radar Chart with Chart.js -->
-  <div class="card" style="margin-bottom:24px">
-    <h3 style="margin-top:0;color:var(--color-text);display:flex;align-items:center;gap:10px">
-      <span>🕸️</span>
-      Radar Chart - ภาพรวมทุกด้าน
-    </h3>
-    <div style="max-width:600px;margin:0 auto">
-      <canvas id="radarChart"></canvas>
-    </div>
-  </div>
-
-  <!-- Doughnut Chart -->
-  <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(450px, 1fr));gap:24px;margin-bottom:24px">
-    <div class="card">
-      <h3 style="margin-top:0;color:var(--color-text);display:flex;align-items:center;gap:10px">
-        <span>🍩</span>
-        Doughnut Chart - ระดับคะแนน
-      </h3>
-      <canvas id="doughnutChart" style="max-height:300px"></canvas>
-    </div>
-
-    <!-- Area Chart -->
-    <div class="card">
-      <h3 style="margin-top:0;color:var(--color-text);display:flex;align-items:center;gap:10px">
-        <span>🗻</span>
-        Area Chart - เปรียบเทียบทักษะ
-      </h3>
-      <canvas id="areaChart" style="max-height:300px"></canvas>
-    </div>
-  </div>
-
-  <!-- Quick Access Menu -->
-  <div class="dashboard-grid">
-    <!-- School Info Card -->
-    <a href="/dashboard/school-info" style="text-decoration:none">
-      <div class="dashboard-card" style="cursor:pointer;transition:transform .2s ease">
-        <div class="dashboard-card-header">
-          <h3 class="dashboard-card-title">ข้อมูลสถานศึกษา</h3>
-          <span class="dashboard-card-icon">🏫</span>
-        </div>
-        <p class="text-muted" style="margin:0;font-size:0.9rem">
-          จัดการข้อมูลสถานที่ฝึกประสบการณ์
-        </p>
-      </div>
-    </a>
-
-    <!-- Mentor Info Card -->
-    <a href="/dashboard/mentor-info" style="text-decoration:none">
-      <div class="dashboard-card" style="cursor:pointer;transition:transform .2s ease">
-        <div class="dashboard-card-header">
-          <h3 class="dashboard-card-title">ข้อมูลครูพี่เลี้ยง</h3>
-          <span class="dashboard-card-icon">👨‍🏫</span>
-        </div>
-        <p class="text-muted" style="margin:0;font-size:0.9rem">
-          จัดการข้อมูลครูที่ปรึกษา
-        </p>
-      </div>
-    </a>
-
-    <!-- Evaluation Card -->
-    <a href="/dashboard/evaluation" style="text-decoration:none">
-      <div class="dashboard-card" style="cursor:pointer;transition:transform .2s ease">
-        <div class="dashboard-card-header">
-          <h3 class="dashboard-card-title">การประเมิน</h3>
-          <span class="dashboard-card-icon">📝</span>
-        </div>
-        <p class="text-muted" style="margin:0;font-size:0.9rem">
-          เริ่มทำแบบประเมินใหม่
-        </p>
-      </div>
-    </a>
-
-    <!-- History Card -->
-    <a href="/dashboard/history" style="text-decoration:none">
-      <div class="dashboard-card" style="cursor:pointer;transition:transform .2s ease">
-        <div class="dashboard-card-header">
-          <h3 class="dashboard-card-title">ประวัติการประเมิน</h3>
-          <span class="dashboard-card-icon">📋</span>
-        </div>
-        <p class="text-muted" style="margin:0;font-size:0.9rem">
-          ดูประวัติและผลการประเมิน
-        </p>
-      </div>
-    </a>
-  </div>
-
-  <!-- Quick Stats -->
-  <div class="card">
-    <h3 style="margin-top:0;margin-bottom:16px;color:var(--color-text)">สถิติ</h3>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:20px">
-      <div style="text-align:center">
-        <div style="font-size:2rem;font-weight:700;color:var(--color-primary)">0</div>
-        <div class="text-muted" style="font-size:0.9rem">การประเมินทั้งหมด</div>
-      </div>
-      <div style="text-align:center">
-        <div style="font-size:2rem;font-weight:700;color:var(--color-success)">0</div>
-        <div class="text-muted" style="font-size:0.9rem">สำเร็จแล้ว</div>
-      </div>
-      <div style="text-align:center">
-        <div style="font-size:2rem;font-weight:700;color:var(--color-secondary)">0</div>
-        <div class="text-muted" style="font-size:0.9rem">รอดำเนินการ</div>
-      </div>
-    </div>
-  </div>
+    <!-- โหลด JavaScript สำหรับหน้านักศึกษา -->
+    <script src="/js/student-home.js"></script>
+    
   <% } %>
 </div>
 
 <style>
+  /* Common styles */
   .dashboard-card:hover{
     transform:translateY(-2px);
     box-shadow:0 4px 12px rgba(0,0,0,0.08);
   }
   
-  .score-poor { background-color: #DC2626; }
-  .score-fair { background-color: #F59E0B; }
-  .score-good { background-color: #FBB425; }
-  .score-very-good { background-color: #3B82F6; }
-  .score-excellent { background-color: #16A34A; }
-
-  /* Practice Timeline Styles */
-  .practice-timeline {
-    position: relative;
-    padding: 20px 0;
-  }
-
-  .timeline-item {
-    position: relative;
-    padding-left: 60px;
-    padding-bottom: 40px;
-  }
-
-  .timeline-item:last-child {
-    padding-bottom: 0;
-  }
-
-  .timeline-item::before {
-    content: '';
-    position: absolute;
-    left: 21px;
-    top: 40px;
-    bottom: -10px;
-    width: 2px;
-    background: var(--color-border);
-  }
-
-  .timeline-item:last-child::before {
-    display: none;
-  }
-
-  .timeline-marker {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 44px;
-    height: 44px;
-    background: var(--color-surface);
-    border: 2px solid var(--color-border);
+  .loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--color-border);
+    border-top-color: var(--color-primary);
     border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 2;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 16px;
   }
 
-  .timeline-active .timeline-marker {
-    border-color: var(--color-success);
-    background: rgba(22, 163, 74, 0.1);
-    box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.1);
-  }
-
-  .timeline-completed .timeline-marker {
-    border-color: var(--color-primary);
-    background: rgba(46, 48, 148, 0.1);
-  }
-
-  .timeline-content {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: 12px;
-    padding: 16px;
-    transition: all 0.3s ease;
-  }
-
-  .timeline-content:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    border-color: var(--color-primary);
-  }
-
-  .timeline-active .timeline-content {
-    border-color: var(--color-success);
-    background: linear-gradient(to right, rgba(22, 163, 74, 0.02), var(--color-surface));
-  }
-
-  .timeline-header {
-    margin-bottom: 12px;
-  }
-
-  .info-box {
-    transition: all 0.2s ease;
-  }
-
-  .info-box:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  @keyframes spin {
+    to { transform: rotate(360deg); }
   }
 </style>
-
-<script>
-  // Practice history data for dynamic chart switching
-  const practiceHistoryData = <%- JSON.stringify(practiceHistory) %>;
-  const currentPracticeId = <%- JSON.stringify(
-    (typeof activePractice !== 'undefined' && activePractice && Object.prototype.hasOwnProperty.call(activePractice, 'id'))
-      ? activePractice.id
-      : null
-  ) %>;
-
-  // Function to change practice period view
-  function changePracticeView() {
-    const selector = document.getElementById('periodSelector');
-    const selectedId = parseInt(selector.value);
-    currentPracticeId = selectedId;
-    
-    // Find selected practice record
-    const selectedPractice = practiceHistoryData.find(p => p.id === selectedId);
-    if (!selectedPractice) return;
-
-    // Update charts with new data
-    updateChartsWithPeriod(selectedPractice);
-    
-    // Scroll to charts section
-    document.querySelector('.evaluation-chart').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  // Initialize with current practice data
-  const hasEvalData = <%= hasEvaluation ? 'true' : 'false' %>;
-  
-  if (!hasEvalData) {
-    console.log('No evaluation data available yet');
-    // Skip chart initialization
-  } else {
-    let evaluationData = <%- JSON.stringify(activePractice.evaluationData) %>;
-    
-    // Prepare data for charts
-    let labels = Object.values(evaluationData).map(d => d.label);
-    let scores = Object.values(evaluationData).map(d => d.score);
-    const colors = [
-      '#2E3094', // primary
-      '#FBB425', // secondary
-      '#16A34A', // success
-      '#DC2626', // danger
-      '#0EA5E9', // info
-      '#F59E0B', // orange
-      '#8B5CF6', // purple
-      '#EC4899'  // pink
-    ];
-
-    // Chart.js default config
-    Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-    Chart.defaults.color = '#0F1724';
-
-    // Store chart instances for updating
-    let chartInstances = {};
-
-  // 1. Line Chart - Progress Over Time (Mock data with monthly progress)
-  const lineCtx = document.getElementById('lineChart');
-  if (lineCtx) {
-    const overallAvg = scores.reduce((sum, s) => sum + s, 0) / scores.length;
-    chartInstances.lineChart = new Chart(lineCtx, {
-      type: 'line',
-      data: {
-        labels: ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.'],
-        datasets: [{
-          label: 'คะแนนเฉลี่ยรายเดือน',
-          data: [3.8, 4.0, 4.1, 4.2, 4.3, overallAvg.toFixed(2)],
-          borderColor: '#2E3094',
-          backgroundColor: 'rgba(46, 48, 148, 0.1)',
-          tension: 0.4,
-          fill: true,
-          pointRadius: 5,
-          pointBackgroundColor: '#2E3094',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        plugins: {
-          legend: { display: true, position: 'top' },
-          tooltip: { mode: 'index', intersect: false }
-        },
-        scales: {
-          y: { beginAtZero: true, max: 5, title: { display: true, text: 'คะแนน' } },
-          x: { title: { display: true, text: 'เดือน' } }
-        }
-      }
-    });
-  }
-
-  // 2. Pie Chart - Score Distribution by Level
-  const pieCtx = document.getElementById('pieChart');
-  if (pieCtx) {
-    const excellent = scores.filter(s => s >= 4.5).length;
-    const veryGood = scores.filter(s => s >= 4 && s < 4.5).length;
-    const good = scores.filter(s => s >= 3.5 && s < 4).length;
-    const fair = scores.filter(s => s >= 3 && s < 3.5).length;
-    const poor = scores.filter(s => s < 3).length;
-
-    chartInstances.pieChart = new Chart(pieCtx, {
-      type: 'pie',
-      data: {
-        labels: ['ดีมาก (4.5-5)', 'ดี (4-4.49)', 'ปานกลาง (3.5-3.99)', 'พอใช้ (3-3.49)', 'ปรับปรุง (<3)'],
-        datasets: [{
-          data: [excellent, veryGood, good, fair, poor],
-          backgroundColor: ['#16A34A', '#3B82F6', '#FBB425', '#F59E0B', '#DC2626'],
-          borderWidth: 2,
-          borderColor: '#fff'
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { position: 'bottom' },
-          tooltip: {
-            callbacks: {
-              label: (context) => `${context.label}: ${context.parsed} หัวข้อ`
-            }
-          }
-        }
-      }
-    });
-  }
-
-  // 3. Scatter Plot - Score vs. Category Index
-  const scatterCtx = document.getElementById('scatterChart');
-  if (scatterCtx) {
-    const scatterData = scores.map((score, idx) => ({ x: idx + 1, y: score }));
-    
-    chartInstances.scatterChart = new Chart(scatterCtx, {
-      type: 'scatter',
-      data: {
-        datasets: [{
-          label: 'คะแนนแต่ละด้าน',
-          data: scatterData,
-          backgroundColor: '#2E3094',
-          borderColor: '#2E3094',
-          pointRadius: 8,
-          pointHoverRadius: 10
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { display: true },
-          tooltip: {
-            callbacks: {
-              label: (context) => `หัวข้อที่ ${context.parsed.x}: ${context.parsed.y.toFixed(2)} คะแนน`
-            }
-          }
-        },
-        scales: {
-          x: { title: { display: true, text: 'ลำดับหัวข้อ' }, min: 0, max: 9 },
-          y: { title: { display: true, text: 'คะแนน' }, min: 0, max: 5 }
-        }
-      }
-    });
-  }
-
-  // 4. Column Chart (Vertical Bar Chart)
-  const columnCtx = document.getElementById('columnChart');
-  if (columnCtx) {
-    chartInstances.columnChart = new Chart(columnCtx, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'คะแนน',
-          data: scores,
-          backgroundColor: colors,
-          borderColor: colors.map(c => c),
-          borderWidth: 1
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { display: false },
-          tooltip: { mode: 'index' }
-        },
-        scales: {
-          y: { beginAtZero: true, max: 5, title: { display: true, text: 'คะแนน' } },
-          x: { ticks: { maxRotation: 45, minRotation: 45 } }
-        }
-      }
-    });
-  }
-
-  // 5. Radar Chart
-  const radarCtx = document.getElementById('radarChart');
-  if (radarCtx) {
-    chartInstances.radarChart = new Chart(radarCtx, {
-      type: 'radar',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'คะแนนปัจจุบัน',
-          data: scores,
-          borderColor: '#2E3094',
-          backgroundColor: 'rgba(46, 48, 148, 0.2)',
-          pointBackgroundColor: '#2E3094',
-          pointBorderColor: '#fff',
-          pointHoverBackgroundColor: '#fff',
-          pointHoverBorderColor: '#2E3094'
-        }, {
-          label: 'เป้าหมาย',
-          data: Array(scores.length).fill(5),
-          borderColor: '#FBB425',
-          backgroundColor: 'rgba(251, 180, 37, 0.1)',
-          pointBackgroundColor: '#FBB425',
-          pointBorderColor: '#fff',
-          borderDash: [5, 5]
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: { legend: { position: 'top' } },
-        scales: {
-          r: {
-            beginAtZero: true,
-            max: 5,
-            ticks: { stepSize: 1 }
-          }
-        }
-      }
-    });
-  }
-
-  // 6. Doughnut Chart - Performance Level Distribution
-  const doughnutCtx = document.getElementById('doughnutChart');
-  if (doughnutCtx) {
-    const excellent = scores.filter(s => s >= 4.5).length;
-    const veryGood = scores.filter(s => s >= 4 && s < 4.5).length;
-    const good = scores.filter(s => s >= 3.5 && s < 4).length;
-    const needImprovement = scores.filter(s => s < 3.5).length;
-
-    chartInstances.doughnutChart = new Chart(doughnutCtx, {
-      type: 'doughnut',
-      data: {
-        labels: ['ดีมาก', 'ดี', 'ปานกลาง', 'ปรับปรุง'],
-        datasets: [{
-          data: [excellent, veryGood, good, needImprovement],
-          backgroundColor: ['#16A34A', '#3B82F6', '#FBB425', '#DC2626'],
-          borderWidth: 3,
-          borderColor: '#fff'
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { position: 'right' },
-          tooltip: {
-            callbacks: {
-              label: (context) => `${context.label}: ${context.parsed} หัวข้อ (${((context.parsed / scores.length) * 100).toFixed(1)}%)`
-            }
-          }
-        }
-      }
-    });
-  }
-
-  // 7. Area Chart - Comparison
-  const areaCtx = document.getElementById('areaChart');
-  if (areaCtx) {
-    const overallAvg = scores.reduce((sum, s) => sum + s, 0) / scores.length;
-    chartInstances.areaChart = new Chart(areaCtx, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [{
-          label: 'คะแนนปัจจุบัน',
-          data: scores,
-          borderColor: '#2E3094',
-          backgroundColor: 'rgba(46, 48, 148, 0.3)',
-          fill: true,
-          tension: 0.4
-        }, {
-          label: 'ค่าเฉลี่ยทั้งหมด',
-          data: Array(scores.length).fill(overallAvg.toFixed(2)),
-          borderColor: '#FBB425',
-          backgroundColor: 'rgba(251, 180, 37, 0.1)',
-          fill: true,
-          borderDash: [5, 5]
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: { legend: { position: 'top' } },
-        scales: {
-          y: { beginAtZero: true, max: 5 },
-          x: { ticks: { maxRotation: 45, minRotation: 45 } }
-        }
-      }
-    });
-  }
-
-  // Function to update all charts with new practice period data
-  function updateChartsWithPeriod(practiceRecord) {
-    // Update evaluation data
-    evaluationData = practiceRecord.evaluationData;
-    labels = Object.values(evaluationData).map(d => d.label);
-    scores = Object.values(evaluationData).map(d => d.score);
-    const overallAvg = scores.reduce((sum, s) => sum + s, 0) / scores.length;
-
-    // Update bar chart in page
-    updateBarChart();
-
-    // Update Line Chart
-    if (chartInstances.lineChart) {
-      chartInstances.lineChart.data.datasets[0].data = [3.8, 4.0, 4.1, 4.2, 4.3, overallAvg.toFixed(2)];
-      chartInstances.lineChart.update();
-    }
-
-    // Update Pie Chart
-    if (chartInstances.pieChart) {
-      const excellent = scores.filter(s => s >= 4.5).length;
-      const veryGood = scores.filter(s => s >= 4 && s < 4.5).length;
-      const good = scores.filter(s => s >= 3.5 && s < 4).length;
-      const fair = scores.filter(s => s >= 3 && s < 3.5).length;
-      const poor = scores.filter(s => s < 3).length;
-      chartInstances.pieChart.data.datasets[0].data = [excellent, veryGood, good, fair, poor];
-      chartInstances.pieChart.update();
-    }
-
-    // Update Scatter Chart
-    if (chartInstances.scatterChart) {
-      const scatterData = scores.map((score, idx) => ({ x: idx + 1, y: score }));
-      chartInstances.scatterChart.data.datasets[0].data = scatterData;
-      chartInstances.scatterChart.update();
-    }
-
-    // Update Column Chart
-    if (chartInstances.columnChart) {
-      chartInstances.columnChart.data.labels = labels;
-      chartInstances.columnChart.data.datasets[0].data = scores;
-      chartInstances.columnChart.update();
-    }
-
-    // Update Radar Chart
-    if (chartInstances.radarChart) {
-      chartInstances.radarChart.data.labels = labels;
-      chartInstances.radarChart.data.datasets[0].data = scores;
-      chartInstances.radarChart.update();
-    }
-
-    // Update Doughnut Chart
-    if (chartInstances.doughnutChart) {
-      const excellent = scores.filter(s => s >= 4.5).length;
-      const veryGood = scores.filter(s => s >= 4 && s < 4.5).length;
-      const good = scores.filter(s => s >= 3.5 && s < 4).length;
-      const needImprovement = scores.filter(s => s < 3.5).length;
-      chartInstances.doughnutChart.data.datasets[0].data = [excellent, veryGood, good, needImprovement];
-      chartInstances.doughnutChart.update();
-    }
-
-    // Update Area Chart
-    if (chartInstances.areaChart) {
-      chartInstances.areaChart.data.labels = labels;
-      chartInstances.areaChart.data.datasets[0].data = scores;
-      chartInstances.areaChart.data.datasets[1].data = Array(scores.length).fill(overallAvg.toFixed(2));
-      chartInstances.areaChart.update();
-    }
-
-    // Update overall stats
-    document.querySelector('.stat-box:nth-child(1) .stat-value').textContent = overallAvg.toFixed(2);
-    const grade = overallAvg >= 4.5 ? 'ดีมาก' : overallAvg >= 4 ? 'ดี' : overallAvg >= 3.5 ? 'ปานกลาง' : overallAvg >= 3 ? 'พอใช้' : 'ปรับปรุง';
-    document.querySelector('.stat-box:nth-child(1) div:last-child').textContent = grade;
-    document.querySelector('.stat-box:nth-child(3) .stat-value').textContent = scores.filter(s => s >= 4.5).length;
-  }
-
-  // Function to update the bar chart visualization
-  function updateBarChart() {
-    const chartContainer = document.querySelector('.evaluation-chart');
-    if (!chartContainer) return;
-
-    chartContainer.innerHTML = '';
-    
-    Object.entries(evaluationData).forEach(([key, data]) => {
-      const percentage = (data.score / data.total) * 100;
-      let colorClass = 'score-excellent';
-      if (data.score < 3) colorClass = 'score-poor';
-      else if (data.score < 3.5) colorClass = 'score-fair';
-      else if (data.score < 4) colorClass = 'score-good';
-      else if (data.score < 4.5) colorClass = 'score-very-good';
-
-      const rowHtml = `
-        <div class="chart-row" style="margin-bottom:16px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-            <span style="font-weight:600;color:var(--color-text);font-size:0.95rem">
-              ${data.label}
-            </span>
-            <span style="font-weight:700;color:var(--color-primary);font-size:1.1rem">
-              ${data.score.toFixed(1)} / ${data.total}
-            </span>
-          </div>
-          <div class="progress-bar" style="background:var(--color-border);height:28px;border-radius:8px;overflow:hidden;position:relative">
-            <div class="progress-fill ${colorClass}" 
-                 style="width:${percentage}%;height:100%;transition:width 0.8s ease;display:flex;align-items:center;padding:0 12px">
-              <span style="color:#fff;font-weight:600;font-size:0.85rem;white-space:nowrap">
-                ${percentage.toFixed(0)}%
-              </span>
-            </div>
-          </div>
-        </div>
-      `;
-      chartContainer.innerHTML += rowHtml;
-    });
-  }
-  } // End of hasEvalData check
-</script>
-<% } %>
