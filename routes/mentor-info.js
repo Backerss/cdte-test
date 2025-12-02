@@ -54,9 +54,9 @@ router.get('/api/mentor-info/check-eligibility', requireStudent, async (req, res
         const daysPassed = Math.floor((now - startDate) / (1000 * 60 * 60 * 24));
         
         if (daysPassed <= 15) {
-          // ตรวจสอบว่ามีข้อมูลโรงเรียนหรือไม่
+          // ตรวจสอบว่ามีข้อมูลโรงเรียนหรือไม่ (เช็คจาก studentIds array)
           const schoolSnapshot = await db.collection('schools')
-            .where('studentId', '==', studentId)
+            .where('studentIds', 'array-contains', studentId)
             .where('observationId', '==', obsDoc.id)
             .limit(1)
             .get();
@@ -118,9 +118,9 @@ router.get('/api/mentor-info/search-mentors', requireAuth, async (req, res) => {
       return res.json({ success: true, mentors: [] });
     }
     
-    // หาโรงเรียนของนักศึกษา
+    // หาโรงเรียนของนักศึกษา (เช็คจาก studentIds array)
     const schoolSnapshot = await db.collection('schools')
-      .where('studentId', '==', studentId)
+      .where('studentIds', 'array-contains', studentId)
       .limit(1)
       .get();
     
@@ -203,29 +203,27 @@ router.post('/api/mentor-info/save', requireStudent, async (req, res) => {
     
     let mentorId;
     let isNewMentor = myMentorSnapshot.empty;
-    let updateWarning = null;
     
     if (isNewMentor) {
-      // ตรวจสอบว่ามีครูพี่เลี้ยงชื่อนี้ในโรงเรียนเดียวกันหรือไม่
-      const existingMentor = await db.collection('mentors')
+      // ตรวจสอบว่าครูพี่เลี้ยงชื่อนี้มีนักศึกษาในงวดนี้แล้วหรือยัง (1 ครู : 1 นักศึกษา ต่องวด)
+      const mentorInCurrentObservation = await db.collection('mentors')
         .where('schoolName', '==', eligibilityCheck.schoolName)
         .where('firstName', '==', mentorData.firstName.trim())
         .where('lastName', '==', mentorData.lastName.trim())
+        .where('observationId', '==', eligibilityCheck.observationId)
         .limit(1)
         .get();
       
-      if (!existingMentor.empty) {
-        const existingData = existingMentor.docs[0].data();
-        if (existingData.lastUpdatedBy && existingData.lastUpdatedBy !== studentId) {
-          const lastUpdateDate = existingData.lastUpdatedAt?.toDate 
-            ? existingData.lastUpdatedAt.toDate() 
-            : new Date(existingData.lastUpdatedAt);
-          
-          updateWarning = {
-            lastUpdatedBy: existingData.lastUpdatedBy,
-            lastUpdatedAt: lastUpdateDate.toISOString()
-          };
-        }
+      if (!mentorInCurrentObservation.empty) {
+        const existingMentor = mentorInCurrentObservation.docs[0].data();
+        
+        // ครูพี่เลี้ยงคนนี้มีนักศึกษาอยู่แล้วในงวดนี้
+        return res.status(400).json({
+          success: false,
+          message: `ครูพี่เลี้ยงท่านนี้มีนักศึกษาดูแลอยู่แล้วในงวดนี้ (นักศึกษา ${existingMentor.studentId}) กรุณาเลือกครูพี่เลี้ยงท่านอื่น`,
+          mentorOccupied: true,
+          occupiedBy: existingMentor.studentId
+        });
       }
       
       // สร้างครูพี่เลี้ยงใหม่สำหรับนักศึกษาคนนี้
@@ -278,8 +276,7 @@ router.post('/api/mentor-info/save', requireStudent, async (req, res) => {
         ? 'บันทึกข้อมูลครูพี่เลี้ยงใหม่สำเร็จ' 
         : 'อัปเดตข้อมูลครูพี่เลี้ยงสำเร็จ',
       mentorId: mentorId,
-      isNewMentor: isNewMentor,
-      updateWarning: updateWarning
+      isNewMentor: isNewMentor
     });
     
   } catch (error) {
@@ -365,9 +362,9 @@ async function checkEligibility(studentId) {
       const daysPassed = Math.floor((now - startDate) / (1000 * 60 * 60 * 24));
       
       if (daysPassed <= 15) {
-        // ตรวจสอบว่ามีข้อมูลโรงเรียนหรือไม่
+        // ตรวจสอบว่ามีข้อมูลโรงเรียนหรือไม่ (เช็คจาก studentIds array และ observationId ที่ตรงกัน)
         const schoolSnapshot = await db.collection('schools')
-          .where('studentId', '==', studentId)
+          .where('studentIds', 'array-contains', studentId)
           .where('observationId', '==', obsDoc.id)
           .limit(1)
           .get();

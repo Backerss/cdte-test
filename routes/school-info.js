@@ -169,15 +169,83 @@ router.post('/api/school-info/save', requireStudent, async (req, res) => {
     
     const now = admin.firestore.FieldValue.serverTimestamp();
     
-    // ค้นหาโรงเรียนจากชื่อ + observationId (1 โรงเรียน = 1 document)
+    // ตรวจสอบว่านักศึกษาเคยกรอกโรงเรียนไปแล้วหรือยัง (ใน observationId นี้)
     const existingSchoolSnapshot = await db.collection('schools')
+      .where('studentIds', 'array-contains', studentId)
+      .where('observationId', '==', eligibilityCheck.observationId)
+      .limit(1)
+      .get();
+    
+    let oldSchoolId = null;
+    let oldSchoolName = null;
+    let isChangingSchool = false;
+    
+    if (!existingSchoolSnapshot.empty) {
+      // นักศึกษาเคยกรอกโรงเรียนไปแล้ว
+      const oldSchoolDoc = existingSchoolSnapshot.docs[0];
+      const oldSchoolData = oldSchoolDoc.data();
+      oldSchoolId = oldSchoolDoc.id;
+      oldSchoolName = oldSchoolData.name;
+      
+      // ตรวจสอบว่ากำลังจะเปลี่ยนโรงเรียนหรือไม่
+      if (oldSchoolName !== schoolData.name.trim()) {
+        isChangingSchool = true;
+        
+        // ตรวจสอบว่าผ่านมา 7 วันแล้วหรือยัง
+        const createdAt = oldSchoolData.createdAt?.toDate ? oldSchoolData.createdAt.toDate() : new Date(oldSchoolData.createdAt);
+        const now = new Date();
+        const daysPassed = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
+        
+        if (daysPassed > 7) {
+          return res.status(403).json({
+            success: false,
+            message: `ไม่สามารถเปลี่ยนโรงเรียนได้ เนื่องจากข้อมูลถูกสร้างเมื่อ ${daysPassed} วันที่แล้ว (เกิน 7 วัน)`,
+            cannotChange: true,
+            daysPassed: daysPassed
+          });
+        }
+        
+        // ตรวจสอบว่ามีการประเมินใดๆ ในโรงเรียนเก่าหรือไม่
+        const hasEvaluations = await checkStudentEvaluations(studentId, eligibilityCheck.observationId);
+        
+        if (hasEvaluations.hasData) {
+          return res.status(400).json({
+            success: false,
+            message: 'คุณมีการประเมินในโรงเรียนเดิมอยู่ หากต้องการเปลี่ยนโรงเรียน ข้อมูลการประเมินทั้งหมดจะถูกลบ',
+            requiresConfirmation: true,
+            evaluationCount: hasEvaluations.count,
+            oldSchoolName: oldSchoolName,
+            newSchoolName: schoolData.name.trim()
+          });
+        }
+      }
+    }
+    
+    // ถ้ามีการเปลี่ยนโรงเรียนและมีการประเมิน ต้องได้รับการยืนยันจาก frontend
+    if (isChangingSchool && schoolData.confirmChange === true && schoolData.deleteEvaluations === true) {
+      // ลบข้อมูลการประเมินทั้งหมดของนักศึกษา
+      await deleteStudentEvaluations(studentId, eligibilityCheck.observationId);
+      
+      // ลบ studentId ออกจากโรงเรียนเก่า
+      await db.collection('schools').doc(oldSchoolId).update({
+        studentIds: admin.firestore.FieldValue.arrayRemove(studentId)
+      });
+    } else if (isChangingSchool) {
+      // ลบ studentId ออกจากโรงเรียนเก่า (ไม่มีการประเมิน)
+      await db.collection('schools').doc(oldSchoolId).update({
+        studentIds: admin.firestore.FieldValue.arrayRemove(studentId)
+      });
+    }
+    
+    // ค้นหาโรงเรียนจากชื่อ + observationId (1 โรงเรียน = 1 document)
+    const targetSchoolSnapshot = await db.collection('schools')
       .where('name', '==', schoolData.name.trim())
       .where('observationId', '==', eligibilityCheck.observationId)
       .limit(1)
       .get();
     
     let schoolId;
-    let isNewSchool = existingSchoolSnapshot.empty;
+    let isNewSchool = targetSchoolSnapshot.empty;
     let studentCount = 1;
     
     if (isNewSchool) {
@@ -213,8 +281,8 @@ router.post('/api/school-info/save', requireStudent, async (req, res) => {
       schoolId = newSchoolRef.id;
     } else {
       // โรงเรียนมีอยู่แล้ว → อัปเดตข้อมูลและเพิ่ม studentId เข้า array (ถ้ายังไม่มี)
-      schoolId = existingSchoolSnapshot.docs[0].id;
-      const existingData = existingSchoolSnapshot.docs[0].data();
+      schoolId = targetSchoolSnapshot.docs[0].id;
+      const existingData = targetSchoolSnapshot.docs[0].data();
       const currentStudentIds = existingData.studentIds || [];
       
       // ตรวจสอบว่า studentId นี้มีอยู่ใน array แล้วหรือยัง
@@ -365,6 +433,60 @@ async function checkEligibility(studentId) {
     eligible: false,
     message: 'ไม่พบงวดการสังเกตที่สามารถกรอกข้อมูลได้'
   };
+}
+
+/**
+ * ตรวจสอบว่านักศึกษามีการประเมินใดๆ ในงวดนี้หรือไม่
+ */
+async function checkStudentEvaluations(studentId, observationId) {
+  try {
+    // ตรวจสอบใน collection ที่เกี่ยวข้องกับการประเมิน
+    // (ปรับตาม collection จริงในระบบ)
+    
+    // ตัวอย่าง: ตรวจสอบใน mentors collection
+    const mentorsSnapshot = await db.collection('mentors')
+      .where('studentId', '==', studentId)
+      .where('observationId', '==', observationId)
+      .get();
+    
+    if (!mentorsSnapshot.empty) {
+      return { hasData: true, count: mentorsSnapshot.size };
+    }
+    
+    // TODO: เพิ่มการตรวจสอบ collection อื่นๆ เช่น evaluations, observations_data, etc.
+    
+    return { hasData: false, count: 0 };
+  } catch (error) {
+    console.error('Error checking evaluations:', error);
+    return { hasData: false, count: 0 };
+  }
+}
+
+/**
+ * ลบข้อมูลการประเมินทั้งหมดของนักศึกษาในงวดนี้
+ */
+async function deleteStudentEvaluations(studentId, observationId) {
+  try {
+    // ลบข้อมูลครูพี่เลี้ยง
+    const mentorsSnapshot = await db.collection('mentors')
+      .where('studentId', '==', studentId)
+      .where('observationId', '==', observationId)
+      .get();
+    
+    const deletePromises = [];
+    mentorsSnapshot.forEach(doc => {
+      deletePromises.push(db.collection('mentors').doc(doc.id).delete());
+    });
+    
+    // TODO: เพิ่มการลบข้อมูลจาก collection อื่นๆ เช่น evaluations, observations_data, etc.
+    
+    await Promise.all(deletePromises);
+    
+    console.log(`Deleted ${deletePromises.length} evaluation records for student ${studentId}`);
+  } catch (error) {
+    console.error('Error deleting evaluations:', error);
+    throw error;
+  }
 }
 
 module.exports = router;

@@ -323,7 +323,7 @@ function highlightRequiredFields_OLD() {
 }
 
 // บันทึกข้อมูล
-async function saveSchoolInfo(event) {
+async function saveSchoolInfo(event, confirmChange = false, deleteEvaluations = false) {
   event.preventDefault();
   
   const form = document.getElementById('currentForm');
@@ -344,7 +344,11 @@ async function saveSchoolInfo(event) {
     teacherCount: form.querySelectorAll('input[type="number"]')[1].value,
     staffCount: form.querySelectorAll('input[type="number"]')[2].value,
     phone: form.querySelector('input[type="tel"]').value.trim(),
-    email: form.querySelector('input[type="email"]').value.trim()
+    email: form.querySelector('input[type="email"]').value.trim(),
+    
+    // ส่งค่ายืนยันการเปลี่ยนโรงเรียน
+    confirmChange: confirmChange,
+    deleteEvaluations: deleteEvaluations
   };
   
   // ยืนยันก่อนบันทึก
@@ -412,6 +416,62 @@ async function saveSchoolInfo(event) {
       
       // โหลดข้อมูลใหม่
       await loadMySubmission();
+    } else if (result.cannotChange) {
+      // ไม่สามารถเปลี่ยนโรงเรียนได้ (เกิน 7 วัน)
+      Swal.fire({
+        icon: 'error',
+        title: 'ไม่สามารถเปลี่ยนโรงเรียนได้',
+        html: `
+          <div style="text-align:left;padding:12px">
+            <p>${result.message}</p>
+            <hr style="margin:16px 0">
+            <div style="background:#fff3cd;padding:12px;border-radius:6px;border-left:4px solid #ffc107;">
+              <strong>⚠️ ข้อกำหนด:</strong><br>
+              <small>• สามารถเปลี่ยนโรงเรียนได้เฉพาะภายใน 7 วันแรก<br>
+              • คุณสร้างข้อมูลไปแล้ว ${result.daysPassed} วัน<br>
+              • หากต้องการเปลี่ยนโรงเรียน กรุณาติดต่อผู้ดูแลระบบ</small>
+            </div>
+          </div>
+        `,
+        confirmButtonText: 'รับทราบ'
+      });
+    } else if (result.requiresConfirmation) {
+      // มีการประเมิน - ต้องยืนยันก่อนเปลี่ยนโรงเรียน
+      const confirmResult = await Swal.fire({
+        icon: 'warning',
+        title: 'ยืนยันการเปลี่ยนโรงเรียน',
+        html: `
+          <div style="text-align:left;padding:12px">
+            <p><strong>⚠️ คุณกำลังจะเปลี่ยนโรงเรียน:</strong></p>
+            <p>จาก: <strong style="color:#dc3545">${result.oldSchoolName}</strong><br>
+            เป็น: <strong style="color:#28a745">${result.newSchoolName}</strong></p>
+            
+            <hr style="margin:16px 0">
+            
+            <div style="background:#fff3cd;padding:12px;border-radius:6px;border-left:4px solid #ffc107;margin-bottom:12px">
+              <strong>📊 คุณมีข้อมูลการประเมิน ${result.evaluationCount} รายการในโรงเรียนเดิม</strong>
+            </div>
+            
+            <div style="background:#f8d7da;padding:12px;border-radius:6px;border-left:4px solid #dc3545;">
+              <strong>🗑️ หากยืนยัน:</strong><br>
+              <small>• ข้อมูลการประเมินทั้งหมดจะถูกลบอย่างถาวร<br>
+              • ข้อมูลครูพี่เลี้ยงจะถูกลบ<br>
+              • คุณจะไม่สามารถกู้คืนข้อมูลได้<br>
+              • คุณจะต้องเริ่มกรอกข้อมูลใหม่ในโรงเรียนใหม่</small>
+            </div>
+          </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'ยืนยัน - ลบข้อมูลและเปลี่ยนโรงเรียน',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d'
+      });
+      
+      if (confirmResult.isConfirmed) {
+        // ยืนยันแล้ว - ส่งอีกครั้งพร้อมธงยืนยัน
+        await saveSchoolInfo(event, true, true);
+      }
     } else {
       Swal.fire({
         icon: 'error',

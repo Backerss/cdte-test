@@ -351,40 +351,41 @@ async function saveMentorInfo(event) {
     const result = await response.json();
     
     if (result.success) {
-      // ตรวจสอบว่ามีคนอัปเดตไปก่อนหรือไม่
-      if (result.updateWarning) {
-        const updateDate = new Date(result.updateWarning.lastUpdatedAt);
+      await Swal.fire({
+        icon: 'success',
+        title: 'บันทึกสำเร็จ!',
+        text: result.message,
+        confirmButtonText: 'รับทราบ'
+      });
+      
+      // โหลดข้อมูลใหม่
+      await loadMyMentorSubmission();
+    } else {
+      // ตรวจสอบว่าครูพี่เลี้ยงมีนักศึกษาดูแลอยู่แล้วหรือไม่
+      if (result.mentorOccupied) {
         await Swal.fire({
-          icon: 'info',
-          title: 'บันทึกสำเร็จ',
+          icon: 'error',
+          title: 'ไม่สามารถเลือกครูพี่เลี้ยงท่านนี้ได้',
           html: `
-            <p>${result.message}</p>
-            <hr style="margin:16px 0">
-            <div style="background:#fff3cd;padding:12px;border-radius:6px;text-align:left">
-              <strong>⚠️ ข้อมูลครูพี่เลี้ยงนี้เคยถูกอัปเดตโดย:</strong><br>
-              นักศึกษา ${result.updateWarning.lastUpdatedBy}<br>
-              <small>${updateDate.toLocaleString('th-TH')}</small>
+            <div style="text-align:left;padding:12px">
+              <p style="margin-bottom:12px">${result.message}</p>
+              <div style="background:#fff3cd;padding:12px;border-radius:6px;border-left:4px solid #ffc107;">
+                <strong>📌 กฎการเลือกครูพี่เลี้ยง:</strong><br>
+                <small>• 1 ครูพี่เลี้ยง สามารถดูแลได้ 1 นักศึกษา ต่อ 1 งวดการฝึก<br>
+                • กรุณาเลือกครูพี่เลี้ยงท่านอื่นในโรงเรียน<br>
+                • เมื่อจบงวดการฝึกแล้ว ครูพี่เลี้ยงท่านนี้จะสามารถเลือกได้อีกครั้ง</small>
+              </div>
             </div>
           `,
           confirmButtonText: 'รับทราบ'
         });
       } else {
-        await Swal.fire({
-          icon: 'success',
-          title: 'บันทึกสำเร็จ!',
-          text: result.message,
-          confirmButtonText: 'รับทราบ'
+        Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: result.message
         });
       }
-      
-      // โหลดข้อมูลใหม่
-      await loadMyMentorSubmission();
-    } else {
-      Swal.fire({
-        icon: 'error',
-        title: 'เกิดข้อผิดพลาด',
-        text: result.message
-      });
     }
   } catch (error) {
     console.error('Error saving:', error);
