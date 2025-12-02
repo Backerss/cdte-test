@@ -8,6 +8,7 @@ const adminRoutes = require('./routes/admin');
 const observationsRoutes = require('./routes/observations');
 const systemRoutes = require('./routes/system');
 const studentRoutes = require('./routes/student');
+const schoolInfoRoutes = require('./routes/school-info');
 const { requireAuth, requireGuest, addUserToLocals, checkSessionSecurity } = require('./middleware/auth');
 
 const app = express();
@@ -59,6 +60,7 @@ app.use('/', adminRoutes);
 app.use('/', observationsRoutes);
 app.use('/', systemRoutes);
 app.use('/', studentRoutes);
+app.use('/', schoolInfoRoutes);
 
 // Register routes
 app.get('/register', requireGuest, (req, res) => {

@@ -607,7 +607,9 @@
 }
 </style>
 
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="/js/observation-utils.js"></script>
+<script src="/js/school-info.js"></script>
 <script>
 let selectedGrades = [];
 
@@ -899,14 +901,8 @@ function displayReadOnlyData(data) {
   `;
 }
 
-function saveSchoolInfo(event) {
-  event.preventDefault();
-  
-  // จำลองการบันทึกข้อมูล
-  alert('บันทึกข้อมูลสถานศึกษาสำเร็จ! 🎉\n(ในระบบจริงจะบันทึกลง database)');
-  
-  return false;
-}
+// ฟังก์ชัน saveSchoolInfo ถูกย้ายไปยัง /public/js/school-info.js แล้ว
+// ฟังก์ชันนี้จะถูกเรียกจาก external JS file
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async function() {
@@ -1100,9 +1096,11 @@ function bindAddressAutocomplete() {
 // small CSS for suggestion items (inserted via JS in case external CSS not ready)
 (() => {
   const css = `
-    .suggestion-box{background:var(--color-surface);border:1px solid rgba(0,0,0,0.06);border-radius:6px;position:absolute;left:0;right:0;box-shadow:0 6px 18px rgba(0,0,0,0.08);max-height:220px;overflow:auto}
+    .suggestion-box{background:var(--color-surface);border:1px solid rgba(0,0,0,0.06);border-radius:6px;position:absolute;left:0;right:0;box-shadow:0 6px 18px rgba(0,0,0,0.08);max-height:220px;overflow:auto;z-index:1500}
     .suggestion-item{padding:6px 10px}
     .suggestion-item:hover{background:var(--color-bg);}
+    .suggestion-item-school{transition:background 0.2s ease}
+    .suggestion-item-school:hover{background:var(--color-bg)!important}
   `;
   const s = document.createElement('style'); s.appendChild(document.createTextNode(css)); document.head.appendChild(s);
 })();
