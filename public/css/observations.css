@@ -315,6 +315,36 @@
   z-index: 100001 !important;
 }
 
+/* Custom Swal Student Item Styles */
+.swal-student-item {
+  transition: all 0.2s ease !important;
+}
+
+.swal-student-item:hover {
+  background: #f5f5f5 !important;
+  transform: translateX(4px);
+}
+
+.swal-student-item input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: #2E3094;
+}
+
+/* Swal Search Input */
+#swal-search-input {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  transition: border-color 0.2s ease;
+}
+
+#swal-search-input:focus {
+  outline: none;
+  border-color: #2E3094;
+  box-shadow: 0 0 0 3px rgba(46, 48, 148, 0.1);
+}
+
 /* Empty State */
 .empty-state {
   padding: 40px;
@@ -340,4 +370,28 @@
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+  }
+  
+  .observation-actions {
+    flex-direction: column;
+  }
+  
+  .observation-actions .btn {
+    width: 100%;
+  }
+  
+  .progress-section {
+    grid-template-columns: 1fr;
+  }
+  
+  .modal-content {
+    width: 98%;
+    max-height: 95vh;
+  }
 }

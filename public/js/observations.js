@@ -622,8 +622,11 @@ async function manageStudents(observationId) {
   
   const content = `
     <div class="students-management">
-      <div style="margin-bottom:16px;">
-        <input type="text" class="form-input" placeholder="ค้นหานักศึกษา..." onkeyup="searchManagedStudents(this.value)">
+      <div style="display:flex;gap:12px;margin-bottom:16px;align-items:center;">
+        <input type="text" class="form-input" placeholder="ค้นหานักศึกษา..." onkeyup="searchManagedStudents(this.value)" style="flex:1;">
+        <button class="btn btn--primary" onclick="openAddStudentModal('${observationId}', '${observation.startDate}')">
+          <span>➕</span> เพิ่มนักศึกษา
+        </button>
       </div>
       
       <div class="managed-students-list">
@@ -719,6 +722,300 @@ function searchManagedStudents(query) {
     const searchText = item.getAttribute('data-student-search').toLowerCase();
     item.style.display = searchText.includes(searchLower) ? 'flex' : 'none';
   });
+}
+
+/**
+ * เปิดโมดัลเพิ่มนักศึกษาเข้างวดสังเกต
+ */
+async function openAddStudentModal(observationId, startDate) {
+  // ตรวจสอบเงื่อนไขเวลา
+  const now = new Date();
+  const start = new Date(startDate);
+  const daysPassed = Math.floor((now - start) / (1000 * 60 * 60 * 24));
+  
+  // ตรวจสอบเงื่อนไขเวลา
+  if (daysPassed > 5) {
+    Swal.fire({
+      icon: 'error',
+      title: 'ไม่สามารถเพิ่มนักศึกษาได้',
+      html: `<p>การสังเกตนี้เริ่มต้นมาแล้ว <strong>${daysPassed} วัน</strong></p>
+             <p>ระบบอนุญาตให้เพิ่มนักศึกษาได้เฉพาะภายใน <strong>5 วัน</strong> เท่านั้น</p>`,
+      confirmButtonText: 'รับทราบ'
+    });
+    return;
+  }
+  
+  // โหลดรายชื่อนักศึกษาที่ยังไม่ได้เข้าร่วม
+  await loadAvailableStudents(observationId);
+}
+
+/**
+ * โหลดรายชื่อนักศึกษาที่ยังไม่ได้เข้าร่วมการสังเกต
+ */
+async function loadAvailableStudents(observationId) {
+  Swal.fire({
+    title: 'กำลังโหลด...',
+    allowOutsideClick: false,
+    didOpen: () => {
+      Swal.showLoading();
+    }
+  });
+  
+  try {
+    const response = await fetch(`/api/observations/${observationId}/available-students`);
+    const data = await response.json();
+    
+    if (data.success) {
+      Swal.close();
+      showAddStudentDialog(observationId, data.students);
+    } else {
+      Swal.fire('ข้อผิดพลาด', data.message, 'error');
+    }
+  } catch (error) {
+    console.error('Error loading available students:', error);
+    Swal.fire('ข้อผิดพลาด', 'ไม่สามารถโหลดรายชื่อนักศึกษาได้', 'error');
+  }
+}
+
+/**
+ * แสดงไดอะล็อกเลือกนักศึกษาที่จะเพิ่ม
+ */
+function showAddStudentDialog(observationId, students) {
+  if (students.length === 0) {
+    Swal.fire({
+      icon: 'info',
+      title: 'ไม่มีนักศึกษาที่สามารถเพิ่มได้',
+      html: `
+        <div style="text-align:left;padding:12px;">
+          <p style="margin-bottom:12px;">ไม่พบนักศึกษาที่สามารถเพิ่มได้ เนื่องจาก:</p>
+          <ul style="padding-left:20px;color:#6c757d;">
+            <li>นักศึกษาในชั้นปีนี้เข้าร่วมการสังเกตนี้แล้วทั้งหมด</li>
+            <li style="margin-top:8px;">หรือนักศึกษาที่เหลือยังไม่ได้กรอกข้อมูลส่วนตัว (ชื่อ-นามสกุล)</li>
+          </ul>
+          <div style="margin-top:16px;padding:12px;background:#fff3cd;border-radius:6px;font-size:0.9rem;">
+            💡 <strong>หมายเหตุ:</strong> นักศึกษาต้องกรอกข้อมูลส่วนตัวให้ครบถ้วนก่อนจึงจะสามารถเข้าร่วมการสังเกตได้
+          </div>
+        </div>
+      `,
+      confirmButtonText: 'รับทราบ',
+      width: '500px'
+    });
+    return;
+  }
+  
+  // สร้าง checkbox list แบบสวยงาม
+  let selectedIds = [];
+  
+  const studentCheckboxes = students.map((s, index) => {
+    const yearLabel = s.yearCategory === '4+' ? 'ปี 4+' : `ปี ${s.yearLevel}`;
+    const warningBadge = s.isDifferentYear 
+      ? `<span style="display:inline-block;background:#fff3cd;color:#856404;padding:2px 8px;border-radius:4px;font-size:0.75rem;margin-left:8px;">⚠️ ต่างชั้นปี</span>`
+      : '';
+    
+    return `
+    <div class="swal-student-item" data-year-category="${s.yearCategory}" style="display:flex;align-items:center;gap:12px;padding:12px;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:8px;cursor:pointer;transition:all 0.2s;" 
+         onclick="toggleSwalStudent('${s.id}', this)">
+      <input type="checkbox" id="swal-cb-${s.id}" value="${s.id}" 
+             style="width:18px;height:18px;cursor:pointer;" 
+             onclick="event.stopPropagation();">
+      <div style="flex:1;text-align:left;">
+        <div style="font-weight:500;color:#2E3094;">
+          ${escapeHtml(s.name)}
+          ${warningBadge}
+        </div>
+        <div style="font-size:0.85rem;color:#6c757d;">รหัส: ${s.studentId} | ${yearLabel}</div>
+      </div>
+    </div>
+  `;
+  }).join('');
+  
+  Swal.fire({
+    title: '➕ เพิ่มนักศึกษาเข้างวดสังเกต',
+    html: `
+      <div style="text-align:left;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div style="font-size:0.9rem;color:#6c757d;">
+            <span id="swal-total-students">พบ ${students.length} คน</span>
+            <span id="swal-selected-count" style="color:#2E3094;font-weight:600;margin-left:8px;">เลือก: 0 คน</span>
+          </div>
+          <button type="button" class="btn btn--sm" onclick="toggleAllSwalStudents()" 
+                  style="padding:4px 12px;font-size:0.85rem;background:#f0f0f0;border:1px solid #ddd;border-radius:6px;cursor:pointer;">
+            เลือก/ยกเลิกทั้งหมด
+          </button>
+        </div>
+        
+        <div style="max-height:400px;overflow-y:auto;border:1px solid #e0e0e0;border-radius:8px;padding:12px;background:#f9f9f9;">
+          <div style="display:grid;grid-template-columns:1fr 2fr;gap:8px;margin-bottom:12px;">
+            <select id="swal-year-filter" class="form-input" onchange="filterSwalStudents()">
+              <option value="">ทุกชั้นปี</option>
+              <option value="1">ปี 1</option>
+              <option value="2">ปี 2</option>
+              <option value="3">ปี 3</option>
+              <option value="4">ปี 4</option>
+              <option value="4+">ปี 4+</option>
+            </select>
+            <input type="text" id="swal-search-input" class="form-input" 
+                   placeholder="🔍 ค้นหานักศึกษา (ชื่อหรือรหัส)..." 
+                   oninput="filterSwalStudents()">
+          </div>
+          <div id="swal-students-container">
+            ${studentCheckboxes}
+          </div>
+        </div>
+        
+        <div style="margin-top:12px;padding:12px;background:#e3f2fd;border-radius:8px;font-size:0.85rem;color:#1976d2;">
+          💡 <strong>คำแนะนำ:</strong> คลิกที่การ์ดหรือกดช่อง checkbox เพื่อเลือกนักศึกษา
+        </div>
+      </div>
+    `,
+    width: '600px',
+    showCancelButton: true,
+    confirmButtonText: 'เพิ่มนักศึกษา',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#2E3094',
+    didOpen: () => {
+      // Setup toggle functions
+      window.toggleSwalStudent = function(studentId, element) {
+        const checkbox = document.getElementById(`swal-cb-${studentId}`);
+        checkbox.checked = !checkbox.checked;
+        
+        if (checkbox.checked) {
+          element.style.background = '#e3f2fd';
+          element.style.borderColor = '#2E3094';
+        } else {
+          element.style.background = 'white';
+          element.style.borderColor = '#e0e0e0';
+        }
+        
+        updateSwalSelectedCount();
+      };
+      
+      window.toggleAllSwalStudents = function() {
+        const allCheckboxes = document.querySelectorAll('#swal-students-container input[type="checkbox"]');
+        const allChecked = Array.from(allCheckboxes).every(cb => cb.checked);
+        
+        allCheckboxes.forEach(cb => {
+          cb.checked = !allChecked;
+          const item = cb.closest('.swal-student-item');
+          if (cb.checked) {
+            item.style.background = '#e3f2fd';
+            item.style.borderColor = '#2E3094';
+          } else {
+            item.style.background = 'white';
+            item.style.borderColor = '#e0e0e0';
+          }
+        });
+        
+        updateSwalSelectedCount();
+      };
+      
+      window.updateSwalSelectedCount = function() {
+        const checked = document.querySelectorAll('#swal-students-container input[type="checkbox"]:checked');
+        document.getElementById('swal-selected-count').textContent = `เลือก: ${checked.length} คน`;
+      };
+      
+      window.filterSwalStudents = function() {
+        const items = document.querySelectorAll('.swal-student-item');
+        const searchInput = document.getElementById('swal-search-input');
+        const yearFilter = document.getElementById('swal-year-filter');
+        const searchQuery = searchInput ? searchInput.value.toLowerCase() : '';
+        const yearValue = yearFilter ? yearFilter.value : '';
+        let visibleCount = 0;
+        
+        items.forEach(item => {
+          const text = item.textContent.toLowerCase();
+          const yearCategory = item.getAttribute('data-year-category');
+          
+          const matchesSearch = !searchQuery || text.includes(searchQuery);
+          const matchesYear = !yearValue || yearCategory === yearValue;
+          
+          if (matchesSearch && matchesYear) {
+            item.style.display = 'flex';
+            visibleCount++;
+          } else {
+            item.style.display = 'none';
+          }
+        });
+        
+        const filterText = (searchQuery || yearValue) 
+          ? `พบ ${visibleCount} จาก ${students.length} คน` 
+          : `พบ ${students.length} คน`;
+        document.getElementById('swal-total-students').textContent = filterText;
+      };
+      
+      // Add checkbox change listeners
+      const checkboxes = document.querySelectorAll('#swal-students-container input[type="checkbox"]');
+      checkboxes.forEach(cb => {
+        cb.addEventListener('change', function(e) {
+          const item = this.closest('.swal-student-item');
+          if (this.checked) {
+            item.style.background = '#e3f2fd';
+            item.style.borderColor = '#2E3094';
+          } else {
+            item.style.background = 'white';
+            item.style.borderColor = '#e0e0e0';
+          }
+          updateSwalSelectedCount();
+        });
+      });
+    },
+    preConfirm: () => {
+      const selected = Array.from(document.querySelectorAll('#swal-students-container input[type="checkbox"]:checked'))
+        .map(cb => cb.value);
+      
+      if (selected.length === 0) {
+        Swal.showValidationMessage('กรุณาเลือกนักศึกษาอย่างน้อย 1 คน');
+        return false;
+      }
+      
+      return selected;
+    }
+  }).then(async (result) => {
+    if (result.isConfirmed) {
+      await addStudentsToObservation(observationId, result.value);
+    }
+  });
+}
+
+/**
+ * เพิ่มนักศึกษาเข้างวดสังเกต
+ */
+async function addStudentsToObservation(observationId, studentIds) {
+  Swal.fire({
+    title: 'กำลังเพิ่มนักศึกษา...',
+    allowOutsideClick: false,
+    didOpen: () => {
+      Swal.showLoading();
+    }
+  });
+  
+  try {
+    const response = await fetch(`/api/observations/${observationId}/add-students`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ studentIds })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      Swal.fire({
+        icon: 'success',
+        title: 'สำเร็จ',
+        text: `เพิ่มนักศึกษา ${studentIds.length} คนเรียบร้อยแล้ว`,
+        confirmButtonText: 'ตกลง'
+      }).then(() => {
+        manageStudents(observationId); // Refresh
+      });
+    } else {
+      Swal.fire('ข้อผิดพลาด', data.message, 'error');
+    }
+  } catch (error) {
+    console.error('Error adding students:', error);
+    Swal.fire('ข้อผิดพลาด', 'ไม่สามารถเพิ่มนักศึกษาได้', 'error');
+  }
 }
 
 // ========================================

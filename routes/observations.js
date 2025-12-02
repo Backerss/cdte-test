@@ -54,17 +54,8 @@ router.get('/api/observations', requireAuth, async (req, res) => {
     const snapshot = await query.get();
     let observations = [];
 
-    console.log(`📊 Found ${snapshot.size} observations in Firestore`);
-
     for (const doc of snapshot.docs) {
       const data = doc.data();
-      console.log(`📝 Processing observation: ${doc.id}`, {
-        name: data.name,
-        academicYear: data.academicYear,
-        yearLevel: data.yearLevel,
-        status: data.status,
-        hasCreatedAt: !!data.createdAt
-      });
 
       // นับจำนวนนักศึกษาในการสังเกตุนี้
       const studentsSnapshot = await db.collection('observation_students')
@@ -109,7 +100,6 @@ router.get('/api/observations', requireAuth, async (req, res) => {
     // Sort in-memory (จากใหม่ไปเก่า) เพราะ Firestore query ไม่สามารถ orderBy + where หลายตัวได้โดยไม่มี composite index
     observations.sort((a, b) => b.createdAtTimestamp - a.createdAtTimestamp);
 
-    console.log(`✅ Returning ${observations.length} observations to client`);
     res.json({ success: true, observations });
   } catch (error) {
     console.error('Error fetching observations:', error);
@@ -402,6 +392,293 @@ router.get('/api/students', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Error fetching students:', error);
     res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการดึงข้อมูลนักศึกษา' });
+  }
+});
+
+/**
+ * GET /api/observations/:id/available-students
+ * ดึงรายชื่อนักศึกษาที่ยังไม่ได้เข้าร่วมการสังเกตนี้
+ */
+router.get('/api/observations/:id/available-students', requireAdminOrTeacher, async (req, res) => {
+  try {
+    const observationId = req.params.id;
+    
+    // ดึงข้อมูล observation จาก document id โดยตรง
+    const obsDoc = await db.collection('observations').doc(observationId).get();
+    
+    if (!obsDoc.exists) {
+      return res.status(404).json({ success: false, message: 'ไม่พบการสังเกตนี้' });
+    }
+    
+    const observation = obsDoc.data();
+    
+    // รวบรวมรหัสนักศึกษาที่มีอยู่แล้วจากทั้ง 2 แหล่ง
+    const existingStudentIds = new Set();
+    
+    // จาก observation.students array
+    if (Array.isArray(observation.students)) {
+      observation.students.forEach(studentEntry => {
+        if (!studentEntry) return;
+        const existingId = typeof studentEntry === 'string'
+          ? studentEntry
+          : (studentEntry.studentId || studentEntry.id);
+        if (existingId) {
+          existingStudentIds.add(String(existingId).trim());
+        }
+      });
+    }
+    
+    // จาก observation_students collection
+    const observationStudentsSnapshot = await db.collection('observation_students')
+      .where('observationId', '==', observationId)
+      .get();
+    
+    observationStudentsSnapshot.forEach(studentDoc => {
+      const data = studentDoc.data();
+      if (data?.studentId) {
+        existingStudentIds.add(String(data.studentId).trim());
+      }
+    });
+    
+    // ดึงนักศึกษาทั้งหมด (ไม่ล็อคชั้นปี - ให้เลือกได้ทุกคน)
+    const studentsSnapshot = await db.collection('users')
+      .where('role', '==', 'student')
+      .get();
+    
+    console.log(`🔍 [Available Students] Found ${studentsSnapshot.size} total students`);
+    console.log(`🔍 [Available Students] Observation yearLevel: ${observation.yearLevel}`);
+    console.log(`🔍 [Available Students] Existing student IDs:`, Array.from(existingStudentIds));
+    
+    const availableStudents = [];
+    const currentYear = new Date().getFullYear(); // 2025
+    
+    studentsSnapshot.forEach(doc => {
+      const data = doc.data();
+      const studentId = String(data.studentId || '').trim();
+      const firstName = String(data.firstName || '').trim();
+      const lastName = String(data.lastName || '').trim();
+      
+      // เงื่อนไขในการแสดง:
+      // 1. ต้องมี studentId (11 หลัก)
+      // 2. ต้องมีชื่อและนามสกุลครบถ้วน (ข้อมูลสมบูรณ์)
+      // 3. ยังไม่ได้อยู่ในการสังเกตนี้ (เช็คจาก observation_students)
+      
+      if (!studentId || studentId.length !== 11) {
+        console.log(`  ❌ Skipped - Invalid studentId: ${studentId} (length: ${studentId.length})`);
+        return;
+      }
+      
+      if (!firstName || !lastName) {
+        console.log(`  ❌ Skipped - Incomplete profile: firstName="${firstName}", lastName="${lastName}"`);
+        return;
+      }
+      
+      if (existingStudentIds.has(studentId)) {
+        console.log(`  ❌ Skipped - Already in observation: ${studentId}`);
+        return;
+      }
+      
+      // กำหนดชั้นปี: ใช้จากฐานข้อมูลก่อน (data.year) ถ้าไม่มีค่อยคำนวณจากรหัส
+      let displayYear;
+      let yearCategory;
+      
+      if (data.year && Number.isInteger(data.year)) {
+        // มี year ในฐานข้อมูลแล้ว - ใช้ตามนั้นเลย
+        displayYear = data.year;
+        yearCategory = data.year <= 4 ? data.year : '4+';
+        console.log(`  ℹ️ Using existing year from database: ${data.year}`);
+      } else {
+        // ไม่มี year - คำนวณจากรหัสนักศึกษา (2 หลักแรก)
+        const yearPrefix = parseInt(studentId.substring(0, 2));
+        const studentAdmitYear = 2500 + yearPrefix; // เช่น 65 -> 2565
+        const calculatedYear = (currentYear - studentAdmitYear) + 1;
+        displayYear = calculatedYear;
+        yearCategory = calculatedYear <= 4 ? calculatedYear : '4+';
+        console.log(`  ℹ️ Calculated year from studentId: ${calculatedYear}`);
+      }
+      
+      // เปรียบเทียบกับชั้นปีของ observation
+      const isDifferentYear = displayYear !== observation.yearLevel;
+      
+      console.log(`  ✅ Added: ${studentId}, displayYear: ${displayYear}, observationYear: ${observation.yearLevel}, different: ${isDifferentYear}`);
+      
+      // นักศึกษาที่ผ่านเงื่อนไขทั้งหมด
+      availableStudents.push({
+        id: studentId,
+        studentId: studentId,
+        name: `${firstName} ${lastName}`,
+        yearLevel: displayYear,
+        yearCategory: String(yearCategory),
+        firstName: firstName,
+        lastName: lastName,
+        isDifferentYear: isDifferentYear,
+        observationYearLevel: observation.yearLevel
+      });
+    });
+    
+    // เรียงตามรหัสนักศึกษา
+    availableStudents.sort((a, b) => a.studentId.localeCompare(b.studentId));
+    
+    res.json({ 
+      success: true, 
+      students: availableStudents,
+      totalAvailable: availableStudents.length,
+      totalExisting: existingStudentIds.size
+    });
+  } catch (error) {
+    console.error('Error fetching available students:', error);
+    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการดึงข้อมูล' });
+  }
+});
+
+/**
+ * POST /api/observations/:id/add-students
+ * เพิ่มนักศึกษาเข้าร่วมการสังเกต
+ * Body: { studentIds: ['6609999999', '6609999998'] }
+ */
+router.post('/api/observations/:id/add-students', requireAdminOrTeacher, async (req, res) => {
+  try {
+    const observationId = req.params.id;
+    const { studentIds } = req.body;
+
+    if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'กรุณาระบุรายชื่อนักศึกษา' });
+    }
+
+    // ดึงข้อมูล observation
+    const obsDocRef = db.collection('observations').doc(observationId);
+    const obsDoc = await obsDocRef.get();
+
+    if (!obsDoc.exists) {
+      return res.status(404).json({ success: false, message: 'ไม่พบการสังเกตนี้' });
+    }
+
+    const observation = obsDoc.data();
+
+    // ตรวจสอบสิทธิ์ตามเงื่อนไขเวลา
+    const now = new Date();
+    const startDate = observation.startDate?.toDate ? observation.startDate.toDate() : new Date(observation.startDate);
+    const daysPassed = Math.floor((now - startDate) / (1000 * 60 * 60 * 24));
+
+    if (Number.isFinite(daysPassed) && daysPassed > 5) {
+      return res.status(403).json({
+        success: false,
+        message: 'ไม่สามารถเพิ่มนักศึกษาได้ เนื่องจากเกิน 5 วันแล้ว'
+      });
+    }
+
+    // เก็บรหัสนักศึกษาที่มีอยู่แล้ว (ทั้งจาก observations.students และ observation_students collection)
+    const existingStudentIds = new Set();
+
+    if (Array.isArray(observation.students)) {
+      observation.students.forEach(studentEntry => {
+        if (!studentEntry) return;
+        const existingId = typeof studentEntry === 'string'
+          ? studentEntry
+          : (studentEntry.studentId || studentEntry.id);
+        if (existingId) {
+          existingStudentIds.add(String(existingId).trim());
+        }
+      });
+    }
+
+    const observationStudentsSnapshot = await db.collection('observation_students')
+      .where('observationId', '==', observationId)
+      .get();
+
+    observationStudentsSnapshot.forEach(studentDoc => {
+      const data = studentDoc.data();
+      if (data?.studentId) {
+        existingStudentIds.add(String(data.studentId).trim());
+      }
+    });
+
+    const studentsToAdd = [];
+    const studentDocWrites = [];
+    let skippedDuplicates = 0;
+
+    for (const rawStudentId of studentIds) {
+      const studentId = String(rawStudentId || '').trim();
+      if (!studentId) continue;
+
+      if (existingStudentIds.has(studentId)) {
+        skippedDuplicates++;
+        continue;
+      }
+
+      const userSnapshot = await db.collection('users')
+        .where('role', '==', 'student')
+        .where('studentId', '==', studentId)
+        .limit(1)
+        .get();
+
+      if (userSnapshot.empty) {
+        continue;
+      }
+
+      const userData = userSnapshot.docs[0].data();
+      const fullName = [userData.firstName, userData.lastName].filter(Boolean).join(' ').trim();
+
+      const studentEntry = {
+        id: studentId,
+        studentId,
+        name: fullName || studentId,
+        status: 'active',
+        addedAt: admin.firestore.Timestamp.now(),
+        evaluationsCompleted: 0,
+        lessonPlanSubmitted: false,
+        notes: ''
+      };
+
+      studentsToAdd.push(studentEntry);
+
+      const studentDocRef = db.collection('observation_students').doc();
+      studentDocWrites.push({
+        ref: studentDocRef,
+        data: {
+          observationId,
+          studentId,
+          status: 'active',
+          evaluationsCompleted: 0,
+          lessonPlanSubmitted: false,
+          notes: '',
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }
+      });
+
+      existingStudentIds.add(studentId);
+    }
+
+    if (studentsToAdd.length === 0) {
+      const message = skippedDuplicates > 0
+        ? 'นักศึกษาที่เลือกมีอยู่แล้วในรายการ'
+        : 'ไม่มีนักศึกษาที่ต้องเพิ่ม (อาจมีอยู่แล้วหรือไม่พบข้อมูล)';
+      return res.json({ success: false, message, addedCount: 0, duplicatesSkipped: skippedDuplicates });
+    }
+
+    const batch = db.batch();
+
+    studentDocWrites.forEach(({ ref, data }) => {
+      batch.set(ref, data);
+    });
+
+    batch.update(obsDocRef, {
+      students: admin.firestore.FieldValue.arrayUnion(...studentsToAdd),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    await batch.commit();
+
+    res.json({
+      success: true,
+      message: `เพิ่มนักศึกษา ${studentsToAdd.length} คนเรียบร้อยแล้ว`,
+      addedCount: studentsToAdd.length,
+      duplicatesSkipped: skippedDuplicates
+    });
+  } catch (error) {
+    console.error('Error adding students to observation:', error);
+    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการเพิ่มนักศึกษา' });
   }
 });
 

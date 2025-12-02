@@ -25,6 +25,14 @@ router.post('/register', async (req, res) => {
             });
         }
 
+        // ตรวจสอบความยาวรหัสนักศึกษา (ต้องเป็น 11 หลัก)
+        if (studentId.length !== 11) {
+            return res.status(400).json({
+                success: false,
+                message: 'รหัสนักศึกษาต้องมี 11 หลัก'
+            });
+        }
+
         // ตรวจสอบความยาวรหัสผ่าน
         if (password.length < 6) {
             return res.status(400).json({
@@ -32,6 +40,18 @@ router.post('/register', async (req, res) => {
                 message: 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'
             });
         }
+
+        // แยกปีการศึกษาจากรหัสนักศึกษา (2 หลักแรก -> ชั้นปี)
+        // เช่น 66xxxxxxxxx = ปี 1 (พ.ศ. 2566 = ค.ศ. 2023)
+        const currentYear = new Date().getFullYear() + 543; // แปลงเป็น พ.ศ.
+        const studentYearPrefix = parseInt(studentId.substring(0, 2));
+        const studentAdmissionYear = 2500 + studentYearPrefix; // 66 -> 2566
+        const yearsSinceAdmission = currentYear - studentAdmissionYear;
+        
+        // คำนวณชั้นปี (1-4)
+        let studentYear = yearsSinceAdmission + 1;
+        if (studentYear < 1) studentYear = 1;
+        if (studentYear > 4) studentYear = 4;
 
         // ตรวจสอบว่ามีรหัสนักศึกษานี้ในระบบแล้วหรือไม่
         const userRef = db.collection('users').doc(studentId);
@@ -47,16 +67,19 @@ router.post('/register', async (req, res) => {
         // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // สร้างข้อมูลผู้ใช้ใหม่
+        // สร้างข้อมูลผู้ใช้ใหม่ (ทุกคนที่สมัครเป็นนักศึกษา)
         const userData = {
             studentId: studentId,
             password: hashedPassword,
+            role: 'student', // ผู้ใช้ทุกคนที่สมัครเป็นนักศึกษา
+            year: studentYear, // ชั้นปีที่คำนวณจากรหัส
             firstName: '',
             lastName: '',
             major: '',
             email: '',
             phone: '',
             avatar: '',
+            status: 'active',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
         };
@@ -68,10 +91,10 @@ router.post('/register', async (req, res) => {
         await logActivity(
             'register',
             'ลงทะเบียนผู้ใช้ใหม่',
-            `นักศึกษารหัส ${studentId} ได้ลงทะเบียนเข้าสู่ระบบ`,
+            `นักศึกษารหัส ${studentId} (ชั้นปีที่ ${studentYear}) ได้ลงทะเบียนเข้าสู่ระบบ`,
             studentId,
             `นักศึกษา ${studentId}`,
-            { studentId }
+            { studentId, year: studentYear, role: 'student' }
         );
 
         // บันทึก System Log
