@@ -9,6 +9,7 @@ const observationsRoutes = require('./routes/observations');
 const systemRoutes = require('./routes/system');
 const studentRoutes = require('./routes/student');
 const schoolInfoRoutes = require('./routes/school-info');
+const mentorInfoRoutes = require('./routes/mentor-info');
 const { requireAuth, requireGuest, addUserToLocals, checkSessionSecurity } = require('./middleware/auth');
 
 const app = express();
@@ -61,6 +62,7 @@ app.use('/', observationsRoutes);
 app.use('/', systemRoutes);
 app.use('/', studentRoutes);
 app.use('/', schoolInfoRoutes);
+app.use('/', mentorInfoRoutes);
 
 // Register routes
 app.get('/register', requireGuest, (req, res) => {

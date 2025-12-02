@@ -170,8 +170,14 @@ function showSchoolSuggestions(schools, container) {
          </small>`
       : '';
     
+    const studentCountBadge = school.submittedByCount > 1 
+      ? `<span style="display:inline-block;background:#28a745;color:white;padding:2px 8px;border-radius:10px;font-size:0.75rem;margin-left:8px;">
+           👥 ${school.submittedByCount} คน
+         </span>`
+      : '';
+    
     item.innerHTML = `
-      <div style="font-weight:600;color:#2E3094;">${school.name}</div>
+      <div style="font-weight:600;color:#2E3094;">${school.name}${studentCountBadge}</div>
       <div style="font-size:0.85rem;color:#6c757d;">${school.affiliation || '-'}</div>
       <div style="font-size:0.85rem;color:#6c757d;">${school.amphoe || ''} ${school.province || ''}</div>
       ${updatedInfo}
@@ -201,6 +207,12 @@ function showSchoolSuggestions(schools, container) {
 function selectSchool(school) {
   selectedSchoolId = school.id;
   
+  const studentCountInfo = school.submittedByCount > 1 
+    ? `<div style="margin-top:16px;padding:12px;background:#d4edda;border-radius:6px;border-left:4px solid #28a745;">
+         <strong>👥 โรงเรียนนี้มีนักศึกษากรอกข้อมูลแล้ว ${school.submittedByCount} คน</strong>
+       </div>`
+    : '';
+  
   Swal.fire({
     title: 'พบข้อมูลโรงเรียนนี้แล้ว',
     html: `
@@ -208,6 +220,7 @@ function selectSchool(school) {
         <p><strong>ชื่อ:</strong> ${school.name}</p>
         <p><strong>สังกัด:</strong> ${school.affiliation || '-'}</p>
         <p><strong>ที่อยู่:</strong> ${school.amphoe || ''} ${school.province || ''} ${school.postcode || ''}</p>
+        ${studentCountInfo}
         ${school.lastUpdatedBy ? `
           <div style="margin-top:16px;padding:12px;background:#fff3cd;border-radius:6px;">
             <strong>⚠️ ข้อมูลนี้มีการอัปเดตโดย:</strong><br>
@@ -381,31 +394,21 @@ async function saveSchoolInfo(event) {
     const result = await response.json();
     
     if (result.success) {
-      // ตรวจสอบว่ามีคนอัปเดตไปก่อนหรือไม่
-      if (result.updateWarning) {
-        const updateDate = new Date(result.updateWarning.lastUpdatedAt);
-        await Swal.fire({
-          icon: 'info',
-          title: 'บันทึกสำเร็จ',
-          html: `
-            <p>${result.message}</p>
-            <hr style="margin:16px 0">
-            <div style="background:#fff3cd;padding:12px;border-radius:6px;text-align:left">
-              <strong>⚠️ ข้อมูลโรงเรียนนี้เคยถูกอัปเดตโดย:</strong><br>
-              นักศึกษา ${result.updateWarning.lastUpdatedBy}<br>
-              <small>${updateDate.toLocaleString('th-TH')}</small>
-            </div>
-          `,
-          confirmButtonText: 'รับทราบ'
-        });
-      } else {
-        await Swal.fire({
-          icon: 'success',
-          title: 'บันทึกสำเร็จ!',
-          text: result.message,
-          confirmButtonText: 'รับทราบ'
-        });
-      }
+      const studentCountMsg = result.studentCount > 1 
+        ? `<div style="margin-top:12px;padding:12px;background:#d4edda;border-radius:6px;border-left:4px solid #28a745;">
+             <strong>👥 ขณะนี้มีนักศึกษา ${result.studentCount} คนกรอกข้อมูลโรงเรียนนี้</strong>
+           </div>`
+        : '';
+      
+      await Swal.fire({
+        icon: 'success',
+        title: 'บันทึกสำเร็จ!',
+        html: `
+          <p>${result.message}</p>
+          ${studentCountMsg}
+        `,
+        confirmButtonText: 'รับทราบ'
+      });
       
       // โหลดข้อมูลใหม่
       await loadMySubmission();

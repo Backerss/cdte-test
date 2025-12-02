@@ -108,6 +108,7 @@ router.get('/api/school-info/search-schools', requireAuth, async (req, res) => {
     const schools = [];
     schoolsSnapshot.forEach(doc => {
       const data = doc.data();
+      const studentIds = data.studentIds || [];
       schools.push({
         id: doc.id,
         name: data.name,
@@ -126,7 +127,8 @@ router.get('/api/school-info/search-schools', requireAuth, async (req, res) => {
         phone: data.phone || '',
         email: data.email || '',
         lastUpdatedBy: data.lastUpdatedBy || null,
-        lastUpdatedAt: data.lastUpdatedAt || null
+        lastUpdatedAt: data.lastUpdatedAt || null,
+        submittedByCount: studentIds.length // จำนวนนักศึกษาที่กรอกข้อมูลโรงเรียนนี้
       });
     });
     
@@ -167,39 +169,19 @@ router.post('/api/school-info/save', requireStudent, async (req, res) => {
     
     const now = admin.firestore.FieldValue.serverTimestamp();
     
-    // ตรวจสอบว่านักศึกษาคนนี้เคยกรอกข้อมูลในงวดนี้แล้วหรือไม่
-    const mySchoolSnapshot = await db.collection('schools')
-      .where('studentId', '==', studentId)
+    // ค้นหาโรงเรียนจากชื่อ + observationId (1 โรงเรียน = 1 document)
+    const existingSchoolSnapshot = await db.collection('schools')
+      .where('name', '==', schoolData.name.trim())
       .where('observationId', '==', eligibilityCheck.observationId)
       .limit(1)
       .get();
     
     let schoolId;
-    let isNewSchool = mySchoolSnapshot.empty;
-    let updateWarning = null;
+    let isNewSchool = existingSchoolSnapshot.empty;
+    let studentCount = 1;
     
     if (isNewSchool) {
-      // ตรวจสอบว่ามีโรงเรียนชื่อนี้อยู่แล้วหรือไม่ (จากคนอื่น)
-      const existingSchool = await db.collection('schools')
-        .where('name', '==', schoolData.name.trim())
-        .limit(1)
-        .get();
-      
-      if (!existingSchool.empty) {
-        const existingData = existingSchool.docs[0].data();
-        if (existingData.lastUpdatedBy && existingData.lastUpdatedBy !== studentId) {
-          const lastUpdateDate = existingData.lastUpdatedAt?.toDate 
-            ? existingData.lastUpdatedAt.toDate() 
-            : new Date(existingData.lastUpdatedAt);
-          
-          updateWarning = {
-            lastUpdatedBy: existingData.lastUpdatedBy,
-            lastUpdatedAt: lastUpdateDate.toISOString()
-          };
-        }
-      }
-      
-      // สร้างโรงเรียนใหม่สำหรับนักศึกษาคนนี้
+      // สร้างโรงเรียนใหม่พร้อม studentIds เป็น array
       const newSchoolRef = await db.collection('schools').add({
         name: schoolData.name.trim(),
         affiliation: schoolData.affiliation,
@@ -221,7 +203,7 @@ router.post('/api/school-info/save', requireStudent, async (req, res) => {
         
         // ข้อมูลการติดตาม
         observationId: eligibilityCheck.observationId,
-        studentId: studentId,
+        studentIds: [studentId], // เก็บเป็น array
         
         createdAt: now,
         createdBy: studentId,
@@ -230,11 +212,15 @@ router.post('/api/school-info/save', requireStudent, async (req, res) => {
       });
       schoolId = newSchoolRef.id;
     } else {
-      // อัปเดตโรงเรียนของตัวเองที่กรอกไว้แล้ว
-      schoolId = mySchoolSnapshot.docs[0].id;
+      // โรงเรียนมีอยู่แล้ว → อัปเดตข้อมูลและเพิ่ม studentId เข้า array (ถ้ายังไม่มี)
+      schoolId = existingSchoolSnapshot.docs[0].id;
+      const existingData = existingSchoolSnapshot.docs[0].data();
+      const currentStudentIds = existingData.studentIds || [];
       
-      // อัปเดตข้อมูลทั้งหมด
-      await db.collection('schools').doc(schoolId).update({
+      // ตรวจสอบว่า studentId นี้มีอยู่ใน array แล้วหรือยัง
+      const studentExists = currentStudentIds.includes(studentId);
+      
+      const updateData = {
         name: schoolData.name.trim(),
         affiliation: schoolData.affiliation,
         address: schoolData.address || '',
@@ -255,7 +241,15 @@ router.post('/api/school-info/save', requireStudent, async (req, res) => {
         
         lastUpdatedAt: now,
         lastUpdatedBy: studentId
-      });
+      };
+      
+      // ถ้านักศึกษายังไม่มีใน array ให้เพิ่มเข้าไป
+      if (!studentExists) {
+        updateData.studentIds = admin.firestore.FieldValue.arrayUnion(studentId);
+      }
+      
+      await db.collection('schools').doc(schoolId).update(updateData);
+      studentCount = studentExists ? currentStudentIds.length : currentStudentIds.length + 1;
     }
     
     res.json({
@@ -265,7 +259,7 @@ router.post('/api/school-info/save', requireStudent, async (req, res) => {
         : 'อัปเดตข้อมูลโรงเรียนสำเร็จ',
       schoolId: schoolId,
       isNewSchool: isNewSchool,
-      updateWarning: updateWarning
+      studentCount: studentCount // จำนวนนักศึกษาที่กรอกข้อมูลโรงเรียนนี้
     });
     
   } catch (error) {
@@ -291,9 +285,9 @@ router.get('/api/school-info/my-submission', requireStudent, async (req, res) =>
       return res.json({ success: true, hasSubmission: false });
     }
     
-    // หาโรงเรียนที่นักศึกษาคนนี้กรอกในงวดนี้
+    // หาโรงเรียนที่นักศึกษาคนนี้กรอกในงวดนี้ (ค้นหาจาก studentIds array)
     const schoolSnapshot = await db.collection('schools')
-      .where('studentId', '==', studentId)
+      .where('studentIds', 'array-contains', studentId)
       .where('observationId', '==', eligibilityCheck.observationId)
       .limit(1)
       .get();

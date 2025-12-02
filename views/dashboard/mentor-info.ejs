@@ -30,16 +30,7 @@
       <div class="form-group" style="margin:0;min-width:300px">
         <label class="form-label">เลือกงวดฝึกประสบการณ์</label>
         <select id="mentorPeriodSelector" class="form-input" onchange="changeMentorPeriod()" style="padding:10px 14px">
-          <% if (!hasPractice) { %>
-            <option value="none" selected disabled>ยังไม่มีงวดการฝึกประสบการณ์</option>
-          <% } else { %>
-            <% mentorPractice.slice().reverse().forEach((record) => { %>
-              <option value="<%= record.id %>" <%= record.status === 'active' ? 'selected' : '' %>>
-                <%= record.period %> (ปี <%= record.year %>)
-                <%= record.status === 'active' ? ' - ปัจจุบัน' : '' %>
-              </option>
-            <% }); %>
-          <% } %>
+          <option value="">กำลังโหลด...</option>
         </select>
       </div>
     </div>
@@ -791,9 +782,11 @@
 }
 </style>
 
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="/js/observation-utils.js"></script>
+<script src="/js/mentor-info.js"></script>
 <script>
-let teachingSubjects = [];
+// `teachingSubjects` is defined in `/public/js/mentor-info.js` to avoid duplicate-let errors.
 
 // Education Management
 function addEducation() {
@@ -1155,14 +1148,8 @@ function selectMentorFromHistory(periodId) {
   alert(`✓ คัดลอกข้อมูลครูพี่เลี้ยงจาก ${selectedPeriod.period} เรียบร้อยแล้ว!\n\nคุณสามารถแก้ไขข้อมูลได้ตามต้องการก่อนบันทึก`);
 }
 
-function saveMentorInfo(event) {
-  event.preventDefault();
-  
-  // จำลองการบันทึกข้อมูล
-  alert('บันทึกข้อมูลครูพี่เลี้ยงสำเร็จ! 🎉\n(ในระบบจริงจะบันทึกลง database)');
-  
-  return false;
-}
+// ฟังก์ชัน saveMentorInfo ถูกย้ายไปยัง /public/js/mentor-info.js แล้ว
+// ฟังก์ชันนี้จะถูกเรียกจาก external JS file
 
 // Close modal when clicking outside
 document.addEventListener('DOMContentLoaded', async function() {
@@ -1185,43 +1172,32 @@ document.addEventListener('DOMContentLoaded', async function() {
   }
   
   updateTeachingDisplay();
-  // Populate mentor period selector using ObservationUtils (like school-info)
-  if (window.ObservationUtils && typeof ObservationUtils.populateObservationSelector === 'function') {
-    try {
-      await ObservationUtils.populateObservationSelector('mentorPeriodSelector', currentMentorPeriodId, { includeEmpty: false, showActiveFirst: true });
-      
-      // Hide server-side warning banner if active observation exists
-      const activePeriod = ObservationUtils.getActiveObservation();
-      if (activePeriod) {
-        const banner = document.getElementById('noMentorActiveBanner');
-        if (banner) banner.style.display = 'none';
-      }
-    } catch (err) {
-      console.warn('Could not populate mentorPeriodSelector:', err);
-    }
-  }
-
-  if (isPureAdminClient) {
-    // Pure admin - disable all interactions
-    document.querySelectorAll('input, select, button, textarea').forEach(el => {
-      if (!el.classList.contains('modal-close')) el.disabled = true;
+  
+  // โหลดข้อมูลงวดการสังเกตจาก API
+  try {
+    await ObservationUtils.loadObservations();
+    await ObservationUtils.populateObservationSelector('mentorPeriodSelector', currentMentorPeriodId, { 
+      includeEmpty: false, 
+      showActiveFirst: true 
     });
-  } else if (!hasPractice) {
-    // No practice periods - disable everything in the form
-    const form = document.getElementById('mentorCurrentForm');
-    if (form) {
-      form.querySelectorAll('input,select,textarea,button').forEach(el => el.disabled = true);
+    
+    // Hide server-side warning banner if active observation exists
+    const activePeriod = ObservationUtils.getActiveObservation();
+    if (activePeriod) {
+      const banner = document.getElementById('noMentorActiveBanner');
+      if (banner) banner.style.display = 'none';
     }
-  } else if (!hasActive) {
-    // Periods exist, but none active - disable inputs and submit
-    const form = document.getElementById('mentorCurrentForm');
-    if (form) {
-      form.querySelectorAll('input,textarea').forEach(el => el.disabled = true);
-      const buttons = form.querySelectorAll('button[type="submit"],button[type="reset"]');
-      buttons.forEach(b => b.disabled = true);
+    
+    // โหลดข้อมูลของงวดที่เลือก
+    if (!isPureAdminClient) {
+      changeMentorPeriod();
+    }
+  } catch (err) {
+    console.error('Error loading observations:', err);
+    const selector = document.getElementById('mentorPeriodSelector');
+    if (selector) {
+      selector.innerHTML = '<option value="">ไม่สามารถโหลดข้อมูลได้</option>';
     }
   }
-
-  if (!isPureAdminClient) changeMentorPeriod();
 });
 </script>
