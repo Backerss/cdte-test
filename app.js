@@ -105,9 +105,6 @@ app.post('/forgot-password', (req, res) => {
 
 	// TODO: Send email with reset link
 	const resetLink = `http://localhost:${port}/reset-password/${token}`;
-	console.log('Password reset requested for:', email);
-	console.log('Reset link:', resetLink);
-	console.log('Token expires in 30 minutes');
 
 	res.json({
 		success: true,
@@ -205,9 +202,7 @@ app.post('/reset-password', (req, res) => {
 	resetData.used = true;
 
 	// TODO: Find user by email and update password in database
-	// For now, just log the action
-	console.log('Password reset for:', resetData.email);
-	console.log('New password length:', password.length);
+	// For now, just note action in server logs if needed (removed verbose logging)
 
 	// TODO: Update user password
 	// users.forEach((user, studentId) => {
@@ -289,5 +284,5 @@ app.get('/logout', requireAuth, (req, res) => {
 });
 
 app.listen(port, () => {
-	console.log(`Server running on http://localhost:${port}`);
+	// Server started
 });

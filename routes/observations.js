@@ -445,9 +445,7 @@ router.get('/api/observations/:id/available-students', requireAdminOrTeacher, as
       .where('role', '==', 'student')
       .get();
     
-    console.log(`🔍 [Available Students] Found ${studentsSnapshot.size} total students`);
-    console.log(`🔍 [Available Students] Observation yearLevel: ${observation.yearLevel}`);
-    console.log(`🔍 [Available Students] Existing student IDs:`, Array.from(existingStudentIds));
+    
     
     const availableStudents = [];
     const currentYear = new Date().getFullYear(); // 2025
@@ -464,17 +462,14 @@ router.get('/api/observations/:id/available-students', requireAdminOrTeacher, as
       // 3. ยังไม่ได้อยู่ในการสังเกตนี้ (เช็คจาก observation_students)
       
       if (!studentId || studentId.length !== 11) {
-        console.log(`  ❌ Skipped - Invalid studentId: ${studentId} (length: ${studentId.length})`);
         return;
       }
       
       if (!firstName || !lastName) {
-        console.log(`  ❌ Skipped - Incomplete profile: firstName="${firstName}", lastName="${lastName}"`);
         return;
       }
       
       if (existingStudentIds.has(studentId)) {
-        console.log(`  ❌ Skipped - Already in observation: ${studentId}`);
         return;
       }
       
@@ -486,7 +481,7 @@ router.get('/api/observations/:id/available-students', requireAdminOrTeacher, as
         // มี year ในฐานข้อมูลแล้ว - ใช้ตามนั้นเลย
         displayYear = data.year;
         yearCategory = data.year <= 4 ? data.year : '4+';
-        console.log(`  ℹ️ Using existing year from database: ${data.year}`);
+        
       } else {
         // ไม่มี year - คำนวณจากรหัสนักศึกษา (2 หลักแรก)
         const yearPrefix = parseInt(studentId.substring(0, 2));
@@ -494,13 +489,13 @@ router.get('/api/observations/:id/available-students', requireAdminOrTeacher, as
         const calculatedYear = (currentYear - studentAdmitYear) + 1;
         displayYear = calculatedYear;
         yearCategory = calculatedYear <= 4 ? calculatedYear : '4+';
-        console.log(`  ℹ️ Calculated year from studentId: ${calculatedYear}`);
+        
       }
       
       // เปรียบเทียบกับชั้นปีของ observation
       const isDifferentYear = displayYear !== observation.yearLevel;
       
-      console.log(`  ✅ Added: ${studentId}, displayYear: ${displayYear}, observationYear: ${observation.yearLevel}, different: ${isDifferentYear}`);
+      
       
       // นักศึกษาที่ผ่านเงื่อนไขทั้งหมด
       availableStudents.push({

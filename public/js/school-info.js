@@ -97,7 +97,7 @@ async function loadMySubmission() {
       if (emailInput) emailInput.value = data.email || '';
       if (principalInput) principalInput.value = data.principal || '';
       
-      console.log('✅ Loaded existing submission');
+      
     }
   } catch (error) {
     console.error('Error loading submission:', error);

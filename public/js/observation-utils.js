@@ -36,7 +36,7 @@ async function loadObservations() {
       loading: false
     };
 
-    console.log('📋 Observations loaded:', observationsData);
+    
 
     return observationsData;
   } catch (error) {
@@ -135,7 +135,7 @@ async function populateObservationSelector(selectId, selectedObsId = null, optio
       selector.appendChild(option);
     });
 
-    console.log(`✅ Populated selector #${selectId} with ${obsToShow.length} observation(s)`);
+    
 
   } catch (error) {
     console.error(`Error populating selector #${selectId}:`, error);
@@ -248,4 +248,4 @@ window.ObservationUtils = {
   }
 };
 
-console.log('✅ observation-utils.js loaded');
+ 

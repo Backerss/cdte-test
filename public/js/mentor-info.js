@@ -80,7 +80,7 @@ async function loadMyMentorSubmission() {
     if (result.success && result.hasSubmission) {
       const data = result.data;
       loadMentorDataToForm(data);
-      console.log('✅ Loaded existing mentor submission');
+      
     }
   } catch (error) {
     console.error('Error loading mentor submission:', error);

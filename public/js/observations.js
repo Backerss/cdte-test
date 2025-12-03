@@ -38,17 +38,15 @@ async function loadObservations() {
     if (status) params.append('status', status);
     
     const url = `/api/observations?${params.toString()}`;
-    console.log('🔍 Fetching observations from:', url);
     
     const response = await fetch(url);
-    console.log('📡 Response status:', response.status);
+    
     
     const data = await response.json();
-    console.log('📦 Response data:', data);
+    
     
     if (data.success) {
       currentObservations = data.observations;
-      console.log('✅ Loaded observations:', currentObservations.length);
       renderObservations();
     } else {
       console.error('❌ Failed to load observations:', data.message);
@@ -258,10 +256,10 @@ function filterStudentsList() {
 function renderObservations() {
   const container = document.getElementById('observationsList');
   
-  console.log('🎨 Rendering observations. Count:', currentObservations?.length || 0);
+  
   
   if (!currentObservations || currentObservations.length === 0) {
-    console.log('⚠️ No observations to display - showing empty state');
+    
     container.innerHTML = `
       <div class="empty-state">
         <div class="empty-state-icon">📋</div>
@@ -276,7 +274,7 @@ function renderObservations() {
     return;
   }
 
-  console.log('✨ Rendering', currentObservations.length, 'observation cards');
+  
   container.innerHTML = currentObservations.map(obs => `
     <div class="observation-card">
       <div class="observation-header">

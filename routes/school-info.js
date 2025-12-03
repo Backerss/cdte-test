@@ -481,8 +481,6 @@ async function deleteStudentEvaluations(studentId, observationId) {
     // TODO: เพิ่มการลบข้อมูลจาก collection อื่นๆ เช่น evaluations, observations_data, etc.
     
     await Promise.all(deletePromises);
-    
-    console.log(`Deleted ${deletePromises.length} evaluation records for student ${studentId}`);
   } catch (error) {
     console.error('Error deleting evaluations:', error);
     throw error;

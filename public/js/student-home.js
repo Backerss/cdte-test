@@ -22,7 +22,7 @@ async function loadStudentDashboard() {
     }
 
     dashboardData = result.data;
-    console.log('📊 Dashboard data loaded:', dashboardData);
+    
 
     // Render ทุกส่วน
     renderGreeting(dashboardData.user);
@@ -692,7 +692,7 @@ function changePracticeView() {
   if (!selector) return;
   
   const selectedId = selector.value;
-  console.log('Selected observation:', selectedId);
+  
   // Future: could highlight specific timeline item or load more details
 }
 

@@ -43,7 +43,7 @@ router.get('/api/student/dashboard', requireStudent, async (req, res) => {
     const studentId = req.session.user.studentId;
     const userYear = req.session.user.year || 1;
 
-    console.log(`📊 Loading student dashboard for: ${studentId} (Year ${userYear})`);
+    
 
     // 1. ดึงข้อมูล user จาก Firestore
     const userSnapshot = await db.collection('users')
@@ -73,7 +73,7 @@ router.get('/api/student/dashboard', requireStudent, async (req, res) => {
       };
     });
 
-    console.log(`📋 Found ${observationIds.length} observations for student`);
+    
 
     // 3. ดึงข้อมูล observations ที่เกี่ยวข้อง
     let activeObservation = null;
@@ -157,8 +157,6 @@ router.get('/api/student/dashboard', requireStudent, async (req, res) => {
     // 5. ดึงข้อมูลครูพี่เลี้ยง (ถ้ามี activeObservation)
     let mentorInfo = null;
     if (activeObservation) {
-      console.log(`🔍 Looking for mentor with studentId: ${studentId}, observationId: ${activeObservation.id}`);
-      
       // ดึงจาก collection mentors ที่มี studentId และ observationId ตรงกัน
       const mentorSnapshot = await db.collection('mentors')
         .where('studentId', '==', studentId)
@@ -166,22 +164,12 @@ router.get('/api/student/dashboard', requireStudent, async (req, res) => {
         .limit(1)
         .get();
 
-      console.log(`📋 Mentor query result: ${mentorSnapshot.empty ? 'NOT FOUND' : 'FOUND'}`);
-
       if (!mentorSnapshot.empty) {
         const mentorData = mentorSnapshot.docs[0].data();
-        
+
         // รวม firstName และ lastName เป็น name
         const fullName = `${mentorData.firstName || ''} ${mentorData.lastName || ''}`.trim();
-        
-        console.log(`✅ Mentor data:`, {
-          firstName: mentorData.firstName,
-          lastName: mentorData.lastName,
-          fullName: fullName,
-          position: mentorData.position,
-          observationId: mentorData.observationId
-        });
-        
+
         mentorInfo = {
           id: mentorSnapshot.docs[0].id,
           name: fullName, // รวม firstName + lastName
@@ -194,11 +182,7 @@ router.get('/api/student/dashboard', requireStudent, async (req, res) => {
           teachingSubjects: mentorData.teachingSubjects || [],
           observationId: mentorData.observationId
         };
-      } else {
-        console.log(`⚠️ No mentor found for studentId: ${studentId}, observationId: ${activeObservation.id}`);
       }
-    } else {
-      console.log(`ℹ️ No active observation - skipping mentor lookup`);
     }
 
     // 6. ดึงผลการประเมิน (ถ้ามี)
@@ -600,7 +584,7 @@ router.get('/api/student/observations', requireStudent, async (req, res) => {
   try {
     const studentId = req.session.user.studentId;
 
-    console.log(`📋 Loading observations list for student: ${studentId}`);
+    
 
     // 1. ดึง observation IDs ที่นักศึกษามีสิทธิ์
     const studentObsSnapshot = await db.collection('observation_students')
@@ -632,7 +616,7 @@ router.get('/api/student/observations', requireStudent, async (req, res) => {
       };
     });
 
-    console.log(`  → Found ${observationIds.length} observation(s) for student`);
+    
 
     // 2. ดึงข้อมูล observations ทั้งหมดที่เกี่ยวข้อง
     const observations = [];
@@ -714,7 +698,7 @@ router.get('/api/student/observations', requireStudent, async (req, res) => {
       return bTime - aTime;
     });
 
-    console.log(`  ✅ Active: ${activeObservation ? 1 : 0}, Completed: ${completedObservations.length}`);
+    
 
     res.json({
       success: true,
