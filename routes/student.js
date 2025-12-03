@@ -125,40 +125,80 @@ router.get('/api/student/dashboard', requireStudent, async (req, res) => {
       }
     }
 
-    // 4. ดึงข้อมูลโรงเรียนฝึกสอน (ถ้ามี)
+    // 4. ดึงข้อมูลโรงเรียนฝึกสอน (ถ้ามี activeObservation)
     let schoolInfo = null;
-    const schoolSnapshot = await db.collection('student_schools')
-      .where('studentId', '==', studentId)
-      .get();
+    if (activeObservation) {
+      // ดึงจาก collection schools ที่มี observationId ตรงกับ observation ที่ active
+      // และมี studentIds array ที่มี studentId ของนักศึกษา
+      const schoolsSnapshot = await db.collection('schools')
+        .where('observationId', '==', activeObservation.id)
+        .get();
 
-    if (!schoolSnapshot.empty) {
-      // Sort ฝั่ง code แทน (เพื่อหลีกเลี่ยง composite index)
-      const schools = schoolSnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .sort((a, b) => {
-          const aTime = a.createdAt?.toMillis?.() || 0;
-          const bTime = b.createdAt?.toMillis?.() || 0;
-          return bTime - aTime;
-        });
-      schoolInfo = schools[0];
+      if (!schoolsSnapshot.empty) {
+        // หา school ที่มี studentId อยู่ใน array
+        for (const doc of schoolsSnapshot.docs) {
+          const data = doc.data();
+          if (data.studentIds && Array.isArray(data.studentIds) && data.studentIds.includes(studentId)) {
+            schoolInfo = {
+              id: doc.id,
+              name: data.name,
+              province: data.province,
+              amphoe: data.amphoe,
+              district: data.district,
+              affiliation: data.affiliation,
+              observationId: data.observationId
+            };
+            break;
+          }
+        }
+      }
     }
 
-    // 5. ดึงข้อมูลครูพี่เลี้ยง (ถ้ามี)
+    // 5. ดึงข้อมูลครูพี่เลี้ยง (ถ้ามี activeObservation)
     let mentorInfo = null;
-    const mentorSnapshot = await db.collection('student_mentors')
-      .where('studentId', '==', studentId)
-      .get();
+    if (activeObservation) {
+      console.log(`🔍 Looking for mentor with studentId: ${studentId}, observationId: ${activeObservation.id}`);
+      
+      // ดึงจาก collection mentors ที่มี studentId และ observationId ตรงกัน
+      const mentorSnapshot = await db.collection('mentors')
+        .where('studentId', '==', studentId)
+        .where('observationId', '==', activeObservation.id)
+        .limit(1)
+        .get();
 
-    if (!mentorSnapshot.empty) {
-      // Sort ฝั่ง code แทน (เพื่อหลีกเลี่ยง composite index)
-      const mentors = mentorSnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .sort((a, b) => {
-          const aTime = a.createdAt?.toMillis?.() || 0;
-          const bTime = b.createdAt?.toMillis?.() || 0;
-          return bTime - aTime;
+      console.log(`📋 Mentor query result: ${mentorSnapshot.empty ? 'NOT FOUND' : 'FOUND'}`);
+
+      if (!mentorSnapshot.empty) {
+        const mentorData = mentorSnapshot.docs[0].data();
+        
+        // รวม firstName และ lastName เป็น name
+        const fullName = `${mentorData.firstName || ''} ${mentorData.lastName || ''}`.trim();
+        
+        console.log(`✅ Mentor data:`, {
+          firstName: mentorData.firstName,
+          lastName: mentorData.lastName,
+          fullName: fullName,
+          position: mentorData.position,
+          observationId: mentorData.observationId
         });
-      mentorInfo = mentors[0];
+        
+        mentorInfo = {
+          id: mentorSnapshot.docs[0].id,
+          name: fullName, // รวม firstName + lastName
+          firstName: mentorData.firstName || '',
+          lastName: mentorData.lastName || '',
+          position: mentorData.position || '',
+          department: mentorData.department || '',
+          phone: mentorData.phone || '',
+          email: mentorData.email || '',
+          teachingSubjects: mentorData.teachingSubjects || [],
+          observationId: mentorData.observationId
+        };
+      } else {
+        console.log(`⚠️ No mentor found for studentId: ${studentId}, observationId: ${activeObservation.id}`);
+      }
+    } else {
+      console.log(`ℹ️ No active observation - skipping mentor lookup`);
     }
 
     // 6. ดึงผลการประเมิน (ถ้ามี)
@@ -205,11 +245,19 @@ router.get('/api/student/dashboard', requireStudent, async (req, res) => {
       });
     }
 
-    // 8. คำนวณสถิติ
+    // 8. คำนวณสถิติ - นับการประเมินที่เกี่ยวกับ active observation
+    let completedEvaluations = 0;
+    if (activeObservation && evaluationData) {
+      completedEvaluations = evaluationData.filter(
+        ev => ev.observationId === activeObservation.id
+      ).length;
+    }
+
     const stats = {
       totalObservations: observationIds.length,
       completedObservations: practiceHistory.length,
       totalEvaluations: evaluationData ? evaluationData.length : 0,
+      completedEvaluations: completedEvaluations, // การประเมินที่เสร็จในงวดปัจจุบัน
       totalLessonPlans: lessonPlans.length
     };
 

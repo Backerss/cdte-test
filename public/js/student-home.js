@@ -122,13 +122,226 @@ function renderGreeting(user) {
 
 /**
  * Render Active Observation Card
- * (Removed content per user request — kept a no-op placeholder to avoid runtime errors)
+ * แสดงข้อมูลงวดการสังเกตที่กำลังดำเนินการ พร้อมข้อมูลโรงเรียน ครูพี่เลี้ยง และสถานะต่างๆ
  */
 function renderActiveObservation(obs) {
   const container = document.getElementById('activeObservationSection');
   if (!container) return;
-  // Intentionally empty: rendering of active observation was removed.
-  container.innerHTML = '';
+  
+  // ถ้าไม่มีงวดที่ active ไม่แสดงอะไร
+  if (!obs) {
+    container.innerHTML = '';
+    return;
+  }
+  
+  const userYear = dashboardData.user.year || 1;
+  
+  // ตรวจสอบข้อมูล school และ mentor ที่ link กับ observation นี้
+  // เช็คว่ามี object และมีข้อมูลสำคัญ (school ต้องมี name, mentor อาจมี position/department)
+  const schoolInfo = dashboardData.schoolInfo && dashboardData.schoolInfo.name 
+    ? dashboardData.schoolInfo 
+    : null;
+  
+  // mentor ตรวจสอบว่ามี object และมี id (แม้ name จะว่างก็ถือว่ามีข้อมูล)
+  const mentorInfo = dashboardData.mentorInfo && dashboardData.mentorInfo.id 
+    ? dashboardData.mentorInfo 
+    : null;
+  
+  // ใช้ completedEvaluations จาก stats ที่นับเฉพาะงวดปัจจุบัน
+  const evaluationProgress = dashboardData.stats?.completedEvaluations || 0;
+  const lessonPlanSubmitted = dashboardData.lessonPlans?.length > 0;
+  
+  // คำนวณความคืบหน้าการประเมิน
+  const totalEvaluations = 9;
+  const progressPercentage = Math.round((evaluationProgress / totalEvaluations) * 100);
+  
+  // ตรวจสอบว่าต้องส่งแผนการจัดการเรียนรู้หรือไม่ (ปี 2-3 เท่านั้น)
+  const needLessonPlan = userYear >= 2 && userYear <= 3;
+  
+  container.innerHTML = `
+    <div class="card" style="background:var(--color-primary);color:white;margin-bottom:24px;border:none;">
+      <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:20px;">
+        <div>
+          <h3 style="margin:0 0 8px 0;font-size:1.4rem;display:flex;align-items:center;gap:10px;color:white;">
+            <span>🎯</span>
+            ${obs.name}
+          </h3>
+          <p style="margin:0;opacity:0.9;font-size:0.95rem;color:white;">
+            📅 ${formatThaiDate(obs.startDate)} - ${formatThaiDate(obs.endDate)}
+          </p>
+        </div>
+        <span style="background:rgba(255,255,255,0.15);padding:6px 16px;border-radius:6px;font-size:0.85rem;font-weight:600;color:white;">
+          🟢 กำลังดำเนินการ
+        </span>
+      </div>
+
+      <!-- ข้อมูลโรงเรียนและครูพี่เลี้ยง -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-bottom:20px;">
+        ${schoolInfo ? `
+          <div style="background:rgba(255,255,255,0.1);padding:16px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span style="font-size:1.3rem;">🏫</span>
+              <strong style="font-size:1rem;color:white;">สถานศึกษา</strong>
+            </div>
+            <div style="font-size:1.05rem;font-weight:600;margin-bottom:6px;color:white;">${schoolInfo.name}</div>
+            <div style="font-size:0.85rem;opacity:0.85;color:white;">
+              ${schoolInfo.amphoe || ''} ${schoolInfo.province ? 'จ.' + schoolInfo.province : ''}
+            </div>
+            ${schoolInfo.affiliation ? `
+              <div style="font-size:0.8rem;opacity:0.75;margin-top:4px;color:white;">
+                ${schoolInfo.affiliation}
+              </div>
+            ` : ''}
+          </div>
+        ` : `
+          <div style="background:rgba(220,38,38,0.2);padding:16px;border-radius:8px;border:1px solid rgba(220,38,38,0.3);">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span style="font-size:1.3rem;">⚠️</span>
+              <strong style="font-size:1rem;color:white;">ยังไม่มีข้อมูลสถานศึกษา</strong>
+            </div>
+            <p style="margin:0 0 12px 0;font-size:0.85rem;opacity:0.9;color:white;">
+              กรุณากรอกข้อมูลสถานศึกษาก่อนเริ่มการประเมิน
+            </p>
+            <a href="/dashboard/school-info" class="btn btn--sm" style="background:white;color:var(--color-primary);padding:6px 14px;text-decoration:none;border-radius:6px;font-size:0.85rem;display:inline-block;font-weight:600;">
+              กรอกข้อมูลตอนนี้ →
+            </a>
+          </div>
+        `}
+
+        ${mentorInfo ? `
+          <div style="background:rgba(255,255,255,0.1);padding:16px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span style="font-size:1.3rem;">👨‍🏫</span>
+              <strong style="font-size:1rem;color:white;">ครูพี่เลี้ยง</strong>
+            </div>
+            <div style="font-size:1.05rem;font-weight:600;margin-bottom:6px;color:white;">
+              ${mentorInfo.name || 'ยังไม่ระบุชื่อ'}
+            </div>
+            <div style="font-size:0.85rem;opacity:0.85;color:white;">
+              ${mentorInfo.position || '-'}
+            </div>
+            ${mentorInfo.department ? `
+              <div style="font-size:0.8rem;opacity:0.75;margin-top:4px;color:white;">
+                ${mentorInfo.department}
+              </div>
+            ` : ''}
+          </div>
+        ` : schoolInfo ? `
+          <div style="background:rgba(251,180,37,0.2);padding:16px;border-radius:8px;border:1px solid rgba(251,180,37,0.3);">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+              <span style="font-size:1.3rem;">⚠️</span>
+              <strong style="font-size:1rem;color:white;">ยังไม่มีข้อมูลครูพี่เลี้ยง</strong>
+            </div>
+            <p style="margin:0 0 12px 0;font-size:0.85rem;opacity:0.9;color:white;">
+              กรุณากรอกข้อมูลครูพี่เลี้ยงก่อนเริ่มการประเมิน
+            </p>
+            <a href="/dashboard/mentor-info" class="btn btn--sm" style="background:white;color:var(--color-primary);padding:6px 14px;text-decoration:none;border-radius:6px;font-size:0.85rem;display:inline-block;font-weight:600;">
+              กรอกข้อมูลตอนนี้ →
+            </a>
+          </div>
+        ` : ''}
+      </div>
+
+      <!-- สถานะการดำเนินงาน -->
+      <div style="background:rgba(255,255,255,0.1);padding:20px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);">
+        <h4 style="margin:0 0 16px 0;font-size:1rem;display:flex;align-items:center;gap:8px;color:white;">
+          <span>📊</span>
+          สถานะการดำเนินงาน
+        </h4>
+
+        <!-- ความคืบหน้าการประเมิน -->
+        <div style="margin-bottom:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <span style="font-size:0.9rem;font-weight:500;color:white;">การประเมินการสังเกตการสอน</span>
+            <span style="font-size:1.1rem;font-weight:700;color:white;">${evaluationProgress}/${totalEvaluations} ครั้ง</span>
+          </div>
+          <div style="background:rgba(255,255,255,0.2);height:12px;border-radius:6px;overflow:hidden;">
+            <div style="width:${progressPercentage}%;height:100%;background:#16A34A;transition:width 0.5s ease;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+            <span style="font-size:0.75rem;opacity:0.85;color:white;">ความคืบหน้า ${progressPercentage}%</span>
+            ${evaluationProgress < totalEvaluations ? `
+              <a href="/dashboard/evaluation" style="color:white;font-size:0.75rem;text-decoration:underline;opacity:0.9;">
+                เริ่มประเมิน →
+              </a>
+            ` : `
+              <span style="font-size:0.75rem;opacity:0.9;color:white;">✅ เสร็จสมบูรณ์</span>
+            `}
+          </div>
+        </div>
+
+        ${needLessonPlan ? `
+          <!-- สถานะการส่งแผนการจัดการเรียนรู้ (ปี 2-3) -->
+          <div style="margin-bottom:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <span style="font-size:0.9rem;font-weight:500;color:white;">📋 แผนการจัดการเรียนรู้</span>
+              ${lessonPlanSubmitted ? `
+                <span style="background:rgba(22,163,74,0.2);color:#16A34A;padding:4px 12px;border-radius:6px;font-size:0.75rem;font-weight:600;">
+                  ✅ ส่งแล้ว
+                </span>
+              ` : `
+                <span style="background:rgba(251,180,37,0.2);color:#FBB425;padding:4px 12px;border-radius:6px;font-size:0.75rem;font-weight:600;">
+                  ⏳ รอส่ง
+                </span>
+              `}
+            </div>
+            <p style="margin:0;font-size:0.8rem;opacity:0.85;color:white;">
+              ${lessonPlanSubmitted 
+                ? `คุณได้ส่งแผนการจัดการเรียนรู้แล้ว ${dashboardData.lessonPlans.length} ไฟล์`
+                : 'นักศึกษาชั้นปีที่ ' + userYear + ' จำเป็นต้องส่งแผนการจัดการเรียนรู้'
+              }
+            </p>
+            ${!lessonPlanSubmitted ? `
+              <a href="/dashboard/evaluation" style="color:white;font-size:0.75rem;text-decoration:underline;opacity:0.9;margin-top:4px;display:inline-block;">
+                ส่งแผนการสอนตอนนี้ →
+              </a>
+            ` : ''}
+          </div>
+        ` : userYear === 1 ? `
+          <!-- ข้อความสำหรับปี 1 -->
+          <div style="padding:12px;background:rgba(46,48,148,0.2);border-radius:6px;border-left:3px solid var(--color-primary);">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span>ℹ️</span>
+              <span style="font-size:0.85rem;opacity:0.9;color:white;">
+                นักศึกษาชั้นปีที่ 1 ไม่ต้องส่งแผนการจัดการเรียนรู้
+              </span>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- สรุปสถานะ -->
+        <div style="margin-top:16px;padding:12px;background:rgba(255,255,255,0.08);border-radius:6px;">
+          ${schoolInfo && mentorInfo ? `
+            ${evaluationProgress === totalEvaluations && (!needLessonPlan || lessonPlanSubmitted) ? `
+              <div style="display:flex;align-items:center;gap:8px;color:#16A34A;">
+                <span style="font-size:1.2rem;">🎉</span>
+                <span style="font-size:0.9rem;font-weight:600;">ดำเนินการครบถ้วนแล้ว!</span>
+              </div>
+            ` : `
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:1.2rem;">⚡</span>
+                <span style="font-size:0.9rem;font-weight:500;color:white;">
+                  ${evaluationProgress < totalEvaluations 
+                    ? `เหลือการประเมินอีก ${totalEvaluations - evaluationProgress} ครั้ง`
+                    : needLessonPlan && !lessonPlanSubmitted
+                      ? 'เหลือส่งแผนการจัดการเรียนรู้'
+                      : 'กำลังดำเนินการ'
+                  }
+                </span>
+              </div>
+            `}
+          ` : `
+            <div style="display:flex;align-items:center;gap:8px;color:#FBB425;">
+              <span style="font-size:1.2rem;">⚠️</span>
+              <span style="font-size:0.9rem;font-weight:500;">
+                กรุณากรอกข้อมูล${!schoolInfo ? 'สถานศึกษา' : ''}${!schoolInfo && !mentorInfo ? 'และ' : ''}${!mentorInfo ? 'ครูพี่เลี้ยง' : ''}ก่อนเริ่มการประเมิน
+              </span>
+            </div>
+          `}
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 /**
@@ -203,7 +416,7 @@ function renderPracticeHistory(history) {
                     <span>👨‍🏫</span>
                     <strong>ครูพี่เลี้ยง</strong>
                   </div>
-                  <div class="info-box-value">${dashboardData.mentorInfo.name || '-'}</div>
+                  <div class="info-box-value">${dashboardData.mentorInfo.name || 'ยังไม่ระบุชื่อ'}</div>
                   <div class="info-box-sub">${dashboardData.mentorInfo.position || '-'}</div>
                 </div>
               ` : ''}
