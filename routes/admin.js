@@ -179,12 +179,20 @@ router.post('/api/admin/users', requireAdminOrTeacher, async (req, res) => {
       });
     }
     
-    // Validate student has yearLevel
-    if (role === 'student' && !yearLevel) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'กรุณาระบุชั้นปีสำหรับนักศึกษา' 
-      });
+    // Validate student has studentId and yearLevel
+    if (role === 'student') {
+      if (!studentId || !/^\d+$/.test(studentId) || String(studentId).length !== 11) {
+        return res.status(400).json({
+          success: false,
+          message: 'กรุณาระบุรหัสนักศึกษา 11 หลักสำหรับนักศึกษา'
+        });
+      }
+      if (!yearLevel) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'กรุณาระบุชั้นปีสำหรับนักศึกษา' 
+        });
+      }
     }
     
     // Check for duplicate studentId or staffCode
@@ -202,6 +210,7 @@ router.post('/api/admin/users', requireAdminOrTeacher, async (req, res) => {
       }
     }
     
+    // If staffCode provided, check duplicate. If not provided for non-student, we'll auto-generate.
     if (staffCode) {
       const existingStaff = await db.collection('users')
         .where('staffCode', '==', staffCode)
@@ -231,13 +240,30 @@ router.post('/api/admin/users', requireAdminOrTeacher, async (req, res) => {
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     };
     
-    // Add role-specific fields
+    // Add role-specific fields (only set properties when values provided)
     if (role === 'student') {
       userData.studentId = studentId;
-      userData.year = parseInt(yearLevel);
+      userData.year = yearLevel ? parseInt(yearLevel) : null;
       userData.room = null;
     } else {
-      userData.staffCode = staffCode;
+      // For staff/admin: if staffCode not provided, auto-generate one using Thai year suffix + random digits
+      if (staffCode) {
+        userData.staffCode = staffCode;
+      } else {
+        // generate unique staffCode: YY + 9 digits -> total 11 characters
+        const prefix = String((new Date().getFullYear() + 543) % 100).padStart(2, '0');
+        let generated = null;
+        for (let attempt = 0; attempt < 10; attempt++) {
+          const rand = Math.floor(Math.random() * 1e9).toString().padStart(9, '0');
+          const candidate = prefix + rand;
+          const q = await db.collection('users').where('staffCode', '==', candidate).limit(1).get();
+          if (q.empty) { generated = candidate; break; }
+        }
+        if (!generated) {
+          throw new Error('ไม่สามารถสร้างรหัสเจ้าหน้าที่ใหม่ได้ โปรดลองอีกครั้ง');
+        }
+        userData.staffCode = generated;
+      }
     }
     
     // Create user document
@@ -256,10 +282,11 @@ router.post('/api/admin/users', requireAdminOrTeacher, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error creating user:', error);
+    console.error('Error creating user:', error, error && error.stack);
+    // Return the error message to the client for debugging (remove or sanitize in production)
     res.status(500).json({ 
       success: false, 
-      message: 'เกิดข้อผิดพลาดในการเพิ่มผู้ใช้' 
+      message: error && error.message ? error.message : 'เกิดข้อผิดพลาดในการเพิ่มผู้ใช้' 
     });
   }
 });
@@ -268,7 +295,7 @@ router.post('/api/admin/users', requireAdminOrTeacher, async (req, res) => {
 router.put('/api/admin/users/:id', requireAdminOrTeacher, async (req, res) => {
   try {
     const userId = req.params.id;
-    const { firstName, lastName, email, role, yearLevel, status } = req.body;
+    const { firstName, lastName, email, role, yearLevel, status, staffCode, studentId } = req.body;
     
     const userRef = db.collection('users').doc(userId);
     const userDoc = await userRef.get();
@@ -287,6 +314,25 @@ router.put('/api/admin/users/:id', requireAdminOrTeacher, async (req, res) => {
     if (role) updateData.role = role;
     if (status) updateData.status = status;
     if (yearLevel && role === 'student') updateData.year = parseInt(yearLevel);
+    // Allow updating staffCode or studentId (ensure uniqueness)
+    if (staffCode) {
+      // check duplicate staffCode in other docs
+      const q = await db.collection('users').where('staffCode', '==', staffCode).limit(1).get();
+      if (!q.empty && q.docs[0].id !== userId) {
+        return res.status(400).json({ success: false, message: 'มีรหัสเจ้าหน้าที่นี้ในระบบแล้ว' });
+      }
+      updateData.staffCode = staffCode;
+    }
+    if (studentId && role === 'student') {
+      if (!/^\d+$/.test(studentId) || String(studentId).length !== 11) {
+        return res.status(400).json({ success: false, message: 'รหัสนักศึกษาต้องเป็นตัวเลข 11 หลัก' });
+      }
+      const q2 = await db.collection('users').where('studentId', '==', studentId).limit(1).get();
+      if (!q2.empty && q2.docs[0].id !== userId) {
+        return res.status(400).json({ success: false, message: 'มีรหัสนักศึกษานี้ในระบบแล้ว' });
+      }
+      updateData.studentId = studentId;
+    }
     
     await userRef.update(updateData);
     

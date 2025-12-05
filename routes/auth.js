@@ -134,26 +134,40 @@ router.post('/login', async (req, res) => {
         const identifier = String(studentId).trim();
         let userSnap = null;
 
-        // Try doc by id first (covers admin001, teacher001, or numeric student doc ids)
-        const directRef = db.collection('users').doc(identifier);
-        const directSnap = await directRef.get();
-        if (directSnap.exists) {
-            userSnap = directSnap;
-        } else {
-            // Not a direct doc id — try queries
-            if (/^\d+$/.test(identifier)) {
-                // numeric -> try searching by studentId field
-                const q = await db.collection('users').where('studentId', '==', identifier).limit(1).get();
-                if (!q.empty) userSnap = q.docs[0];
-            } else {
-                // non-numeric -> try staffCode field first
-                const q1 = await db.collection('users').where('staffCode', '==', identifier).limit(1).get();
-                if (!q1.empty) userSnap = q1.docs[0];
+        // If input looks like an email, try email lookup first
+        if (identifier.includes('@')) {
+            const qEmail = await db.collection('users')
+                .where('email', '==', identifier.toLowerCase())
+                .limit(1)
+                .get();
+            if (!qEmail.empty) {
+                userSnap = qEmail.docs[0];
+            }
+        }
 
-                // fallback: maybe stored under studentId field accidentally
-                if (!userSnap) {
-                    const q2 = await db.collection('users').where('studentId', '==', identifier).limit(1).get();
-                    if (!q2.empty) userSnap = q2.docs[0];
+        // If not found by email, try doc id or other fields
+        if (!userSnap) {
+            // Try doc by id first (covers admin001, teacher001, or numeric student doc ids)
+            const directRef = db.collection('users').doc(identifier);
+            const directSnap = await directRef.get();
+            if (directSnap.exists) {
+                userSnap = directSnap;
+            } else {
+                // Not a direct doc id — try queries
+                if (/^\d+$/.test(identifier)) {
+                    // numeric -> try searching by studentId field
+                    const q = await db.collection('users').where('studentId', '==', identifier).limit(1).get();
+                    if (!q.empty) userSnap = q.docs[0];
+                } else {
+                    // non-numeric -> try staffCode field first
+                    const q1 = await db.collection('users').where('staffCode', '==', identifier).limit(1).get();
+                    if (!q1.empty) userSnap = q1.docs[0];
+
+                    // fallback: maybe stored under studentId field accidentally
+                    if (!userSnap) {
+                        const q2 = await db.collection('users').where('studentId', '==', identifier).limit(1).get();
+                        if (!q2.empty) userSnap = q2.docs[0];
+                    }
                 }
             }
         }

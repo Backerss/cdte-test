@@ -58,25 +58,55 @@ function checkSessionSecurity(req, res, next) {
   if (!req.session.userId) {
     return next();
   }
-
   // ตรวจสอบ User-Agent (Browser Fingerprint)
-  const currentUserAgent = req.headers['user-agent'];
-  const sessionUserAgent = req.session.userAgent;
+  const currentUserAgent = req.headers['user-agent'] || '';
+  const sessionUserAgent = req.session.userAgent || '';
+
+  // Helper: หาคร่าว ๆ ว่าเป็น browser family ไหน (ไม่ละเอียด แต่พอแยก Edge/Chrome/Firefox/Safari)
+  function getBrowserFamily(ua) {
+    if (!ua) return 'unknown';
+    if (ua.includes('Edg/')) return 'edge';
+    if (ua.includes('OPR/') || ua.includes('Opera')) return 'opera';
+    if (ua.includes('Chrome/')) return 'chrome';
+    if (ua.includes('Firefox/')) return 'firefox';
+    if (ua.includes('Safari/') && ua.includes('Version/')) return 'safari';
+    return 'other';
+  }
 
   if (sessionUserAgent && currentUserAgent !== sessionUserAgent) {
-    // User-Agent เปลี่ยน - อาจเป็น Session Hijacking
-    console.warn('Security Alert: User-Agent mismatch', {
-      userId: req.session.userId,
-      expected: sessionUserAgent,
-      received: currentUserAgent
-    });
+    const sessionBrowser = getBrowserFamily(sessionUserAgent);
+    const currentBrowser = getBrowserFamily(currentUserAgent);
 
-    // ทำลาย session ทันที
-    req.session.destroy((err) => {
-      if (err) console.error('Session destroy error:', err);
-    });
-    
-    return res.redirect('/login?error=security_violation');
+    // ถ้าเป็น browser family เดียวกัน => อัปเดต UA ใน session และยอมรับ
+    if (sessionBrowser === currentBrowser) {
+      // อัปเดต UA เพื่อรับการเปลี่ยนแปลงเล็กน้อย (เช่น Edg token, version changes)
+      req.session.userAgent = currentUserAgent;
+    } else {
+      // ถ้า family ต่างกันจริง ๆ ให้บันทึกเป็น security alert แต่ไม่ทำลาย session ทันที
+      console.warn('Security Alert: User-Agent mismatch', {
+        userId: req.session.userId,
+        expected: sessionUserAgent,
+        received: currentUserAgent
+      });
+
+      // เก็บเหตุการณ์เตือนไว้ใน session เพื่อการตรวจสอบภายหลัง
+      req.session.securityAlerts = req.session.securityAlerts || [];
+      req.session.securityAlerts.push({
+        type: 'ua_mismatch',
+        expected: sessionUserAgent,
+        received: currentUserAgent,
+        time: Date.now(),
+        ip: req.ip || req.connection && req.connection.remoteAddress
+      });
+
+      // หาก alert ซ้ำหลายครั้งภายใน session -> อาจมีความเสี่ยงสูง ให้ทำลาย session
+      if (req.session.securityAlerts.length >= 3) {
+        req.session.destroy((err) => {
+          if (err) console.error('Session destroy error:', err);
+        });
+        return res.redirect('/login?error=security_violation');
+      }
+    }
   }
 
   // ตรวจสอบ IP Address (เตือนถ้าเปลี่ยนมาก)

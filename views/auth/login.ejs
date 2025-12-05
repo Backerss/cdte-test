@@ -123,12 +123,14 @@
         return;
       }
 
-      // Allow both numeric student IDs and alphanumeric staff codes
-      if (!/^[a-zA-Z0-9]+$/.test(studentId)) {
+      // Allow either an email address OR an alphanumeric id/staff code
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(studentId);
+      const isIdOrStaff = /^[a-zA-Z0-9]+$/.test(studentId);
+      if (!isEmail && !isIdOrStaff) {
         Swal.fire({
           icon: 'error',
           title: 'รูปแบบไม่ถูกต้อง',
-          text: 'รหัสผู้ใช้ต้องเป็นตัวอักษรและตัวเลขเท่านั้น',
+          text: 'กรุณากรอกอีเมลหรือรหัสผู้ใช้ (ตัวอักษรและตัวเลขเท่านั้น)',
           confirmButtonColor: '#2E3094'
         });
         return;

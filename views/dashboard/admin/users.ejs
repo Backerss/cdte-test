@@ -910,10 +910,31 @@
     if (role === 'student') {
       yearLevelGroup.style.display = 'block';
       document.getElementById('newUserYearLevel').required = true;
+      // For students, clear auto-generated id placeholder
+      const idInput = document.getElementById('newUserId');
+      if (idInput) {
+        idInput.placeholder = 'เช่น 65010010001 (รหัสนักศึกษา 11 หลัก)';
+      }
     } else {
       yearLevelGroup.style.display = 'none';
       document.getElementById('newUserYearLevel').required = false;
+      // For teacher/admin, prefill an auto-generated staff code (Thai year suffix + random digits)
+      const idInput = document.getElementById('newUserId');
+      if (idInput) {
+        idInput.placeholder = 'ระบบจะสร้างรหัสโดยอัตโนมัติ (แก้ไขได้)';
+        // Only fill if empty to avoid overwriting manual edits
+        if (!idInput.value) {
+          idInput.value = generateStaffCode();
+        }
+      }
     }
+  }
+
+  // Generate staffCode: Thai year two-digit suffix + 9 random digits => total 11 chars
+  function generateStaffCode() {
+    const thaiYearSuffix = String((new Date().getFullYear() + 543) % 100).padStart(2, '0');
+    const rand = Math.floor(Math.random() * 1e9).toString().padStart(9, '0');
+    return thaiYearSuffix + rand;
   }
 
   // Form submission

@@ -11,15 +11,7 @@
     </h2>
     <p class="text-muted">จัดการข้อมูลส่วนตัวของคุณ</p>
 
-    <% if (isPureAdmin) { %>
-      <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 24px; box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);">
-        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-          <span style="font-size: 1.5rem;">🔒</span>
-          <h3 style="margin: 0; font-size: 1.2rem;">สำหรับผู้ดูแลระบบเท่านั้น</h3>
-        </div>
-        <p style="margin: 0; font-size: 1rem; line-height: 1.5; opacity: 0.95;">คุณเข้าสู่ระบบในฐานะ <strong>ผู้ดูแลระบบ</strong> ซึ่งไม่สามารถแก้ไขข้อมูลโปรไฟล์ได้<br>หากต้องการแก้ไขข้อมูล กรุณาเข้าสู่ระบบด้วยรหัสนักศึกษา</p>
-      </div>
-    <% } else { %>
+    <!-- Profile form for all users -->
 
     <form id="profileForm" class="dashboard-form" style="margin-top:24px">
       <!-- Profile Picture Section -->
@@ -60,9 +52,9 @@
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
         <div class="form-group">
-          <label class="form-label">รหัสนักศึกษา</label>
-          <input type="text" class="form-input" value="<%= user.studentId || '' %>" disabled style="background-color:var(--color-bg);cursor:not-allowed">
-          <small style="color:var(--color-muted);font-size:0.85rem">ไม่สามารถแก้ไขได้</small>
+          <label class="form-label" id="studentIdLabel">รหัสนักศึกษา</label>
+          <input type="text" id="studentIdInput" class="form-input" value="<%= user.studentId || user.staffCode || '' %>" disabled style="background-color:var(--color-bg);cursor:not-allowed">
+          <small id="studentIdHint" style="color:var(--color-muted);font-size:0.85rem">ไม่สามารถแก้ไขได้</small>
         </div>
         <div class="form-group">
           <label class="form-label">คณะ</label>
@@ -72,21 +64,24 @@
       </div>
 
       <div class="form-group" style="margin-bottom:16px">
-        <label class="form-label">สาขาวิชา <span style="color:var(--color-danger)">*</span></label>
+        <label class="form-label" id="majorLabel">สาขาวิชา <span id="majorRequired" style="color:var(--color-danger)">*</span></label>
         <select id="majorSelect" class="form-input" required style="cursor:pointer">
-          <option value="">-- เลือกสาขาวิชา --</option>
+          <option value="">-- เลือกสาขาวิชา/ตำแหน่ง --</option>
           <option value="computer-education" <%= user.major === 'computer-education' ? 'selected' : '' %>>คอมพิวเตอร์ศึกษา</option>
           <option value="digital-technology-education" <%= user.major === 'digital-technology-education' ? 'selected' : '' %>>เทคโนโลยีดิจิทัลเพื่อการศึกษา</option>
+          <option value="admin" <%= user.major === 'admin' ? 'selected' : '' %>>ผู้ดูแลระบบ</option>
+          <option value="teacher" <%= user.major === 'teacher' ? 'selected' : '' %>>อาจารย์</option>
+          <option value="staff" <%= user.major === 'staff' ? 'selected' : '' %>>บุคลากร</option>
         </select>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
         <div class="form-group">
-          <label class="form-label">ชั้นปี</label>
+          <label class="form-label" id="yearLabel">ชั้นปี</label>
           <input type="text" id="yearInput" class="form-input" value="<%= user.year || '' %>" disabled style="background-color:var(--color-bg);cursor:not-allowed">
         </div>
         <div class="form-group">
-          <label class="form-label">ห้อง <span style="color:var(--color-danger)">*</span></label>
+          <label class="form-label" id="roomLabel">ห้อง <span id="roomRequired" style="color:var(--color-danger)">*</span></label>
           <select id="roomSelect" class="form-input" style="cursor:pointer">
             <option value="">-- เลือกห้อง --</option>
             <option value="1">1</option>
@@ -152,7 +147,6 @@
         </button>
       </div>
     </form>
-    <% } %>
   </div>
 </div>
 
@@ -271,19 +265,26 @@ let cropper = null;
 let croppedImageBlob = null;
 
 // Email validation
-document.getElementById('emailInput').addEventListener('blur', function() {
-  const email = this.value.trim();
-  const warning = document.getElementById('emailWarning');
-  
-  if (email && !email.endsWith('@nsru.ac.th')) {
-    warning.style.display = 'block';
-  } else {
-    warning.style.display = 'none';
-  }
-});
+const _emailInput = document.getElementById('emailInput');
+const _emailWarning = document.getElementById('emailWarning');
+if (_emailInput) {
+  _emailInput.addEventListener('blur', function() {
+    const email = this.value.trim();
+    const warning = _emailWarning;
+    if (warning) {
+      if (email && !email.endsWith('@nsru.ac.th')) {
+        warning.style.display = 'block';
+      } else {
+        warning.style.display = 'none';
+      }
+    }
+  });
+}
 
 // Avatar upload with size check
-document.getElementById('avatarInput').addEventListener('change', function(e) {
+const _avatarInput = document.getElementById('avatarInput');
+if (_avatarInput) {
+  _avatarInput.addEventListener('change', function(e) {
   const file = e.target.files[0];
   if (!file) return;
 
@@ -313,23 +314,28 @@ document.getElementById('avatarInput').addEventListener('change', function(e) {
   }
 
   // Load image for cropping
-  const reader = new FileReader();
-  reader.onload = function(event) {
-    document.getElementById('cropImage').src = event.target.result;
-    openCropModal();
-  };
-  reader.readAsDataURL(file);
-});
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      const cropImg = document.getElementById('cropImage');
+      if (cropImg) {
+        cropImg.src = event.target.result;
+        openCropModal();
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 function openCropModal() {
-  document.getElementById('cropModal').style.display = 'flex';
-  
+  const _cropModal = document.getElementById('cropModal');
+  if (_cropModal) _cropModal.style.display = 'flex';
+
   // Initialize cropper
   const image = document.getElementById('cropImage');
+  if (!image) return;
   if (cropper) {
     cropper.destroy();
   }
-  
   cropper = new Cropper(image, {
     aspectRatio: 1,
     viewMode: 1,
@@ -346,12 +352,14 @@ function openCropModal() {
 }
 
 function closeCropModal() {
-  document.getElementById('cropModal').style.display = 'none';
+  const _cropModal = document.getElementById('cropModal');
+  if (_cropModal) _cropModal.style.display = 'none';
   if (cropper) {
     cropper.destroy();
     cropper = null;
   }
-  document.getElementById('avatarInput').value = '';
+  const _avatar = document.getElementById('avatarInput');
+  if (_avatar) _avatar.value = '';
 }
 
 function applyCrop() {
@@ -365,7 +373,8 @@ function applyCrop() {
   }).toBlob(function(blob) {
     croppedImageBlob = blob;
     const url = URL.createObjectURL(blob);
-    document.getElementById('profileImage').src = url;
+    const _profileImage = document.getElementById('profileImage');
+    if (_profileImage) _profileImage.src = url;
     closeCropModal();
     
     Swal.fire({
@@ -382,18 +391,23 @@ function applyCrop() {
 
 function resetForm() {
   if (confirm('ต้องการยกเลิกการแก้ไขหรือไม่?')) {
-    document.getElementById('profileForm').reset();
-    document.getElementById('emailWarning').style.display = 'none';
+    const _profileForm = document.getElementById('profileForm');
+    if (_profileForm) _profileForm.reset();
+    const _emailWarningRf = document.getElementById('emailWarning');
+    if (_emailWarningRf) _emailWarningRf.style.display = 'none';
     location.reload();
   }
 }
 
 // Close modal when clicking outside
-document.getElementById('cropModal').addEventListener('click', function(e) {
-  if (e.target === this) {
-    closeCropModal();
-  }
-});
+const _cropModalEl = document.getElementById('cropModal');
+if (_cropModalEl) {
+  _cropModalEl.addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeCropModal();
+    }
+  });
+}
 </script>
 <script>
 // Load profile data from server and populate form
@@ -406,11 +420,16 @@ async function loadProfile() {
     const user = data.data || {};
 
     // Populate fields
-    document.getElementById('firstNameInput').value = user.firstName || '';
-    document.getElementById('lastNameInput').value = user.lastName || '';
-    document.getElementById('phoneInput').value = user.phone || '';
-    document.getElementById('profileImage').src = user.avatar || '/img/default-avatar.svg';
-    document.getElementById('majorSelect').value = user.major || '';
+    const _firstNameInput = document.getElementById('firstNameInput');
+    const _lastNameInput = document.getElementById('lastNameInput');
+    const _phoneInput = document.getElementById('phoneInput');
+    const _profileImageEl = document.getElementById('profileImage');
+    const _majorSelect = document.getElementById('majorSelect');
+    if (_firstNameInput) _firstNameInput.value = user.firstName || '';
+    if (_lastNameInput) _lastNameInput.value = user.lastName || '';
+    if (_phoneInput) _phoneInput.value = user.phone || '';
+    if (_profileImageEl) _profileImageEl.src = user.avatar || '/img/default-avatar.svg';
+    if (_majorSelect) _majorSelect.value = user.major || '';
 
     // Year (computed by server) and room
     const yearInput = document.getElementById('yearInput');
@@ -428,29 +447,136 @@ async function loadProfile() {
     const emailInput = document.getElementById('emailInput');
     const emailWarning = document.getElementById('emailWarning');
 
-    if (user.email && user.email.trim() !== '') {
-      // Email already set — disable editing
-      emailInput.value = user.email;
-      emailInput.disabled = true;
-      emailWarning.style.display = 'block';
-      emailWarning.querySelector('strong').textContent = '🔒 อีเมลล็อกแล้ว:';
-      emailWarning.querySelector('span').textContent = ' อีเมลแก้ไขได้เพียงครั้งเดียว หากต้องการเปลี่ยนจริง ๆ ติดต่อผู้ดูแลระบบ';
-    } else {
-      emailInput.value = '';
-      emailInput.disabled = false;
-      // reset the warning text if user types an external email
-      emailWarning.querySelector('strong').textContent = '⚠️ คำเตือน:';
-      emailWarning.querySelector('span').textContent = ' นี่คือ Email นอกสถานศึกษาที่มหาวิทยาลัยไม่ได้รับรอง แนะนำให้ใช้ Email @nsru.ac.th';
-      emailWarning.style.display = 'none';
+    if (emailInput && emailWarning) {
+      if (user.email && user.email.trim() !== '') {
+        // Email already set — disable editing
+        emailInput.value = user.email;
+        emailInput.disabled = true;
+        emailWarning.style.display = 'block';
+        const strongEl = emailWarning.querySelector('strong');
+        const spanEl = emailWarning.querySelector('span');
+        if (strongEl) strongEl.textContent = '🔒 อีเมลล็อกแล้ว:';
+        if (spanEl) spanEl.textContent = ' อีเมลแก้ไขได้เพียงครั้งเดียว หากต้องการเปลี่ยนจริง ๆ ติดต่อผู้ดูแลระบบ';
+      } else {
+        emailInput.value = '';
+        emailInput.disabled = false;
+        // reset the warning text if user types an external email
+        const strongEl = emailWarning.querySelector('strong');
+        const spanEl = emailWarning.querySelector('span');
+        if (strongEl) strongEl.textContent = '⚠️ คำเตือน:';
+        if (spanEl) spanEl.textContent = ' นี่คือ Email นอกสถานศึกษาที่มหาวิทยาลัยไม่ได้รับรอง แนะนำให้ใช้ Email @nsru.ac.th';
+        emailWarning.style.display = 'none';
+      }
     }
 
-    // Room locking: if server tells roomLocked, disable select
-    if (user.roomLocked) {
-      if (roomSelect) roomSelect.disabled = true;
-      if (roomHint) roomHint.textContent = 'ห้องถูกล็อกแล้ว (แก้ไขได้เพียงครั้งเดียว)';
-    } else {
-      if (roomSelect) roomSelect.disabled = false;
-      if (roomHint) roomHint.textContent = 'นักศึกษาสามารถเลือกห้องได้ครั้งเดียว';
+    // Adapt form for different user roles
+    const studentIdLabel = document.getElementById('studentIdLabel');
+    const studentIdInput = document.getElementById('studentIdInput');
+    const studentIdHint = document.getElementById('studentIdHint');
+    const majorLabel = document.getElementById('majorLabel');
+    const majorRequired = document.getElementById('majorRequired');
+    const yearLabel = document.getElementById('yearLabel');
+    const roomLabel = document.getElementById('roomLabel');
+    const roomRequired = document.getElementById('roomRequired');
+    
+    const isStudent = user.studentId && user.studentId.trim() !== '';
+    const isAdmin = user.role === 'admin';
+    const isTeacher = user.role === 'teacher';
+    
+    // Handle major/position field based on role
+    const majorSelect = document.getElementById('majorSelect');
+    
+    if (isStudent) {
+      // Student view - only show 2 academic majors
+      if (studentIdLabel) studentIdLabel.textContent = 'รหัสนักศึกษา';
+      if (studentIdInput) studentIdInput.value = user.studentId || '';
+      if (studentIdHint) studentIdHint.textContent = 'ไม่สามารถแก้ไขได้';
+      
+      // Keep only student majors and make it required
+      if (majorSelect) {
+        majorSelect.innerHTML = `
+          <option value="">-- เลือกสาขาวิชา --</option>
+          <option value="computer-education" ${user.major === 'computer-education' ? 'selected' : ''}>คอมพิวเตอร์ศึกษา</option>
+          <option value="digital-technology-education" ${user.major === 'digital-technology-education' ? 'selected' : ''}>เทคโนโลยีดิจิทัลเพื่อการศึกษา</option>
+        `;
+        majorSelect.disabled = false;
+      }
+      if (majorRequired) majorRequired.style.display = 'inline';
+      if (majorLabel) majorLabel.innerHTML = 'สาขาวิชา <span id="majorRequired" style="color:var(--color-danger)">*</span>';
+      
+      // Room logic for students
+      if (user.roomLocked) {
+        if (roomSelect) roomSelect.disabled = true;
+        if (roomHint) roomHint.textContent = 'ห้องถูกล็อกแล้ว (แก้ไขได้เพียงครั้งเดียว)';
+      } else {
+        if (roomSelect) roomSelect.disabled = false;
+        if (roomHint) roomHint.textContent = 'นักศึกษาสามารถเลือกห้องได้ครั้งเดียว';
+      }
+    } else if (isTeacher) {
+      // Teacher view - locked to teacher role
+      if (studentIdLabel) studentIdLabel.textContent = 'รหัสอาจารย์';
+      if (studentIdInput) studentIdInput.value = user.staffCode || '';
+      if (studentIdHint) studentIdHint.textContent = 'รหัสประจำตัวอาจารย์';
+      
+      // Lock major to teacher
+      if (majorSelect) {
+        majorSelect.innerHTML = '<option value="teacher" selected>อาจารย์</option>';
+        majorSelect.disabled = true;
+        majorSelect.style.backgroundColor = 'var(--color-bg)';
+        majorSelect.style.cursor = 'not-allowed';
+      }
+      if (majorRequired) majorRequired.style.display = 'none';
+      if (majorLabel) majorLabel.innerHTML = 'ตำแหน่ง';
+    } else if (isAdmin) {
+      // Admin view - locked to admin role
+      if (studentIdLabel) studentIdLabel.textContent = 'รหัสผู้ดูแล';
+      if (studentIdInput) studentIdInput.value = user.staffCode || '';
+      if (studentIdHint) studentIdHint.textContent = 'รหัสประจำตัวผู้ดูแลระบบ';
+      
+      // Lock major to admin
+      if (majorSelect) {
+        majorSelect.innerHTML = '<option value="admin" selected>ผู้ดูแลระบบ</option>';
+        majorSelect.disabled = true;
+        majorSelect.style.backgroundColor = 'var(--color-bg)';
+        majorSelect.style.cursor = 'not-allowed';
+      }
+      if (majorRequired) majorRequired.style.display = 'none';
+      if (majorLabel) majorLabel.innerHTML = 'ตำแหน่ง';
+      
+      // Year field becomes "ประสบการณ์" for admin/teacher
+      if (yearLabel) yearLabel.textContent = 'ประสบการณ์ (ปี)';
+      if (yearInput) {
+        yearInput.disabled = false;
+        yearInput.style.backgroundColor = '';
+        yearInput.style.cursor = '';
+        yearInput.placeholder = 'จำนวนปีประสบการณ์';
+        yearInput.value = user.experience || user.year || '';
+      }
+      
+      // Room becomes optional for admin/teacher
+      if (roomRequired) roomRequired.style.display = 'none';
+      if (roomLabel) roomLabel.textContent = 'ห้องทำงาน/สำนักงาน';
+      if (roomHint) roomHint.textContent = 'ห้องที่ปฏิบัติงานหลัก (ไม่บังคับ)';
+      if (roomSelect) {
+        roomSelect.disabled = false;
+        // Add more room options for staff
+        const additionalOptions = [
+          {value: 'admin', text: 'ห้องผู้บริหาร'},
+          {value: 'office', text: 'สำนักงานคณะ'},
+          {value: 'lab', text: 'ห้องปฏิบัติการ'},
+          {value: 'other', text: 'อื่นๆ'}
+        ];
+        
+        additionalOptions.forEach(opt => {
+          const existingOption = Array.from(roomSelect.options).find(option => option.value === opt.value);
+          if (!existingOption) {
+            const option = document.createElement('option');
+            option.value = opt.value;
+            option.textContent = opt.text;
+            roomSelect.appendChild(option);
+          }
+        });
+      }
     }
 
   } catch (err) {
@@ -460,16 +586,7 @@ async function loadProfile() {
 
 loadProfile();
 
-// Check if user is pure admin and disable form if needed
-const isPureAdminClient = <%= isPureAdmin ? 'true' : 'false' %>;
-if (isPureAdminClient) {
-  document.addEventListener('DOMContentLoaded', function() {
-    // Disable all form inputs and buttons for pure admin
-    document.querySelectorAll('input, select, button, textarea').forEach(el => {
-      if (!el.classList.contains('modal-close')) el.disabled = true;
-    });
-  });
-}
+// All users can now edit their profile - role-specific adaptations are handled in loadProfile()
 
 // Upload avatar helper - returns avatarUrl
 async function uploadAvatarIfNeeded() {
@@ -487,21 +604,38 @@ async function uploadAvatarIfNeeded() {
 }
 
 // Submit profile
-document.getElementById('profileForm').addEventListener('submit', async function(e) {
+const _profileFormEl = document.getElementById('profileForm');
+if (_profileFormEl) {
+  _profileFormEl.addEventListener('submit', async function(e) {
   e.preventDefault();
-
-  const firstName = document.getElementById('firstNameInput').value.trim();
-  const lastName = document.getElementById('lastNameInput').value.trim();
-  const major = document.getElementById('majorSelect').value;
+  const firstNameEl = document.getElementById('firstNameInput');
+  const lastNameEl = document.getElementById('lastNameInput');
+  const majorEl = document.getElementById('majorSelect');
   const emailInput = document.getElementById('emailInput');
-  const email = emailInput.value.trim();
-  const phone = document.getElementById('phoneInput').value.trim();
-  const currentPassword = document.getElementById('currentPasswordInput').value;
-  const newPassword = document.getElementById('newPasswordInput').value;
-  const confirmPassword = document.getElementById('confirmPasswordInput').value;
+  const phoneEl = document.getElementById('phoneInput');
+  const currentPasswordEl = document.getElementById('currentPasswordInput');
+  const newPasswordEl = document.getElementById('newPasswordInput');
+  const confirmPasswordEl = document.getElementById('confirmPasswordInput');
 
-  if (!firstName || !lastName || !major) {
-    Swal.fire({ icon: 'warning', title: 'กรุณากรอกข้อมูลให้ครบ', confirmButtonText: 'รับทราบ' });
+  const firstName = firstNameEl ? firstNameEl.value.trim() : '';
+  const lastName = lastNameEl ? lastNameEl.value.trim() : '';
+  const major = majorEl ? majorEl.value : '';
+  const email = emailInput ? emailInput.value.trim() : '';
+  const phone = phoneEl ? phoneEl.value.trim() : '';
+  const currentPassword = currentPasswordEl ? currentPasswordEl.value : '';
+  const newPassword = newPasswordEl ? newPasswordEl.value : '';
+  const confirmPassword = confirmPasswordEl ? confirmPasswordEl.value : '';
+
+  if (!firstName || !lastName) {
+    Swal.fire({ icon: 'warning', title: 'กรุณากรอกชื่อและนามสกุล', confirmButtonText: 'รับทราบ' });
+    return;
+  }
+  
+  // Major validation - check if major is required based on form state
+  const majorRequiredEl = document.getElementById('majorRequired');
+  const isMajorRequired = majorRequiredEl && majorRequiredEl.style.display !== 'none';
+  if (isMajorRequired && !major) {
+    Swal.fire({ icon: 'warning', title: 'กรุณาเลือกสาขาวิชา', confirmButtonText: 'รับทราบ' });
     return;
   }
 
@@ -557,6 +691,13 @@ document.getElementById('profileForm').addEventListener('submit', async function
       const roomVal = roomSelect.value;
       if (roomVal) payload.room = roomVal;
     }
+    
+    // Include year/experience data for all user types
+    const yearInputEl = document.getElementById('yearInput');
+    if (yearInputEl && yearInputEl.value.trim()) {
+      payload.year = yearInputEl.value.trim();
+    }
+    
     if (avatarUrl) payload.avatar = avatarUrl;
 
     const res = await fetch('/api/profile', {
@@ -570,9 +711,9 @@ document.getElementById('profileForm').addEventListener('submit', async function
     if (json.success) {
       Swal.fire({ icon: 'success', title: 'บันทึกข้อมูลสำเร็จ', confirmButtonText: 'ตกลง' }).then(() => {
         // Clear password fields
-        document.getElementById('currentPasswordInput').value = '';
-        document.getElementById('newPasswordInput').value = '';
-        document.getElementById('confirmPasswordInput').value = '';
+        const _currentPw = document.getElementById('currentPasswordInput'); if (_currentPw) _currentPw.value = '';
+        const _newPw = document.getElementById('newPasswordInput'); if (_newPw) _newPw.value = '';
+        const _confPw = document.getElementById('confirmPasswordInput'); if (_confPw) _confPw.value = '';
         croppedImageBlob = null;
         loadProfile();
       });
@@ -585,6 +726,8 @@ document.getElementById('profileForm').addEventListener('submit', async function
     Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: err.message || '', confirmButtonText: 'รับทราบ' });
   }
 });
+
+} // end if _profileFormEl
 
 // Disable email editing if it's already set - handled in loadProfile
 

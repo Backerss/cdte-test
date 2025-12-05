@@ -6,6 +6,8 @@
 let selectedSchoolId = null;
 let schoolSuggestions = [];
 let debounceTimer = null;
+// Determine current user role (pages set window.currentUser when available)
+const __currentUserRole = (typeof window !== 'undefined' && window.currentUser && window.currentUser.role) ? window.currentUser.role : null;
 
 // ตรวจสอบสิทธิ์เมื่อโหลดหน้า
 async function checkEligibility() {
@@ -493,9 +495,15 @@ async function saveSchoolInfo(event, confirmChange = false, deleteEvaluations = 
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
+  // Only run student flows on pages for students
+  if (__currentUserRole !== 'student') {
+    // Skip eligibility check and autosuggest for non-student users (eg. admin pages)
+    return;
+  }
+
   // ตรวจสอบสิทธิ์
   checkEligibility();
-  
+
   // Setup auto-suggest
   setupSchoolNameAutocomplete();
 });
