@@ -8,3 +8,4 @@ npm-debug.log
 dist/
 .vscode/
 public/img/profile_img
+public/img/report_img

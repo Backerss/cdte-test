@@ -1,23 +1,531 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title><%= title %></title>
-  <link rel="stylesheet" href="/css/style.css">
+  <title>CDTE - ระบบจัดการฝึกประสบการณ์วิชาชีพครู</title>
+  <meta name="description" content="ระบบจัดการฝึกประสบการณ์วิชาชีพครูสำหรับสาขาวิชาเทคโนโลยีดิจิทัลเพื่อการศึกษา และคอมพิวเตอร์ศึกษา">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="/css/landing.css">
 </head>
 <body>
-  <header>
-    <h1>Welcome to CDTE Test</h1>
-    <nav>
-      <a href="/">Home</a>
-      <a href="/login">เข้าสู่ระบบ</a>
-      <a href="/register">สมัครสมาชิก</a>
-    </nav>
-  </header>
-  <main>
-    <p>This is the index page rendered from <code>views/index.ejs</code>.</p>
-  </main>
-  <script src="/js/main.js"></script>
+  <!-- Navigation -->
+  <nav class="navbar" id="navbar">
+    <div class="container">
+      <div class="nav-content">
+        <div class="nav-brand">
+          <span class="brand-icon">🎓</span>
+          <span class="brand-text">CDTE System</span>
+        </div>
+        <div class="nav-menu" id="navMenu">
+          <a href="#home" class="nav-link">หน้าหลัก</a>
+          <a href="#about" class="nav-link">เกี่ยวกับระบบ</a>
+          <a href="#features" class="nav-link">คุณสมบัติ</a>
+          <a href="#gallery" class="nav-link">แกลเลอรี่</a>
+          <a href="#team" class="nav-link">ทีมงาน</a>
+          <a href="/auth/login" class="btn-nav">เข้าสู่ระบบ</a>
+        </div>
+        <button class="nav-toggle" id="navToggle">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section id="home" class="hero">
+    <div class="hero-background"></div>
+    <div class="container">
+      <div class="hero-content">
+        <div class="hero-text" data-aos="fade-right">
+          <h1 class="hero-title">
+            ระบบจัดการ<br>
+            <span class="highlight">ฝึกประสบการณ์วิชาชีพครู</span>
+          </h1>
+          <p class="hero-subtitle">
+            สำหรับสาขาวิชาเทคโนโลยีดิจิทัลเพื่อการศึกษา<br>
+            และสาขาวิชาคอมพิวเตอร์ศึกษา<br>
+            คณะครุศาสตร์ มหาวิทยาลัยราชภัฏนครสวรรค์
+          </p>
+          <div class="hero-buttons">
+            <a href="/auth/login" class="btn btn-primary">
+              <span>เข้าสู่ระบบ</span>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M7.5 15L12.5 10L7.5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </a>
+            <a href="#about" class="btn btn-secondary">
+              <span>เรียนรู้เพิ่มเติม</span>
+            </a>
+          </div>
+        </div>
+        <div class="hero-image" data-aos="fade-left">
+          <div class="floating-card card-1">
+            <div class="card-icon">📊</div>
+            <div class="card-text">
+              <div class="card-title">ติดตามผล</div>
+              <div class="card-subtitle">Real-time</div>
+            </div>
+          </div>
+          <div class="floating-card card-2">
+            <div class="card-icon">✅</div>
+            <div class="card-text">
+              <div class="card-title">ประเมินผล</div>
+              <div class="card-subtitle">ทันสมัย</div>
+            </div>
+          </div>
+          <div class="floating-card card-3">
+            <div class="card-icon">📱</div>
+            <div class="card-text">
+              <div class="card-title">ใช้งานง่าย</div>
+              <div class="card-subtitle">ทุกอุปกรณ์</div>
+            </div>
+          </div>
+          <div class="hero-illustration">
+            <img src="https://placehold.co/500x500/7c3aed/ffffff?text=CDTE+System" alt="CDTE System">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="hero-scroll">
+      <span>เลื่อนลง</span>
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M10 5V15M10 15L5 10M10 15L15 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+  </section>
+
+  <!-- About System Section -->
+  <section id="about" class="about-section">
+    <div class="container">
+      <div class="section-header" data-aos="fade-up">
+        <span class="section-tag">เกี่ยวกับระบบ</span>
+        <h2 class="section-title">ระบบที่ออกแบบมาเพื่อนักศึกษา</h2>
+        <p class="section-subtitle">
+          ระบบนี้พัฒนาขึ้นเพื่อรองรับการฝึกประสบการณ์วิชาชีพครูของนักศึกษา<br>
+          สาขาวิชาเทคโนโลยีดิจิทัลเพื่อการศึกษา และคอมพิวเตอร์ศึกษาโดยเฉพาะ
+        </p>
+      </div>
+
+      <div class="about-content">
+        <div class="about-image" data-aos="fade-right">
+          <img src="https://placehold.co/600x400/a78bfa/ffffff?text=Digital+Education" alt="Digital Education">
+          <div class="about-badge">
+            <span class="badge-icon">🎯</span>
+            <span class="badge-text">เฉพาะสาขาของเรา</span>
+          </div>
+        </div>
+        <div class="about-text" data-aos="fade-left">
+          <h3>เหมาะสมกับสาขาวิชาของเรา</h3>
+          <p>
+            ระบบนี้ได้รับการออกแบบและพัฒนามาเป็นพิเศษสำหรับหลักสูตร ค.บ. เทคโนโลยีดิจิทัลเพื่อการศึกษา 
+            และ ค.บ. การศึกษา (คอมพิวเตอร์ศึกษา) เท่านั้น โดยมีเครื่องมือและฟีเจอร์ที่ตอบโจทย์การฝึกประสบการณ์
+            วิชาชีพครูในยุคดิจิทัล
+          </p>
+          
+          <div class="about-stats">
+            <div class="stat-item">
+              <div class="stat-number">100%</div>
+              <div class="stat-label">ดิจิทัล</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-number">24/7</div>
+              <div class="stat-label">เข้าถึงได้</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-number">Real-time</div>
+              <div class="stat-label">ติดตามผล</div>
+            </div>
+          </div>
+
+          <div class="about-note">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM13 17H11V11H13V17ZM13 9H11V7H13V9Z" fill="#7c3aed"/>
+            </svg>
+            <p>
+              <strong>หมายเหตุ:</strong> ระบบนี้ออกแบบมาสำหรับสาขาวิชาของเราโดยเฉพาะ 
+              อาจจะไม่เหมาะสมกับสาขาวิชาอื่นๆ
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section id="features" class="features-section">
+    <div class="container">
+      <div class="section-header" data-aos="fade-up">
+        <span class="section-tag">คุณสมบัติ</span>
+        <h2 class="section-title">ระบบสำหรับนักศึกษา</h2>
+        <p class="section-subtitle">
+          ฟีเจอร์ครบครันที่ช่วยให้การฝึกประสบการณ์วิชาชีพของคุณราบรื่น
+        </p>
+      </div>
+
+      <div class="features-grid">
+        <div class="feature-card" data-aos="fade-up" data-aos-delay="0">
+          <div class="feature-icon">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <rect width="40" height="40" rx="12" fill="#f3e8ff"/>
+              <path d="M20 13V27M13 20H27" stroke="#7c3aed" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3>กรอกข้อมูลโรงเรียน</h3>
+          <p>บันทึกข้อมูลโรงเรียนที่ฝึกประสบการณ์ พร้อมรายละเอียดครบถ้วน</p>
+        </div>
+
+        <div class="feature-card" data-aos="fade-up" data-aos-delay="100">
+          <div class="feature-icon">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <rect width="40" height="40" rx="12" fill="#f3e8ff"/>
+              <circle cx="20" cy="15" r="4" stroke="#7c3aed" stroke-width="2"/>
+              <path d="M12 28C12 24.686 15.582 22 20 22C24.418 22 28 24.686 28 28" stroke="#7c3aed" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3>ข้อมูลครูพี่เลี้ยง</h3>
+          <p>จัดการข้อมูลครูพี่เลี้ยงที่คอยดูแลและให้คำปรึกษา</p>
+        </div>
+
+        <div class="feature-card" data-aos="fade-up" data-aos-delay="200">
+          <div class="feature-icon">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <rect width="40" height="40" rx="12" fill="#f3e8ff"/>
+              <rect x="13" y="13" width="14" height="14" rx="2" stroke="#7c3aed" stroke-width="2"/>
+              <path d="M18 18L22 22M22 18L18 22" stroke="#7c3aed" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3>ประเมินการสอน</h3>
+          <p>ระบบประเมินผลการสอน 9 ครั้ง พร้อมการให้คะแนนแบบละเอียด</p>
+        </div>
+
+        <div class="feature-card" data-aos="fade-up" data-aos-delay="300">
+          <div class="feature-icon">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <rect width="40" height="40" rx="12" fill="#f3e8ff"/>
+              <rect x="13" y="15" width="14" height="12" rx="2" stroke="#7c3aed" stroke-width="2"/>
+              <path d="M17 15V13M23 15V13" stroke="#7c3aed" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3>จัดการแผนการสอน</h3>
+          <p>อัปโหลดและจัดเก็บแผนการสอนแบบดิจิทัล ดูได้ทุกที่ทุกเวลา</p>
+        </div>
+
+        <div class="feature-card" data-aos="fade-up" data-aos-delay="400">
+          <div class="feature-icon">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <rect width="40" height="40" rx="12" fill="#f3e8ff"/>
+              <circle cx="20" cy="20" r="7" stroke="#7c3aed" stroke-width="2"/>
+              <path d="M20 17V20L22 22" stroke="#7c3aed" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3>ติดตามความคืบหน้า</h3>
+          <p>ดูสถานะการฝึกงาน ความคืบหน้า และผลประเมินแบบ Real-time</p>
+        </div>
+
+        <div class="feature-card" data-aos="fade-up" data-aos-delay="500">
+          <div class="feature-icon">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <rect width="40" height="40" rx="12" fill="#f3e8ff"/>
+              <path d="M15 20L18 23L25 16" stroke="#7c3aed" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="20" cy="20" r="7" stroke="#7c3aed" stroke-width="2"/>
+            </svg>
+          </div>
+          <h3>Dashboard ส่วนตัว</h3>
+          <p>หน้าแดชบอร์ดที่แสดงข้อมูลสำคัญและสถิติต่างๆ ของคุณ</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Gallery Section -->
+  <section id="gallery" class="gallery-section">
+    <div class="container">
+      <div class="section-header" data-aos="fade-up">
+        <span class="section-tag">แกลเลอรี่</span>
+        <h2 class="section-title">บรรยากาศและกิจกรรม</h2>
+        <p class="section-subtitle">
+          ภาพกิจกรรมและบรรยากาศของสาขาวิชาเทคโนโลยีดิจิทัลเพื่อการศึกษา
+        </p>
+      </div>
+
+      <div class="gallery-grid">
+        <div class="gallery-item large" data-aos="zoom-in">
+          <img src="https://placehold.co/800x600/7c3aed/ffffff?text=กิจกรรมสาขาวิชา" alt="กิจกรรมสาขาวิชา">
+          <div class="gallery-overlay">
+            <h3>กิจกรรมสาขาวิชา</h3>
+            <p>กิจกรรมต่างๆ ภายในสาขาวิชา</p>
+          </div>
+        </div>
+
+        <div class="gallery-item" data-aos="zoom-in" data-aos-delay="100">
+          <img src="https://placehold.co/400x400/8b5cf6/ffffff?text=ห้องปฏิบัติการ" alt="ห้องปฏิบัติการ">
+          <div class="gallery-overlay">
+            <h3>ห้องปฏิบัติการ</h3>
+            <p>ห้องปฏิบัติการคอมพิวเตอร์</p>
+          </div>
+        </div>
+
+        <div class="gallery-item" data-aos="zoom-in" data-aos-delay="200">
+          <img src="https://placehold.co/400x400/a78bfa/ffffff?text=การเรียนการสอน" alt="การเรียนการสอน">
+          <div class="gallery-overlay">
+            <h3>การเรียนการสอน</h3>
+            <p>บรรยากาศการเรียนรู้</p>
+          </div>
+        </div>
+
+        <div class="gallery-item" data-aos="zoom-in" data-aos-delay="300">
+          <img src="https://placehold.co/400x400/c4b5fd/ffffff?text=โครงงาน" alt="โครงงาน">
+          <div class="gallery-overlay">
+            <h3>โครงงานนักศึกษา</h3>
+            <p>ผลงานและโครงงาน</p>
+          </div>
+        </div>
+
+        <div class="gallery-item wide" data-aos="zoom-in" data-aos-delay="400">
+          <img src="https://placehold.co/800x400/ddd6fe/7c3aed?text=งานวิชาการ" alt="งานวิชาการ">
+          <div class="gallery-overlay">
+            <h3>งานวิชาการ</h3>
+            <p>กิจกรรมทางวิชาการและเทคโนโลยี</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Faculty Team Section -->
+  <section id="team" class="team-section">
+    <div class="container">
+      <div class="section-header" data-aos="fade-up">
+        <span class="section-tag">ทีมงาน</span>
+        <h2 class="section-title">คณะอาจารย์ประจำสาขา</h2>
+        <p class="section-subtitle">
+          คณาจารย์ผู้เชี่ยวชาญด้านเทคโนโลยีดิจิทัลเพื่อการศึกษา
+        </p>
+      </div>
+
+      <div class="team-grid">
+        <div class="team-card" data-aos="fade-up" data-aos-delay="0">
+          <div class="team-image">
+            <img src="https://placehold.co/300x300/7c3aed/ffffff?text=อาจารย์+1" alt="Faculty Member">
+          </div>
+          <div class="team-info">
+            <h3>อาจารย์ท่านที่ 1</h3>
+            <p class="team-role">หัวหน้าสาขาวิชา</p>
+            <p class="team-desc">เทคโนโลยีดิจิทัลเพื่อการศึกษา</p>
+          </div>
+        </div>
+
+        <div class="team-card" data-aos="fade-up" data-aos-delay="100">
+          <div class="team-image">
+            <img src="https://placehold.co/300x300/8b5cf6/ffffff?text=อาจารย์+2" alt="Faculty Member">
+          </div>
+          <div class="team-info">
+            <h3>อาจารย์ท่านที่ 2</h3>
+            <p class="team-role">อาจารย์ประจำสาขา</p>
+            <p class="team-desc">เทคโนโลยีการศึกษา</p>
+          </div>
+        </div>
+
+        <div class="team-card" data-aos="fade-up" data-aos-delay="200">
+          <div class="team-image">
+            <img src="https://placehold.co/300x300/a78bfa/ffffff?text=อาจารย์+3" alt="Faculty Member">
+          </div>
+          <div class="team-info">
+            <h3>อาจารย์ท่านที่ 3</h3>
+            <p class="team-role">อาจารย์ประจำสาขา</p>
+            <p class="team-desc">คอมพิวเตอร์ศึกษา</p>
+          </div>
+        </div>
+
+        <div class="team-card" data-aos="fade-up" data-aos-delay="300">
+          <div class="team-image">
+            <img src="https://placehold.co/300x300/c4b5fd/ffffff?text=อาจารย์+4" alt="Faculty Member">
+          </div>
+          <div class="team-info">
+            <h3>อาจารย์ท่านที่ 4</h3>
+            <p class="team-role">อาจารย์ประจำสาขา</p>
+            <p class="team-desc">วิทยาการคอมพิวเตอร์</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Development Team Section -->
+  <section class="dev-team-section">
+    <div class="container">
+      <div class="section-header" data-aos="fade-up">
+        <span class="section-tag">ทีมพัฒนา</span>
+        <h2 class="section-title">ทีมพัฒนาระบบ</h2>
+        <p class="section-subtitle">
+          นักศึกษาสาขาเทคโนโลยีดิจิทัลเพื่อการศึกษา ผู้พัฒนาระบบนี้
+        </p>
+      </div>
+
+      <div class="dev-team-grid">
+        <div class="dev-card" data-aos="flip-left" data-aos-delay="0">
+          <div class="dev-image">
+            <img src="https://placehold.co/200x200/7c3aed/ffffff?text=Dev+1" alt="Developer">
+            <div class="dev-badge">Lead</div>
+          </div>
+          <div class="dev-info">
+            <h3>นักพัฒนาคนที่ 1</h3>
+            <p class="dev-role">Full-stack Developer</p>
+            <div class="dev-skills">
+              <span class="skill-tag">React</span>
+              <span class="skill-tag">Node.js</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="dev-card" data-aos="flip-left" data-aos-delay="100">
+          <div class="dev-image">
+            <img src="https://placehold.co/200x200/8b5cf6/ffffff?text=Dev+2" alt="Developer">
+          </div>
+          <div class="dev-info">
+            <h3>นักพัฒนาคนที่ 2</h3>
+            <p class="dev-role">Frontend Developer</p>
+            <div class="dev-skills">
+              <span class="skill-tag">UI/UX</span>
+              <span class="skill-tag">CSS</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="dev-card" data-aos="flip-left" data-aos-delay="200">
+          <div class="dev-image">
+            <img src="https://placehold.co/200x200/a78bfa/ffffff?text=Dev+3" alt="Developer">
+          </div>
+          <div class="dev-info">
+            <h3>นักพัฒนาคนที่ 3</h3>
+            <p class="dev-role">Backend Developer</p>
+            <div class="dev-skills">
+              <span class="skill-tag">API</span>
+              <span class="skill-tag">Database</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="dev-card" data-aos="flip-left" data-aos-delay="300">
+          <div class="dev-image">
+            <img src="https://placehold.co/200x200/c4b5fd/ffffff?text=Dev+4" alt="Developer">
+          </div>
+          <div class="dev-info">
+            <h3>นักพัฒนาคนที่ 4</h3>
+            <p class="dev-role">UI/UX Designer</p>
+            <div class="dev-skills">
+              <span class="skill-tag">Figma</span>
+              <span class="skill-tag">Design</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="dev-card" data-aos="flip-left" data-aos-delay="400">
+          <div class="dev-image">
+            <img src="https://placehold.co/200x200/ddd6fe/7c3aed?text=Dev+5" alt="Developer">
+          </div>
+          <div class="dev-info">
+            <h3>นักพัฒนาคนที่ 5</h3>
+            <p class="dev-role">System Analyst</p>
+            <div class="dev-skills">
+              <span class="skill-tag">Testing</span>
+              <span class="skill-tag">QA</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-section">
+          <h3>CDTE System</h3>
+          <p>ระบบจัดการฝึกประสบการณ์วิชาชีพครู<br>สำหรับสาขาวิชาเทคโนโลยีดิจิทัลเพื่อการศึกษา</p>
+          <div class="footer-social">
+            <a href="#" class="social-link" aria-label="Facebook">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+              </svg>
+            </a>
+            <a href="#" class="social-link" aria-label="YouTube">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+              </svg>
+            </a>
+            <a href="#" class="social-link" aria-label="Email">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <div class="footer-section">
+          <h4>ลิงก์ด่วน</h4>
+          <ul class="footer-links">
+            <li><a href="#home">หน้าหลัก</a></li>
+            <li><a href="#about">เกี่ยวกับระบบ</a></li>
+            <li><a href="#features">คุณสมบัติ</a></li>
+            <li><a href="/auth/login">เข้าสู่ระบบ</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-section">
+          <h4>ติดต่อเรา</h4>
+          <ul class="footer-contact">
+            <li>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17.5 8.33C17.5 14.17 10 19.17 10 19.17C10 19.17 2.5 14.17 2.5 8.33C2.5 4.19 5.86 0.83 10 0.83C14.14 0.83 17.5 4.19 17.5 8.33Z"/>
+                <circle cx="10" cy="8.33" r="2.5"/>
+              </svg>
+              <span>คณะครุศาสตร์ มหาวิทยาลัยราชภัฏนครสวรรค์</span>
+            </li>
+            <li>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18.3 15.3a1.67 1.67 0 0 1 0 2.35l-.83.84a4.17 4.17 0 0 1-5.9 0l-9-9a4.17 4.17 0 0 1 0-5.9l.84-.83a1.67 1.67 0 0 1 2.35 0l1.67 1.66"/>
+              </svg>
+              <span>โทร: 056-219-100</span>
+            </li>
+            <li>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2.5" y="4.17" width="15" height="11.67" rx="1.67"/>
+                <path d="M2.5 6.67l7.5 4.16 7.5-4.16"/>
+              </svg>
+              <span>cdte@nsru.ac.th</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>&copy; 2025 CDTE System. พัฒนาโดยนักศึกษาสาขาเทคโนโลยีดิจิทัลเพื่อการศึกษา</p>
+        <p class="footer-note">ระบบนี้ออกแบบมาเฉพาะสำหรับสาขาวิชาเทคโนโลยีดิจิทัลเพื่อการศึกษา และคอมพิวเตอร์ศึกษา</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scroll to Top Button -->
+  <button class="scroll-top" id="scrollTop" aria-label="Scroll to top">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 19V5M5 12l7-7 7 7"/>
+    </svg>
+  </button>
+
+  <!-- Scripts -->
+  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+  <script src="/js/landing.js"></script>
 </body>
 </html>
