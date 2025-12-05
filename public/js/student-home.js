@@ -1,14 +1,84 @@
 /**
- * student-home.js
- * JavaScript สำหรับหน้า Dashboard นักศึกษา
- * ดึงข้อมูลจริงจาก Firebase ผ่าน API
+ * ===============================================
+ * STUDENT HOME DASHBOARD
+ * ===============================================
+ * 
+ * ไฟล์: student-home.js
+ * วัตถุประสงค์: JavaScript สำหรับหน้า Dashboard นักศึกษา
+ * 
+ * คุณสมบัติหลัก:
+ * • ดึงข้อมูลจริงจาก Firebase ผ่าน API endpoints
+ * • แสดงกราฟการประเมินหลายรูปแบบ (Pie, Radar, Progress bars)
+ * • จัดการสีผ่าน CSS variables (ไม่ใช้ hardcoded colors)
+ * • รองรับข้อมูลการประเมินที่ไม่เรียงลำดับ (non-sequential keys)
+ * • แสดงประวัติการฝึก, สถิติ, และแผนการสอน
+ * 
+ * โครงสร้างโค้ด:
+ * 1. Color System (ระบบสี)
+ * 2. Global State & Initialization (สถานะและการเริ่มต้น)
+ * 3. Main Rendering Functions (ฟังก์ชันแสดงผลหลัก)
+ * 4. Chart Drawing Functions (ฟังก์ชันวาดกราฟ)
+ * 5. Helper Functions (ฟังก์ชันช่วยงาน)
+ * 6. Utility Functions (ฟังก์ชันอรรถประโยชน์)
+ * 7. Event Handlers (ตัวจัดการเหตุการณ์)
+ * 
+ * การใช้งาน:
+ * - เรียกใช้ loadStudentDashboard() เมื่อโหลดหน้าเว็บ
+ * - ระบบจะดึงข้อมูลและแสดงผลอัตโนมัติ
+ * 
+ * ===============================================
  */
 
-// Global state
+/**
+ * ===============================================
+ * ระบบสีที่ใช้ในการแสดงผล (COLOR SYSTEM)
+ * ===============================================
+ * ดึงค่าสีจาก colors.css เพื่อความสอดคล้องและง่ายต่อการบำรุงรักษา
+ * หลีกเลี่ยงการใช้สี hardcode เพื่อป้องกันความไม่สอดคล้องและ bugs
+ * 
+ * หลักการ:
+ * • ใช้ CSS custom properties (--color-*) แทน hex codes
+ * • จัดกลุ่มสีตามการใช้งาน (primary, score-based, utilities)
+ * • รองรับการเปลี่ยนธีมในอนาคต
+ */
+const CHART_COLORS = {
+  // สีหลัก (Primary Colors)
+  primary: 'var(--color-primary)',      // #2E3094 - สีหลัก (น้ำเงิน)
+  secondary: 'var(--color-secondary)',  // #FBB425 - สีรอง (เหลือง)
+  
+  // สีสำหรับระดับคะแนน (Score-based Colors)
+  success: 'var(--color-success)',      // #16A34A - สีเขียว (ดีเยี่ยม 4.5-5.0)
+  successLight: '#22c55e',              // สีเขียวอ่อน (ดี 3.5-4.49)
+  warning: 'var(--color-warning)',      // #F59E0B - สีเหลือง (พอใช้ 2.5-3.49)  
+  warningLight: '#eab308',              // สีเหลืองอ่อน
+  danger: 'var(--color-danger)',        // #DC2626 - สีแดง (ต้องปรับปรุง <2.5)
+  dangerLight: '#ef4444',               // สีแดงอ่อน
+  orange: '#f97316',                    // สีส้ม (กลาง)
+  
+  // สีพื้นฐาน (Base Colors)
+  info: 'var(--color-info)',            // #3B82F6 - สีน้ำเงินอ่อน
+  light: 'var(--color-light)',          // #F8FAFC - พื้นหลังอ่อน
+  dark: 'var(--color-dark)',            // #1E293B - ข้อความเข้มม
+  muted: '#6b7280',                     // สีเทา (ข้อความรอง)
+  
+  // สีพิเศษ (Special Use)  
+  lime: '#84cc16',                      // สีเขียวมะนาว
+  background: '#f3f4f6'                 // พื้นหลัง chart
+};
+
+/**
+ * ===============================================
+ * GLOBAL STATE & INITIALIZATION (สถานะและการเริ่มต้น)
+ * ===============================================
+ */
+
+// ตัวแปรเก็บข้อมูล Dashboard ทั้งหมดที่ได้จาก API
 let dashboardData = null;
 
 /**
- * โหลดข้อมูล Dashboard หลัก
+ * ฟังก์ชันหลักสำหรับโหลดข้อมูล Dashboard ทั้งหมด
+ * @description เรียก API เพื่อดึงข้อมูลนักศึกษาและแสดงผลทุกส่วน
+ * @async
  */
 async function loadStudentDashboard() {
   try {
@@ -28,8 +98,8 @@ async function loadStudentDashboard() {
     renderGreeting(dashboardData.user);
     renderActiveObservation(dashboardData.activeObservation);
     renderPracticeHistory(dashboardData.practiceHistory);
-    renderEvaluationSummary(dashboardData.evaluationData);
-    renderLessonPlans(dashboardData.lessonPlans, dashboardData.canUploadLessonPlan);
+    await renderEvaluationSummary(); // ใช้ฟังก์ชันใหม่ที่ดึงข้อมูลจาก API เอง
+    renderLessonPlans(dashboardData.canUploadLessonPlan); // ดึงข้อมูลเองจาก API
     renderStats(dashboardData.stats);
 
     hideLoading();
@@ -40,7 +110,14 @@ async function loadStudentDashboard() {
 }
 
 /**
- * แสดง Loading state
+ * ===============================================
+ * UI STATE MANAGEMENT (จัดการสถานะ UI)
+ * ===============================================
+ */
+
+/**
+ * แสดงสถานะการโหลด
+ * @description แสดง loading spinner และข้อความรอ
  */
 function showLoading() {
   const container = document.getElementById('studentDashboardContent');
@@ -55,10 +132,10 @@ function showLoading() {
 }
 
 /**
- * ซ่อน Loading state
+ * ซ่อนสถานะการโหลด
+ * @description ล้าง loading state เพื่อให้ส่วนอื่นแสดงแทน
  */
 function hideLoading() {
-  // ล้างสถานะ loading ใน container หลัก ถ้ามี เพื่อให้ส่วนอื่นที่ render ไว้แสดงแทน
   const container = document.getElementById('studentDashboardContent');
   if (container) {
     container.innerHTML = '';
@@ -66,7 +143,8 @@ function hideLoading() {
 }
 
 /**
- * แสดง Error
+ * แสดงข้อผิดพลาด
+ * @param {string} message - ข้อความผิดพลาดที่จะแสดง
  */
 function showError(message) {
   const container = document.getElementById('studentDashboardContent');
@@ -85,7 +163,15 @@ function showError(message) {
 }
 
 /**
- * Render Greeting Section
+ * ===============================================
+ * MAIN RENDERING FUNCTIONS (ฟังก์ชันแสดงผลหลัก)
+ * ===============================================
+ */
+
+/**
+ * แสดงส่วนทักทาย (Greeting Section)
+ * @param {Object} user - ข้อมูลผู้ใช้
+ * @description แสดงชื่อ, ปีการศึกษา, และสถานะการฝึกงาน
  */
 function renderGreeting(user) {
   const container = document.getElementById('greetingSection');
@@ -256,7 +342,7 @@ function renderActiveObservation(obs) {
             <span style="font-size:1.1rem;font-weight:700;color:white;">${evaluationProgress}/${totalEvaluations} ครั้ง</span>
           </div>
           <div style="background:rgba(255,255,255,0.2);height:12px;border-radius:6px;overflow:hidden;">
-            <div style="width:${progressPercentage}%;height:100%;background:#16A34A;transition:width 0.5s ease;"></div>
+            <div style="width:${progressPercentage}%;height:100%;background:${CHART_COLORS.success};transition:width 0.5s ease;"></div>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
             <span style="font-size:0.75rem;opacity:0.85;color:white;">ความคืบหน้า ${progressPercentage}%</span>
@@ -276,7 +362,7 @@ function renderActiveObservation(obs) {
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
               <span style="font-size:0.9rem;font-weight:500;color:white;">📋 แผนการจัดการเรียนรู้</span>
               ${lessonPlanSubmitted ? `
-                <span style="background:rgba(22,163,74,0.2);color:#16A34A;padding:4px 12px;border-radius:6px;font-size:0.75rem;font-weight:600;">
+                <span style="background:rgba(22,163,74,0.2);color:${CHART_COLORS.success};padding:4px 12px;border-radius:6px;font-size:0.75rem;font-weight:600;">
                   ✅ ส่งแล้ว
                 </span>
               ` : `
@@ -313,7 +399,7 @@ function renderActiveObservation(obs) {
         <div style="margin-top:16px;padding:12px;background:rgba(255,255,255,0.08);border-radius:6px;">
           ${schoolInfo && mentorInfo ? `
             ${evaluationProgress === totalEvaluations && (!needLessonPlan || lessonPlanSubmitted) ? `
-              <div style="display:flex;align-items:center;gap:8px;color:#16A34A;">
+              <div style="display:flex;align-items:center;gap:8px;color:${CHART_COLORS.success};">
                 <span style="font-size:1.2rem;">🎉</span>
                 <span style="font-size:0.9rem;font-weight:600;">ดำเนินการครบถ้วนแล้ว!</span>
               </div>
@@ -462,85 +548,783 @@ function renderPracticeHistory(history) {
 
 /**
  * Render Evaluation Summary
+ * ดึงข้อมูลการประเมินจาก API และแสดงเป็นกราฟหลายรูปแบบ
  */
-function renderEvaluationSummary(evaluations) {
+async function renderEvaluationSummary() {
   const container = document.getElementById('evaluationSummarySection');
   if (!container) return;
 
-  if (!evaluations || evaluations.length === 0) {
-    container.innerHTML = '';
-    return;
+  try {
+    // ดึงข้อมูลการประเมินจาก API
+    const activeObsId = dashboardData?.activeObservation?.id;
+    const apiUrl = activeObsId 
+      ? `/api/student/evaluation-summary?observationId=${activeObsId}`
+      : '/api/student/evaluation-summary';
+    
+    console.log('Fetching evaluation data from:', apiUrl); // Debug log
+    const response = await fetch(apiUrl);
+    const result = await response.json();
+    console.log('Evaluation data received:', result); // Debug log
+
+    if (!result.success) {
+      container.innerHTML = `
+        <div class="card" style="text-align:center;padding:40px;color:var(--color-muted);">
+          <div style="font-size:3rem;margin-bottom:16px;">❌</div>
+          <p>เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
+          <p style="font-size:0.9rem;">${result.message || 'โปรดลองใหม่อีกครั้ง'}</p>
+        </div>
+      `;
+      return;
+    }
+
+    if (!result.hasData) {
+      container.innerHTML = `
+        <div class="card" style="text-align:center;padding:40px;color:var(--color-muted);">
+          <div style="font-size:3rem;margin-bottom:16px;">📝</div>
+          <h3 style="margin:0 0 12px 0;">ยังไม่มีข้อมูลการประเมิน</h3>
+          <p style="margin:0 0 24px 0;">เริ่มทำแบบประเมินเพื่อดูผลการวิเคราะห์</p>
+          <a href="/dashboard/evaluation" class="btn btn--primary">
+            เริ่มประเมิน →
+          </a>
+        </div>
+      `;
+      return;
+    }
+
+    const summary = result.summary;
+    const evaluations = summary.evaluationsByTopic || [];
+    const scoreDistribution = summary.scoreDistribution || {};
+    
+    // คำนวณสถิติ
+    const avgScore = summary.averageScore || 0;
+    const gradeText = summary.gradeText || 'ยังไม่มีข้อมูล';
+    const totalCompleted = summary.completedEvaluations || 0;
+    const totalPossible = summary.totalEvaluations || 9;
+    
+    // สร้างกราฟต่างๆ
+    const pieChartHTML = drawEvaluationPieChart(scoreDistribution);
+    const radarChartHTML = drawRadarChart(evaluations);
+    const progressBarsHTML = drawProgressBars(evaluations);
+    const weeklyProgressHTML = drawWeeklyProgress(summary.weeklyProgress || {});
+
+    container.innerHTML = `
+      <div class="card evaluation-summary">
+        <h3 style="margin-top:0;color:var(--color-text);display:flex;align-items:center;gap:10px">
+          <span>📊</span>
+          สรุปผลการประเมินโดยรวม
+        </h3>
+        <div class="evaluation-stats-grid">
+          <div class="stat-box">
+            <div class="stat-value">${avgScore.toFixed(2)}</div>
+            <div class="stat-label">คะแนนเฉลี่ยโดยรวม</div>
+            <div class="stat-grade">${gradeText}</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" style="color:var(--color-success)">${totalCompleted}</div>
+            <div class="stat-label">การประเมินที่เสร็จสิ้น</div>
+            <div class="stat-subtext">จาก ${totalPossible} หัวข้อ (${summary.completionRate || 0}%)</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" style="color:var(--color-secondary)">
+              ${scoreDistribution.excellent || 0}
+            </div>
+            <div class="stat-label">ด้านที่ได้คะแนนดีเยี่ยม</div>
+            <div class="stat-subtext">4.5+ คะแนน</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" style="color:var(--color-warning)">
+              ${scoreDistribution.needsImprovement || 0}
+            </div>
+            <div class="stat-label">ด้านที่ต้องพัฒนา</div>
+            <div class="stat-subtext">ต่ำกว่า 2.5 คะแนน</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- กราฟวิเคราะห์แบบต่างๆ -->
+      <div style="display:grid;grid-template-columns:1fr 1.5fr;gap:24px;margin-bottom:24px;">
+        <!-- กราฟวงกลม (Pie Chart) -->
+        <div class="chart-card">
+          <h4 class="chart-title">
+            <span>🥧</span>
+            สัดส่วนระดับคะแนน
+          </h4>
+          <div style="padding:20px;">
+            ${pieChartHTML}
+          </div>
+          <div class="chart-legend" style="padding:0 20px 20px;">
+            <div class="legend-item"><span class="legend-color" style="background:${CHART_COLORS.success};"></span>ดีเยี่ยม (4.5+)</div>
+            <div class="legend-item"><span class="legend-color" style="background:${CHART_COLORS.successLight};"></span>ดี (3.5-4.49)</div>
+            <div class="legend-item"><span class="legend-color" style="background:${CHART_COLORS.warningLight};"></span>พอใช้ (2.5-3.49)</div>
+            <div class="legend-item"><span class="legend-color" style="background:${CHART_COLORS.dangerLight};"></span>ต้องปรับปรุง (<2.5)</div>
+          </div>
+        </div>
+
+        <!-- Radar Chart -->
+        <div class="chart-card">
+          <h4 class="chart-title">
+            <span>🎯</span>
+            ภาพรวมคะแนนทุกด้าน
+          </h4>
+          <div style="padding:20px;">
+            ${radarChartHTML}
+          </div>
+        </div>
+      </div>
+
+      <!-- ความคืบหน้ารายสัปดาห์ -->
+      <div class="chart-card" style="margin-bottom:24px;">
+        <h4 class="chart-title">
+          <span>📅</span>
+          ความคืบหน้ารายสัปดาห์
+        </h4>
+        <div style="padding:20px;">
+          ${weeklyProgressHTML}
+        </div>
+      </div>
+
+      <!-- กราฟแท่งแนวนอน (Progress Bars) -->
+      <div class="chart-card">
+        <h4 class="chart-title">
+          <span>📊</span>
+          ผลการประเมินแต่ละหัวข้อ
+        </h4>
+        <p style="margin:16px 20px 24px;font-size:0.9rem;color:var(--color-muted)">
+          มาตรวัด: 1-1.99 (ปรับปรุง) | 2-2.99 (พอใช้) | 3-3.99 (ดี) | 4-4.49 (ดีมาก) | 4.5-5 (ดีเยี่ยม)
+        </p>
+        <div style="padding:0 20px 20px;">
+          ${progressBarsHTML}
+        </div>
+      </div>
+
+      <!-- สรุปการวิเคราะห์ -->
+      ${generateAnalysisSummary(evaluations, scoreDistribution)}
+    `;
+
+  } catch (error) {
+    console.error('Error rendering evaluation summary:', error);
+    container.innerHTML = `
+      <div class="card" style="text-align:center;padding:40px;color:var(--color-muted);">
+        <div style="font-size:3rem;margin-bottom:16px;">⚠️</div>
+        <p>เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
+        <p style="font-size:0.9rem;">กรุณาลองรีเฟรชหน้าใหม่</p>
+      </div>
+    `;
+  }
+}
+
+/**
+ * Draw Evaluation Pie Chart
+ */
+function drawEvaluationPieChart(excellent, good, fair, needImprove) {
+  const total = excellent + good + fair + needImprove;
+  if (total === 0) return '<div style="color:#6b7280;text-align:center;padding:40px;">ไม่มีข้อมูล</div>';
+
+  const excellentPercent = (excellent / total) * 100;
+  const goodPercent = (good / total) * 100;
+  const fairPercent = (fair / total) * 100;
+  const needImprovePercent = (needImprove / total) * 100;
+
+  // Calculate angles
+  const excellentDeg = (excellentPercent / 100) * 360;
+  const goodDeg = excellentDeg + (goodPercent / 100) * 360;
+  const fairDeg = goodDeg + (fairPercent / 100) * 360;
+
+  return `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:20px;">
+      <div style="position:relative;width:200px;height:200px;">
+        <div style="
+          width:100%;
+          height:100%;
+          border-radius:50%;
+          background:conic-gradient(
+            ${CHART_COLORS.success} 0deg ${excellentDeg}deg,
+            ${CHART_COLORS.successLight} ${excellentDeg}deg ${goodDeg}deg,
+            ${CHART_COLORS.warningLight} ${goodDeg}deg ${fairDeg}deg,
+            ${CHART_COLORS.orange} ${fairDeg}deg 360deg
+          );
+          box-shadow:0 4px 12px rgba(0,0,0,0.1);
+        "></div>
+        <div style="
+          position:absolute;
+          top:50%;
+          left:50%;
+          transform:translate(-50%, -50%);
+          background:white;
+          border-radius:50%;
+          width:120px;
+          height:120px;
+          display:flex;
+          flex-direction:column;
+          align-items:center;
+          justify-content:center;
+          box-shadow:0 2px 8px rgba(0,0,0,0.1);
+        ">
+          <div style="font-size:2rem;font-weight:700;color:#1f2937;">${total}</div>
+          <div style="font-size:0.85rem;color:#6b7280;">ด้านประเมิน</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;">
+        ${excellent > 0 ? `
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:16px;height:16px;background:${CHART_COLORS.success};border-radius:4px;"></div>
+            <div>
+              <div style="font-size:0.75rem;color:${CHART_COLORS.muted};">ดีมาก</div>
+              <div style="font-size:0.95rem;font-weight:700;color:${CHART_COLORS.success};">${excellent} (${excellentPercent.toFixed(0)}%)</div>
+            </div>
+          </div>
+        ` : ''}
+        ${good > 0 ? `
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:16px;height:16px;background:${CHART_COLORS.successLight};border-radius:4px;"></div>
+            <div>
+              <div style="font-size:0.75rem;color:${CHART_COLORS.muted};">ดี</div>
+              <div style="font-size:0.95rem;font-weight:700;color:${CHART_COLORS.successLight};">${good} (${goodPercent.toFixed(0)}%)</div>
+            </div>
+          </div>
+        ` : ''}
+        ${fair > 0 ? `
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:16px;height:16px;background:#eab308;border-radius:4px;"></div>
+            <div>
+              <div style="font-size:0.75rem;color:#6b7280;">ปานกลาง</div>
+              <div style="font-size:0.95rem;font-weight:700;color:#eab308;">${fair} (${fairPercent.toFixed(0)}%)</div>
+            </div>
+          </div>
+        ` : ''}
+        ${needImprove > 0 ? `
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:16px;height:16px;background:#f97316;border-radius:4px;"></div>
+            <div>
+              <div style="font-size:0.75rem;color:#6b7280;">ต้องพัฒนา</div>
+              <div style="font-size:0.95rem;font-weight:700;color:#f97316;">${needImprove} (${needImprovePercent.toFixed(0)}%)</div>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Draw Enhanced Pie Chart with Score Distribution
+ */
+function drawEvaluationPieChart(scoreDistribution) {
+  const { excellent = 0, good = 0, fair = 0, needsImprovement = 0 } = scoreDistribution;
+  const total = excellent + good + fair + needsImprovement;
+  
+  if (total === 0) {
+    return '<div style="color:#6b7280;text-align:center;padding:40px;">ไม่มีข้อมูล</div>';
   }
 
-  // คำนวณคะแนนเฉลี่ย
-  let totalScore = 0;
-  let count = 0;
-  
-  evaluations.forEach(ev => {
-    if (ev.score) {
-      totalScore += ev.score;
-      count++;
+  const excellentPercent = (excellent / total) * 100;
+  const goodPercent = (good / total) * 100;
+  const fairPercent = (fair / total) * 100;
+  const needImprovePercent = (needsImprovement / total) * 100;
+
+  // Calculate angles for conic-gradient
+  const excellentDeg = (excellentPercent / 100) * 360;
+  const goodDeg = excellentDeg + (goodPercent / 100) * 360;
+  const fairDeg = goodDeg + (fairPercent / 100) * 360;
+
+  return `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:20px;">
+      <div style="position:relative;width:200px;height:200px;">
+        <div style="
+          width:100%;
+          height:100%;
+          border-radius:50%;
+          background:conic-gradient(
+            ${CHART_COLORS.success} 0deg ${excellentDeg}deg,
+            ${CHART_COLORS.successLight} ${excellentDeg}deg ${goodDeg}deg,
+            #eab308 ${goodDeg}deg ${fairDeg}deg,
+            #ef4444 ${fairDeg}deg 360deg
+          );
+          box-shadow:0 4px 12px rgba(0,0,0,0.15);
+        "></div>
+        <div style="
+          position:absolute;
+          top:50%;
+          left:50%;
+          transform:translate(-50%, -50%);
+          background:white;
+          border-radius:50%;
+          width:120px;
+          height:120px;
+          display:flex;
+          flex-direction:column;
+          align-items:center;
+          justify-content:center;
+          box-shadow:0 2px 8px rgba(0,0,0,0.1);
+        ">
+          <div style="font-size:2rem;font-weight:700;color:#1f2937;">${total}</div>
+          <div style="font-size:0.85rem;color:#6b7280;">หัวข้อ</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:16px;height:16px;background:#16A34A;border-radius:4px;"></div>
+          <div>
+            <div style="font-size:0.75rem;color:#6b7280;">ดีเยี่ยม</div>
+            <div style="font-size:0.95rem;font-weight:700;color:#16A34A;">${excellent} (${excellentPercent.toFixed(0)}%)</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:16px;height:16px;background:#22c55e;border-radius:4px;"></div>
+          <div>
+            <div style="font-size:0.75rem;color:#6b7280;">ดี</div>
+            <div style="font-size:0.95rem;font-weight:700;color:#22c55e;">${good} (${goodPercent.toFixed(0)}%)</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:16px;height:16px;background:#eab308;border-radius:4px;"></div>
+          <div>
+            <div style="font-size:0.75rem;color:#6b7280;">พอใช้</div>
+            <div style="font-size:0.95rem;font-weight:700;color:#eab308;">${fair} (${fairPercent.toFixed(0)}%)</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:16px;height:16px;background:${CHART_COLORS.dangerLight};border-radius:4px;"></div>
+          <div>
+            <div style="font-size:0.75rem;color:${CHART_COLORS.muted};">ต้องปรับปรุง</div>
+            <div style="font-size:0.95rem;font-weight:700;color:${CHART_COLORS.dangerLight};">${needsImprovement} (${needImprovePercent.toFixed(0)}%)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * ===============================================
+ * วาดกราฟเรดาร์ (Radar Chart - Vertical Bars)
+ * ===============================================
+ * แสดงคะแนนการประเมินในรูปแบบแถบแนวตั้ง เพื่อให้อ่านง่ายและเปรียบเทียบได้
+ * @param {Array} evaluations - ข้อมูลการประเมินที่จะแสดง
+ * @returns {string} HTML สำหรับกราฟ
+ */
+function drawRadarChart(evaluations) {
+  if (!evaluations || evaluations.length === 0) {
+    return `<div style="color:${CHART_COLORS.muted};text-align:center;padding:40px;">ไม่มีข้อมูล</div>`;
+  }
+
+  /**
+   * สร้างแถบแสดงคะแนนแต่ละหัวข้อแบบ vertical bars
+   * จำกัดเฉพาะ 6 หัวข้อแรก เพื่อไม่ให้กราฟแอนเกินไป
+   */
+  const maxScore = 5;  // คะแนนสูงสุด
+  const bars = evaluations.slice(0, 6).map((ev, idx) => {
+    const score = typeof ev.score === 'number' ? ev.score : (parseFloat(ev.score) || 0);
+    const percentage = Math.max(0, Math.min(100, (score / maxScore) * 100));
+    
+    // กำหนดสีตามระดับคะแนน - ใช้ CHART_COLORS
+    let barColor = CHART_COLORS.dangerLight;     // คะแนนต่ำ (<2)
+    if (score >= 4.5) {
+      barColor = CHART_COLORS.success;           // ดีเยี่ยม (4.5+)
+    } else if (score >= 4) {
+      barColor = CHART_COLORS.successLight;      // ดีมาก (4.0-4.49)
+    } else if (score >= 3.5) {
+      barColor = CHART_COLORS.lime;              // ดี (3.5-3.99)
+    } else if (score >= 3) {
+      barColor = CHART_COLORS.warningLight;      // พอใช้ (3.0-3.49)
+    } else if (score >= 2) {
+      barColor = CHART_COLORS.orange;            // ปรับปรุง (2.0-2.99)
     }
-  });
 
-  const avgScore = count > 0 ? (totalScore / count).toFixed(2) : 0;
-  const gradeText = getGradeText(avgScore);
-
-  // สร้าง chart bars
-  const chartBars = evaluations.map(ev => {
-    const percentage = ev.total ? (ev.score / ev.total) * 100 : 0;
-    const colorClass = getScoreColorClass(ev.score);
+    const labelText = (ev.topic || ev.label || ev.title || 'รายการ').toString();
 
     return `
-      <div class="chart-row">
-        <div class="chart-row-header">
-          <span class="chart-row-label">${ev.label || ev.title || 'รายการ'}</span>
-          <span class="chart-row-score">${ev.score?.toFixed(1) || 0} / ${ev.total || 5}</span>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;">
+        <div style="font-size:1.3rem;font-weight:700;color:${barColor};">${score.toFixed(1)}</div>
+        <div style="width:100%;height:150px;background:${CHART_COLORS.background};border-radius:8px;position:relative;overflow:hidden;">
+          <div style="
+            position:absolute;
+            bottom:0;
+            width:100%;
+            height:${percentage}%;
+            background:linear-gradient(180deg, ${barColor}, ${barColor}dd);
+            transition:height 0.8s ease;
+            border-radius:8px 8px 0 0;
+          "></div>
+          <div style="
+            position:absolute;
+            top:50%;
+            left:50%;
+            transform:translate(-50%, -50%);
+            font-size:0.8rem;
+            font-weight:600;
+            color:white;
+            text-shadow:1px 1px 2px rgba(0,0,0,0.5);
+          ">${percentage.toFixed(0)}%</div>
         </div>
-        <div class="progress-bar">
-          <div class="progress-fill ${colorClass}" style="width:${percentage}%">
-            <span>${percentage.toFixed(0)}%</span>
-          </div>
+        <div style="font-size:0.75rem;color:${CHART_COLORS.muted};text-align:center;line-height:1.2;max-width:80px;">
+          ${labelText.substring(0, 12)}${labelText.length > 12 ? '...' : ''}
         </div>
       </div>
     `;
   }).join('');
 
-  container.innerHTML = `
-    <div class="card evaluation-summary">
-      <h3 style="margin-top:0;color:var(--color-text);display:flex;align-items:center;gap:10px">
-        <span>📊</span>
-        สรุปผลการประเมินโดยรวม
-      </h3>
-      <div class="evaluation-stats-grid">
-        <div class="stat-box">
-          <div class="stat-value">${avgScore}</div>
-          <div class="stat-label">คะแนนเฉลี่ยโดยรวม</div>
-          <div class="stat-grade">${gradeText}</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-value" style="color:var(--color-success)">${evaluations.length}</div>
-          <div class="stat-label">หัวข้อการประเมิน</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-value" style="color:var(--color-secondary)">
-            ${evaluations.filter(e => e.score >= 4.5).length}
+  return `
+    <div style="display:flex;gap:12px;align-items:flex-end;padding:20px 0;">
+      ${bars}
+    </div>
+    <div style="text-align:center;margin-top:16px;font-size:0.8rem;color:${CHART_COLORS.muted};">
+      แสดงเฉพาะ ${Math.min(evaluations.length, 6)} หัวข้อแรก
+    </div>
+  `;
+}
+
+/**
+ * ===============================================
+ * วาดแถบความคืบหน้า (Horizontal Progress Bars)
+ * ===============================================
+ * แสดงคะแนนการประเมินแต่ละหัวข้อในรูปแบบแถบความคืบหน้า
+ * พร้อมรายละเอียดและคะแนนของแต่ละหัวข้อ
+ * @param {Array} evaluations - ข้อมูลการประเมินที่จะแสดง
+ * @returns {string} HTML สำหรับแถบความคืบหน้า
+ */
+function drawProgressBars(evaluations) {
+  if (!evaluations || evaluations.length === 0) {
+    return `<div style="color:${CHART_COLORS.muted};text-align:center;padding:40px;">ไม่มีข้อมูล</div>`;
+  }
+
+  return evaluations.map((ev, idx) => {
+    const score = typeof ev.score === 'number' ? ev.score : (parseFloat(ev.score) || 0);
+    const percentage = (score / 5) * 100;  // แปลงคะแนนเป็นเปอร์เซ็นต์
+    
+    // กำหนดสีตามระดับคะแนน - ใช้ CHART_COLORS
+    let barColor = CHART_COLORS.dangerLight;     // คะแนนต่ำ (<2)
+    if (score >= 4.5) {
+      barColor = CHART_COLORS.success;           // ดีเยี่ยม (4.5+)
+    } else if (score >= 4) {
+      barColor = CHART_COLORS.successLight;      // ดีมาก (4.0-4.49)
+    } else if (score >= 3.5) {
+      barColor = CHART_COLORS.lime;              // ดี (3.5-3.99)
+    } else if (score >= 3) {
+      barColor = CHART_COLORS.warningLight;      // พอใช้ (3.0-3.49)
+    } else if (score >= 2) {
+      barColor = CHART_COLORS.orange;            // ปรับปรุง (2.0-2.99)
+    }
+
+    const topicName = ev.topic || `การประเมินครั้งที่ ${ev.topicNumber || idx + 1}`;
+    const gradeText = getGradeText(score);
+    const weekText = ev.week ? `สัปดาห์ที่ ${ev.week}` : '';
+    const totalQuestions = ev.totalQuestions || 'N/A';
+
+    return `
+      <div class="progress-bar-row" style="margin-bottom:${idx < evaluations.length - 1 ? '24px' : '0'};">
+        <div class="progress-bar-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div>
+            <span class="progress-bar-label" style="font-weight:600;color:var(--color-text);font-size:0.95rem;">
+              ${topicName}
+            </span>
+            <div style="font-size:0.8rem;color:var(--color-muted);margin-top:2px;">
+              ${weekText} • ${totalQuestions} คำถาม
+              ${ev.originalNumber ? ` (เดิม #${ev.originalNumber})` : ''}
+            </div>
           </div>
-          <div class="stat-label">ด้านที่ได้คะแนนดีมาก</div>
+          <span class="progress-bar-score" style="color:${barColor};font-weight:700;font-size:1.1rem;">
+            ${score.toFixed(1)} / 5.0
+          </span>
+        </div>
+        <div class="progress-bar-wrapper" style="width:100%;height:24px;background:${CHART_COLORS.background};border-radius:12px;overflow:hidden;position:relative;">
+          <div class="progress-bar-fill" style="
+            width:${percentage}%;
+            height:100%;
+            background:linear-gradient(90deg, ${barColor}, ${barColor}aa);
+            transition:width 0.8s ease;
+            border-radius:12px;
+            position:relative;
+          ">
+            <div style="
+              position:absolute;
+              right:8px;
+              top:50%;
+              transform:translateY(-50%);
+              color:white;
+              font-size:0.75rem;
+              font-weight:600;
+              text-shadow:1px 1px 2px rgba(0,0,0,0.5);
+            ">${percentage.toFixed(0)}%</div>
+          </div>
+        </div>
+        <div class="progress-bar-grade" style="text-align:right;margin-top:4px;font-size:0.8rem;color:${barColor};font-weight:500;">
+          ${gradeText}
         </div>
       </div>
-    </div>
+    `;
+  }).join('');
+}
 
-    <div class="card" style="margin-bottom:24px">
-      <h3 style="margin-top:0;color:var(--color-text);display:flex;align-items:center;gap:10px">
-        <span>📈</span>
-        กราฟแสดงผลการประเมินแต่ละด้าน
-      </h3>
-      <p style="margin:0 0 24px 0;font-size:0.9rem;color:var(--color-muted)">
-        มาตรวัด: 1-1.99 (ปรับปรุง) | 2-2.99 (พอใช้) | 3-3.99 (ปานกลาง) | 4-4.49 (ดี) | 4.5-5 (ดีมาก)
-      </p>
-      <div class="evaluation-chart">
-        ${chartBars}
+/**
+ * Draw Weekly Progress Chart
+ */
+function drawWeeklyProgress(weeklyData) {
+  const week1 = weeklyData.week1 || 0;
+  const week2 = weeklyData.week2 || 0;
+  const week3 = weeklyData.week3 || 0;
+  const maxValue = Math.max(week1, week2, week3, 3); // min scale = 3
+
+  return `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;">
+      <div class="week-progress-item" style="text-align:center;">
+        <div style="font-size:1.5rem;font-weight:700;color:#3b82f6;margin-bottom:8px;">${week1}</div>
+        <div style="height:120px;background:#f3f4f6;border-radius:8px;position:relative;overflow:hidden;margin-bottom:12px;">
+          <div style="
+            position:absolute;
+            bottom:0;
+            width:100%;
+            height:${(week1 / maxValue) * 100}%;
+            background:linear-gradient(180deg, #3b82f6, #60a5fa);
+            transition:height 0.8s ease;
+            border-radius:8px 8px 0 0;
+          "></div>
+        </div>
+        <div style="font-weight:600;color:#1f2937;margin-bottom:4px;">สัปดาห์ที่ 1</div>
+        <div style="font-size:0.8rem;color:#6b7280;">การประเมิน</div>
+      </div>
+      
+      <div class="week-progress-item" style="text-align:center;">
+        <div style="font-size:1.5rem;font-weight:700;color:#10b981;margin-bottom:8px;">${week2}</div>
+        <div style="height:120px;background:#f3f4f6;border-radius:8px;position:relative;overflow:hidden;margin-bottom:12px;">
+          <div style="
+            position:absolute;
+            bottom:0;
+            width:100%;
+            height:${(week2 / maxValue) * 100}%;
+            background:linear-gradient(180deg, #10b981, #34d399);
+            transition:height 0.8s ease;
+            border-radius:8px 8px 0 0;
+          "></div>
+        </div>
+        <div style="font-weight:600;color:#1f2937;margin-bottom:4px;">สัปดาห์ที่ 2</div>
+        <div style="font-size:0.8rem;color:#6b7280;">การประเมิน</div>
+      </div>
+      
+      <div class="week-progress-item" style="text-align:center;">
+        <div style="font-size:1.5rem;font-weight:700;color:#f59e0b;margin-bottom:8px;">${week3}</div>
+        <div style="height:120px;background:#f3f4f6;border-radius:8px;position:relative;overflow:hidden;margin-bottom:12px;">
+          <div style="
+            position:absolute;
+            bottom:0;
+            width:100%;
+            height:${(week3 / maxValue) * 100}%;
+            background:linear-gradient(180deg, #f59e0b, #fbbf24);
+            transition:height 0.8s ease;
+            border-radius:8px 8px 0 0;
+          "></div>
+        </div>
+        <div style="font-weight:600;color:#1f2937;margin-bottom:4px;">สัปดาห์ที่ 3</div>
+        <div style="font-size:0.8rem;color:#6b7280;">การประเมิน</div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * ===============================================
+ * สร้างสรุปการวิเคราะห์ผลการประเมิน (ANALYSIS SUMMARY)
+ * ===============================================
+ * แสดงจุดแข็งและจุดที่ควรพัฒนา พร้อมสถิติและข้อเสนอแนะ
+ * @param {Array} evaluations - ข้อมูลการประเมินทั้งหมด
+ * @param {Object} scoreDistribution - การกระจายของคะแนน
+ * @returns {string} HTML สำหรับการวิเคราะห์
+ */
+function generateAnalysisSummary(evaluations, scoreDistribution) {
+  const total = scoreDistribution.excellent + scoreDistribution.good + scoreDistribution.fair + scoreDistribution.needsImprovement;
+  const excellentPercentage = total > 0 ? (scoreDistribution.excellent / total) * 100 : 0;
+  const needImprovementPercentage = total > 0 ? (scoreDistribution.needsImprovement / total) * 100 : 0;
+  
+  // หาหัวข้อที่ได้คะแนนสูงสุด (จุดแข็ง)
+  const topScorers = evaluations
+    .filter(ev => ev.score >= 4.5)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3);
+    
+  // หาหัวข้อที่ควรปรับปรุง (จุดอ่อน)
+  const needImprovement = evaluations
+    .filter(ev => ev.score < 2.5)
+    .sort((a, b) => a.score - b.score)
+    .slice(0, 3);
+
+  return `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:24px;">
+      ${topScorers.length > 0 ? `
+        <div class="chart-card" style="border-left:4px solid ${CHART_COLORS.success};">
+          <h4 class="chart-title" style="color:${CHART_COLORS.success};">
+            <span>🌟</span>
+            จุดแข็ง (${excellentPercentage.toFixed(0)}% ของทั้งหมด)
+          </h4>
+          <div style="padding:20px;">
+            ${topScorers.map(ev => `
+              <div style="padding:12px;background:rgba(22,163,74,0.1);border-radius:8px;margin-bottom:12px;border:1px solid ${CHART_COLORS.successLight};">
+                <div style="font-weight:600;color:${CHART_COLORS.success};margin-bottom:4px;">${ev.topic}</div>
+                <div style="font-size:1.2rem;font-weight:700;color:${CHART_COLORS.success};">${ev.score.toFixed(1)} / 5.0</div>
+                <div style="font-size:0.8rem;color:${CHART_COLORS.success};margin-top:4px;">คะแนนดีเยี่ยม ควรคงความเป็นเลิศ</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+      
+      ${needImprovement.length > 0 ? `
+        <div class="chart-card" style="border-left:4px solid ${CHART_COLORS.dangerLight};">
+          <h4 class="chart-title" style="color:${CHART_COLORS.dangerLight};">
+            <span>📈</span>
+            จุดพัฒนา (${needImprovementPercentage.toFixed(0)}% ของทั้งหมด)
+          </h4>
+          <div style="padding:20px;">
+            ${needImprovement.map(ev => `
+              <div style="padding:12px;background:rgba(239,68,68,0.1);border-radius:8px;margin-bottom:12px;border:1px solid ${CHART_COLORS.dangerLight};">
+                <div style="font-weight:600;color:${CHART_COLORS.dangerLight};margin-bottom:4px;">${ev.topic}</div>
+                <div style="font-size:1.2rem;font-weight:700;color:${CHART_COLORS.dangerLight};">${ev.score.toFixed(1)} / 5.0</div>
+                <div style="font-size:0.8rem;color:${CHART_COLORS.danger};margin-top:4px;">ต้องปรับปรุง ควรให้ความสำคัญเป็นพิเศษ</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+    </div>
+  `;
+}
+
+/**
+ * Open PDF Viewer Modal
+ */
+function openPDFViewer(fileUrl, fileName) {
+  const modal = document.createElement('div');
+  modal.id = 'pdfViewerModal';
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  `;
+
+  const isPDF = fileUrl.toLowerCase().endsWith('.pdf');
+
+  modal.innerHTML = `
+    <div style="background:white;border-radius:12px;width:100%;max-width:1200px;height:90vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+      <div style="padding:20px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <h3 style="margin:0;font-size:1.2rem;color:#1f2937;">${fileName}</h3>
+          <p style="margin:4px 0 0 0;font-size:0.85rem;color:#6b7280;">แผนการจัดการเรียนรู้</p>
+        </div>
+        <button onclick="closePDFViewer()" style="background:#ef4444;color:white;border:none;border-radius:8px;padding:10px 20px;cursor:pointer;font-weight:600;font-size:0.9rem;transition:background 0.2s;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">
+          ✕ ปิด
+        </button>
+      </div>
+      <div style="flex:1;overflow:hidden;position:relative;background:#f9fafb;">
+        ${isPDF ? `
+          <iframe src="${fileUrl}" style="width:100%;height:100%;border:none;"></iframe>
+        ` : `
+          <div style="height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:40px;">
+            <div style="font-size:4rem;margin-bottom:20px;">📄</div>
+            <h3 style="margin:0 0 12px 0;color:#1f2937;">ไม่สามารถแสดงตัวอย่างได้</h3>
+            <p style="margin:0 0 24px 0;color:#6b7280;text-align:center;">ไฟล์นี้ไม่ใช่ PDF กรุณาดาวน์โหลดเพื่อเปิดด้วยโปรแกรมที่เหมาะสม</p>
+            <a href="${fileUrl}" download="${fileName}" style="background:#3b82f6;color:white;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;display:inline-block;">
+              📥 ดาวน์โหลดไฟล์
+            </a>
+          </div>
+        `}
+      </div>
+      <div style="padding:16px;border-top:1px solid #e5e7eb;background:#f9fafb;border-radius:0 0 12px 12px;text-align:center;">
+        <a href="${fileUrl}" download="${fileName}" style="color:#3b82f6;text-decoration:none;font-weight:600;font-size:0.9rem;">
+          📥 ดาวน์โหลดไฟล์
+        </a>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+  document.body.style.overflow = 'hidden';
+
+  // Close on background click
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      closePDFViewer();
+    }
+  });
+}
+
+/**
+ * Close PDF Viewer Modal
+ */
+function closePDFViewer() {
+  const modal = document.getElementById('pdfViewerModal');
+  if (modal) {
+    modal.remove();
+    document.body.style.overflow = '';
+  }
+}
+
+/**
+ * Draw Pie Chart for Lesson Plans
+ */
+function drawLessonPlanPieChart(submitted, pending) {
+  const total = submitted + pending;
+  if (total === 0) return '<div style="color:#6b7280;text-align:center;padding:40px;">ไม่มีข้อมูล</div>';
+
+  const submittedPercent = (submitted / total) * 100;
+  const pendingPercent = (pending / total) * 100;
+
+  // Calculate angles for pie chart (using conic-gradient)
+  const submittedDeg = (submittedPercent / 100) * 360;
+
+  return `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:20px;">
+      <div style="position:relative;width:200px;height:200px;">
+        <div style="
+          width:100%;
+          height:100%;
+          border-radius:50%;
+          background:conic-gradient(
+            #16A34A 0deg ${submittedDeg}deg,
+            #FBB425 ${submittedDeg}deg 360deg
+          );
+          box-shadow:0 4px 12px rgba(0,0,0,0.1);
+        "></div>
+        <div style="
+          position:absolute;
+          top:50%;
+          left:50%;
+          transform:translate(-50%, -50%);
+          background:white;
+          border-radius:50%;
+          width:120px;
+          height:120px;
+          display:flex;
+          flex-direction:column;
+          align-items:center;
+          justify-content:center;
+          box-shadow:0 2px 8px rgba(0,0,0,0.1);
+        ">
+          <div style="font-size:2rem;font-weight:700;color:#1f2937;">${total}</div>
+          <div style="font-size:0.85rem;color:#6b7280;">งวดทั้งหมด</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:24px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:16px;height:16px;background:#16A34A;border-radius:4px;"></div>
+          <div>
+            <div style="font-size:0.85rem;color:#6b7280;">ส่งแล้ว</div>
+            <div style="font-size:1.1rem;font-weight:700;color:#16A34A;">${submitted} (${submittedPercent.toFixed(0)}%)</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:16px;height:16px;background:#FBB425;border-radius:4px;"></div>
+          <div>
+            <div style="font-size:0.85rem;color:#6b7280;">รอส่ง</div>
+            <div style="font-size:1.1rem;font-weight:700;color:#FBB425;">${pending} (${pendingPercent.toFixed(0)}%)</div>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -548,8 +1332,9 @@ function renderEvaluationSummary(evaluations) {
 
 /**
  * Render Lesson Plans (ปี 2-3 เท่านั้น)
+ * แสดงรายการแผนการสอนที่ส่งแล้ว (ไม่มีกราฟ แค่แสดงสถานะและดูไฟล์)
  */
-function renderLessonPlans(lessonPlans, canUpload) {
+async function renderLessonPlans(canUpload) {
   const container = document.getElementById('lessonPlansSection');
   if (!container) return;
 
@@ -559,46 +1344,151 @@ function renderLessonPlans(lessonPlans, canUpload) {
     return;
   }
 
-  const plansHtml = lessonPlans.length > 0 
-    ? lessonPlans.map(plan => `
-        <div class="lesson-plan-card">
-          <h4 class="lesson-plan-title">${plan.title}</h4>
-          <p class="lesson-plan-meta">
-            📚 ${plan.subject} ${plan.grade ? `| 🎓 ${plan.grade}` : ''}
-          </p>
-          <span class="lesson-plan-status ${plan.status}">
-            ${getStatusText(plan.status)}
-          </span>
-        </div>
-      `).join('')
-    : `
-        <div class="empty-state" style="padding:40px">
-          <div class="empty-state-icon">📄</div>
-          <h3>ยังไม่มีแผนการสอน</h3>
-          <p>เริ่มอัปโหลดแผนการสอนของคุณ</p>
-        </div>
-      `;
-
+  // แสดง loading
   container.innerHTML = `
     <div class="card lesson-plans-section">
-      <div class="lesson-plans-header">
-        <h3 style="margin:0;color:var(--color-text);display:flex;align-items:center;gap:10px">
-          <span>📄</span>
-          แผนการเรียนการสอน
-        </h3>
-        <button class="btn btn--primary btn--sm" onclick="openUploadLessonPlanModal()">
-          + อัปโหลดแผนใหม่
-        </button>
-      </div>
-      <div class="lesson-plans-grid">
-        ${plansHtml}
+      <h3 style="margin:0 0 20px 0;color:var(--color-text);display:flex;align-items:center;gap:10px">
+        <span>📄</span>
+        แผนการจัดการเรียนรู้
+      </h3>
+      <div style="text-align:center;padding:40px;">
+        <div class="loading-spinner" style="margin:0 auto 16px;"></div>
+        <p style="color:var(--color-muted);">กำลังโหลดข้อมูล...</p>
       </div>
     </div>
   `;
+
+  try {
+    // เรียก API ดึงสถิติแผนการสอน
+    const response = await fetch('/api/evaluation/lesson-plan-stats');
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.message || 'ไม่สามารถโหลดข้อมูลได้');
+    }
+
+    const stats = result.stats;
+    const byObservation = stats.byObservation || [];
+    const submissionRate = stats.submissionRate || 0;
+
+    // สร้าง HTML แบบเรียบง่าย - ไม่มีกราฟ
+    const hasData = byObservation.length > 0;
+
+    container.innerHTML = `
+      <div class="card lesson-plans-section">
+        <div class="lesson-plans-header">
+          <h3 style="margin:0;color:var(--color-text);display:flex;align-items:center;gap:10px">
+            <span>📄</span>
+            แผนการจัดการเรียนรู้
+          </h3>
+          <a href="/dashboard/evaluation" class="btn btn--primary btn--sm">
+            ส่งแผนการสอน →
+          </a>
+        </div>
+
+        ${hasData ? `
+          <!-- สถิติสรุป -->
+          <div style="background:var(--color-bg);padding:20px;border-radius:10px;margin:20px 0;display:flex;justify-content:space-around;align-items:center;">
+            <div style="text-align:center;">
+              <div style="font-size:2rem;font-weight:700;color:var(--color-primary);">${stats.total}</div>
+              <div style="font-size:0.9rem;color:var(--color-muted);">งวดทั้งหมด</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:2rem;font-weight:700;color:var(--color-success);">${stats.submitted}</div>
+              <div style="font-size:0.9rem;color:var(--color-muted);">ส่งแล้ว</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:2rem;font-weight:700;color:var(--color-warning);">${stats.pending}</div>
+              <div style="font-size:0.9rem;color:var(--color-muted);">รอส่ง</div>
+            </div>
+          </div>
+
+          <!-- รายการแผนการสอน -->
+          ${stats.submitted > 0 ? `
+            <div style="background:var(--color-surface);padding:20px;border-radius:10px;border:1px solid var(--color-border);">
+              <h4 style="margin:0 0 16px 0;font-size:1rem;color:var(--color-text);display:flex;align-items:center;gap:8px;">
+                <span>📚</span>
+                แผนการสอนที่ส่งแล้ว
+              </h4>
+              <div class="lesson-plans-list">
+                ${byObservation.filter(obs => obs.submitted).map(obs => `
+                  <div style="padding:16px;background:white;border-radius:8px;margin-bottom:12px;border:1px solid var(--color-border);cursor:pointer;transition:all 0.2s ease;" 
+                       onclick="openPDFViewer('${obs.fileUrl}', '${obs.fileName || 'แผนการสอน.pdf'}')"
+                       onmouseover="this.style.borderColor='var(--color-primary)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'"
+                       onmouseout="this.style.borderColor='var(--color-border)';this.style.boxShadow='none'">
+                    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">
+                      <div style="flex:1;">
+                        <h5 style="margin:0 0 4px 0;color:var(--color-primary);font-size:0.95rem;">
+                          ${obs.observationName}
+                        </h5>
+                        <p style="margin:0;font-size:0.85rem;color:var(--color-muted);">
+                          📁 ${obs.fileName || 'ไฟล์แผนการสอน'}
+                        </p>
+                      </div>
+                      <span style="background:rgba(22,163,74,0.1);color:#16A34A;padding:4px 12px;border-radius:6px;font-size:0.75rem;font-weight:600;">
+                        ✅ ส่งแล้ว
+                      </span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--color-border);">
+                      <span style="font-size:0.8rem;color:var(--color-muted);">
+                        📅 ${formatThaiDate(obs.submittedDate)}
+                      </span>
+                      <span style="font-size:0.8rem;color:var(--color-primary);font-weight:500;">
+                        คลิกเพื่อดูไฟล์ →
+                      </span>
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          ` : `
+            <div style="text-align:center;padding:40px;background:var(--color-bg);border-radius:10px;">
+              <div style="font-size:3rem;margin-bottom:12px;">📄</div>
+              <h4 style="margin:0 0 8px 0;color:var(--color-text);">ยังไม่มีแผนการสอน</h4>
+              <p style="margin:0;color:var(--color-muted);font-size:0.9rem;">กรุณาส่งแผนการจัดการเรียนรู้ในหน้าประเมิน</p>
+            </div>
+          `}
+
+        ` : `
+          <!-- ไม่มีข้อมูล -->
+          <div class="empty-state" style="padding:60px 20px;">
+            <div class="empty-state-icon">📄</div>
+            <h3>ยังไม่มีแผนการสอน</h3>
+            <p style="margin:0 0 20px 0;">คุณยังไม่ได้อยู่ในงวดฝึกประสบการณ์</p>
+            <a href="/dashboard/evaluation" class="btn btn--primary">
+              ไปที่หน้าประเมิน →
+            </a>
+          </div>
+        `}
+      </div>
+    `;
+
+  } catch (error) {
+    console.error('Error rendering lesson plans:', error);
+    container.innerHTML = `
+      <div class="card lesson-plans-section">
+        <h3 style="margin:0 0 20px 0;color:var(--color-text);display:flex;align-items:center;gap:10px">
+          <span>📄</span>
+          แผนการเรียนการสอน
+        </h3>
+        <div style="text-align:center;padding:40px;background:#fff3cd;border-radius:8px;">
+          <div style="font-size:2rem;margin-bottom:12px;">⚠️</div>
+          <p style="color:#856404;margin:0;">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
+          <button onclick="renderLessonPlans(true)" class="btn btn--secondary" style="margin-top:16px;">
+            ลองอีกครั้ง
+          </button>
+        </div>
+      </div>
+    `;
+  }
 }
 
 /**
- * Render Stats Summary
+ * ===============================================
+ * แสดงสถิติสรุป (STATS SUMMARY)
+ * ===============================================
+ * แสดงข้อมูลสถิติภาพรวมของนักศึกษา เช่น จำนวนงวดทั้งหมด การประเมิน แผนการสอน
+ * @param {Object} stats - ข้อมูลสถิติจาก API
  */
 function renderStats(stats) {
   const container = document.getElementById('statsSection');
@@ -606,7 +1496,7 @@ function renderStats(stats) {
 
   container.innerHTML = `
     <div class="card">
-      <h3 style="margin-top:0;margin-bottom:16px;color:var(--color-text)">สถิติ</h3>
+      <h3 style="margin-top:0;margin-bottom:16px;color:var(--color-text)">📊 สถิติการฝึกประสบการณ์</h3>
       <div class="stats-summary-grid">
         <div class="stats-summary-item">
           <div class="stats-summary-value primary">${stats.totalObservations}</div>
@@ -622,7 +1512,7 @@ function renderStats(stats) {
         </div>
         ${dashboardData.canUploadLessonPlan ? `
           <div class="stats-summary-item">
-            <div class="stats-summary-value" style="color:#8B5CF6">${stats.totalLessonPlans}</div>
+            <div class="stats-summary-value" style="color:${CHART_COLORS.info}">${stats.totalLessonPlans}</div>
             <div class="stats-summary-label">แผนการสอน</div>
           </div>
         ` : ''}
@@ -632,7 +1522,15 @@ function renderStats(stats) {
 }
 
 /**
- * Helper: Format date to Thai format
+ * ===============================================
+ * UTILITY FUNCTIONS (ฟังก์ชันอรรถประโยชน์)
+ * ===============================================
+ */
+
+/**
+ * แปลงวันที่เป็นรูปแบบภาษาไทย
+ * @param {string} dateStr - วันที่ในรูปแบบ ISO หรือ string
+ * @returns {string} - วันที่ในรูปแบบไทย (เช่น "15 ม.ค. 2567")
  */
 function formatThaiDate(dateStr) {
   if (!dateStr) return '-';
@@ -644,36 +1542,65 @@ function formatThaiDate(dateStr) {
       year: 'numeric' 
     });
   } catch (e) {
-    return dateStr;
+    return dateStr; // คืนค่าเดิมถ้าแปลงไม่ได้
   }
 }
 
 /**
- * Helper: Get grade text from score
+ * ===============================================
+ * HELPER FUNCTIONS (ฟังก์ชันช่วยงาน)
+ * ===============================================
+ * ฟังก์ชันสำหรับช่วยในการแปลงค่าและจัดรูปแบบการแสดงผล
+ */
+
+/**
+ * แปลงคะแนนเป็นข้อความเกรด
+ * @param {number} score - คะแนนในช่วง 1-5
+ * @returns {string} - ข้อความเกรดภาษาไทย
  */
 function getGradeText(score) {
   const s = parseFloat(score);
-  if (s >= 4.5) return 'ดีมาก';
-  if (s >= 4) return 'ดี';
-  if (s >= 3.5) return 'ปานกลาง';
-  if (s >= 3) return 'พอใช้';
-  return 'ปรับปรุง';
+  if (s >= 4.5) return 'ดีเยี่ยม';      // 4.5-5.0
+  if (s >= 4) return 'ดีมาก';          // 4.0-4.49
+  if (s >= 3.5) return 'ดี';           // 3.5-3.99
+  if (s >= 3) return 'พอใช้';          // 3.0-3.49
+  if (s >= 2.5) return 'ปรับปรุง';     // 2.5-2.99
+  return 'ต้องปรับปรุงมาก';            // <2.5
 }
 
 /**
- * Helper: Get color class from score
+ * ดึงสีที่เหมาะสมตามคะแนน (ใช้ CSS variables)
+ * @param {number} score - คะแนนในช่วง 1-5
+ * @returns {string} - CSS color value
+ */
+function getScoreColor(score) {
+  const s = parseFloat(score) || 0;
+  if (s >= 4.5) return CHART_COLORS.success;       // ดีเยี่ยม
+  if (s >= 4) return CHART_COLORS.successLight;    // ดีมาก
+  if (s >= 3.5) return CHART_COLORS.lime;          // ดี
+  if (s >= 3) return CHART_COLORS.warningLight;    // พอใช้
+  if (s >= 2) return CHART_COLORS.orange;          // ปรับปรุง
+  return CHART_COLORS.dangerLight;                 // ต้องปรับปรุงมาก
+}
+
+/**
+ * Helper: Get CSS class from score (สำหรับใช้กับ CSS classes)
+ * @param {number} score - คะแนนในช่วง 1-5
+ * @returns {string} - CSS class name
  */
 function getScoreColorClass(score) {
   const s = parseFloat(score) || 0;
-  if (s >= 4.5) return 'score-excellent';
-  if (s >= 4) return 'score-very-good';
-  if (s >= 3.5) return 'score-good';
-  if (s >= 3) return 'score-fair';
-  return 'score-poor';
+  if (s >= 4.5) return 'score-excellent';    // ดีเยี่ยม
+  if (s >= 4) return 'score-very-good';      // ดีมาก
+  if (s >= 3.5) return 'score-good';         // ดี
+  if (s >= 3) return 'score-fair';           // พอใช้
+  return 'score-poor';                       // ต้องปรับปรุง
 }
 
 /**
- * Helper: Get status text
+ * แปลงสถานะเป็นข้อความและไอคอน
+ * @param {string} status - สถานะ (approved, rejected, pending)
+ * @returns {string} - ข้อความสถานะพร้อมไอคอน
  */
 function getStatusText(status) {
   switch (status) {
@@ -685,7 +1612,14 @@ function getStatusText(status) {
 }
 
 /**
- * Change practice view (when selector changes)
+ * ===============================================
+ * EVENT HANDLERS (ตัวจัดการเหตุการณ์)
+ * ===============================================
+ */
+
+/**
+ * เปลี่ยนมุมมองประวัติการฝึก (เมื่อเปลี่ยน selector)
+ * @description ฟังก์ชันสำหรับจัดการเมื่อผู้ใช้เปลี่ยนการเลือกงวดฝึกใน dropdown
  */
 function changePracticeView() {
   const selector = document.getElementById('periodSelector');
@@ -693,7 +1627,8 @@ function changePracticeView() {
   
   const selectedId = selector.value;
   
-  // Future: could highlight specific timeline item or load more details
+  // TODO: อาจจะเพิ่มการ highlight timeline item ที่เลือก หรือโหลดรายละเอียดเพิ่มเติม
+  console.log('Selected practice period:', selectedId);
 }
 
 /**

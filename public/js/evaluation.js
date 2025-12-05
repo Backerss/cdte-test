@@ -42,10 +42,16 @@ function getMillis(val) {
 // Check if within practice period
 function isWithinPracticePeriod() {
   if (!currentEvalPeriod) return false;
-  const now = Date.now();
-  const start = getMillis(currentEvalPeriod.startDate);
-  const end = getMillis(currentEvalPeriod.endDate);
-  return start && end && now >= start && now <= end;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0); // ตั้งเวลาเป็น 00:00:00 เพื่อเปรียบเทียบวันที่
+  
+  const start = new Date(getMillis(currentEvalPeriod.startDate));
+  start.setHours(0, 0, 0, 0); // วันเริ่มต้นที่ 00:00:00
+  
+  const end = new Date(getMillis(currentEvalPeriod.endDate));
+  end.setHours(23, 59, 59, 999); // วันสุดท้ายที่ 23:59:59
+  
+  return start && end && now.getTime() >= start.getTime() && now.getTime() <= end.getTime();
 }
 
 // Format Thai date
@@ -84,7 +90,7 @@ function updateFormAvailability() {
 }
 
 // Change evaluation period
-function changeEvalPeriod() {
+async function changeEvalPeriod() {
   const selector = document.getElementById('evalPeriodSelector');
   const selectedId = selector && selector.value !== undefined ? selector.value : null;
   // Support IDs as number or string coming from server/DOM
@@ -94,6 +100,16 @@ function changeEvalPeriod() {
   if (!currentEvalPeriod) {
     console.warn('No evaluation period found with id:', selectedId);
     return;
+  }
+
+  // Load evaluation data from backend for selected period
+  const backendData = await loadEvaluationDataFromBackend(currentEvalPeriod.id);
+  if (backendData) {
+    // Merge backend data with current period
+    currentEvalPeriod.evaluations = backendData.evaluations || {};
+    currentEvalPeriod.weekStatus = backendData.weekStatus || {};
+    currentEvalPeriod.lessonPlan = backendData.lessonPlan || {};
+    currentEvalPeriod.videoLink = backendData.videoLink || {};
   }
 
   const nowMs = Date.now();
@@ -121,14 +137,26 @@ function loadCurrentPeriodData() {
 
   loadEvaluationStates();
   loadLessonPlanStatus();
-
+  loadVideoStatus();
+  
+  // แสดงข้อความถ้าอยู่นอกช่วง (ไม่บล็อกการทำงาน)
   if (!isWithinPracticePeriod()) {
-    Swal.fire({
-      icon: 'warning',
-      title: 'นอกช่วงการฝึกประสบการณ์',
-      html: 'ปัจจุบันอยู่นอกช่วงฝึกประสบการณ์<br>หากต้องการประเมินกรุณาติดต่อ:<br><strong>อาจารย์นิเทศ / อาจารย์ผู้ควบคุมรายวิชา</strong>',
-      confirmButtonText: 'รับทราบ'
-    });
+    const banner = document.createElement('div');
+    banner.id = 'outsidePeriodWarning';
+    banner.style.cssText = 'background:#fff3cd;border-left:4px solid #ffc107;padding:12px;border-radius:8px;margin-bottom:16px;color:#856404';
+    banner.innerHTML = '⚠️ <strong>แจ้งเตือน:</strong> ปัจจุบันอยู่นอกช่วงฝึกประสบการณ์ | หากต้องการประเมิน กรุณาติดต่ออาจารย์นิเทศ';
+    
+    const evalContent = document.getElementById('evalCurrentContent');
+    const infoBanner = evalContent.querySelector('.info-banner');
+    if (infoBanner && !document.getElementById('outsidePeriodWarning')) {
+      infoBanner.insertAdjacentElement('afterend', banner);
+    }
+  } else {
+    // ลบข้อความเตือนถ้าอยู่ในช่วง
+    const existingWarning = document.getElementById('outsidePeriodWarning');
+    if (existingWarning) {
+      existingWarning.remove();
+    }
   }
 }
 
@@ -489,14 +517,36 @@ function loadEvaluationStates() {
 function startEvaluation(evalNum) {
   currentEvalNum = evalNum;
   
-  if (!isWithinPracticePeriod()) {
-    Swal.fire({
-      icon: 'error',
-      title: 'ไม่สามารถประเมินได้',
-      text: 'อยู่นอกช่วงฝึกประสบการณ์ กรุณาติดต่ออาจารย์นิเทศ',
-      confirmButtonText: 'รับทราบ'
-    });
-    return;
+  // Check if lesson plan is required and uploaded (Year 2-3)
+  if (userYear >= 2 && userYear <= 3) {
+    if (!currentEvalPeriod.lessonPlan || !currentEvalPeriod.lessonPlan.uploaded) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'กรุณาอัปโหลดแผนการสอนก่อน',
+        html: `
+          <p>นักศึกษาปี ${userYear} ต้องอัปโหลด<strong>แผนการจัดการเรียนรู้</strong>ก่อนทำการประเมิน</p>
+          <p style="margin-top:12px;color:var(--color-muted)">กรุณาเลื่อนขึ้นไปด้านบนเพื่ออัปโหลดแผนการสอน</p>
+        `,
+        confirmButtonText: 'รับทราบ'
+      });
+      return;
+    }
+  }
+  
+  // Check if video is required and uploaded (Year 3 only)
+  if (userYear === 3) {
+    if (!currentEvalPeriod.videoLink || !currentEvalPeriod.videoLink.submitted) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'กรุณาส่งลิงก์วิดีโอก่อน',
+        html: `
+          <p>นักศึกษาปี 3 ต้องส่ง<strong>ลิงก์วิดีโอการสอน</strong>ก่อนทำการประเมิน</p>
+          <p style="margin-top:12px;color:var(--color-muted)">กรุณาเลื่อนขึ้นไปด้านบนเพื่อส่งลิงก์วิดีโอ YouTube</p>
+        `,
+        confirmButtonText: 'รับทราบ'
+      });
+      return;
+    }
   }
 
   const evalInfo = currentEvalPeriod.evaluations[evalNum];
@@ -506,12 +556,13 @@ function startEvaluation(evalNum) {
   }
 
   if (!evalInfo) {
+    const week = Math.ceil(evalNum / 3); // คำนวณสัปดาห์จากครั้งที่ประเมิน
     currentEvalPeriod.evaluations[evalNum] = {
+      week: week,
       date: new Date().toISOString().split('T')[0],
       answers: {},
       submitted: false
     };
-    saveEvaluationData();
     loadEvaluationStates();
   }
 
@@ -575,10 +626,10 @@ function saveProgress() {
   }
   
   currentEvalPeriod.evaluations[currentEvalNum].answers = answers;
-  saveEvaluationData();
+  // Note: saveProgress doesn't send to backend, only updates local state
 }
 
-function submitEvaluation() {
+async function submitEvaluation() {
   const form = document.getElementById('evaluationForm');
   
   const totalQuestions = 26;
@@ -595,7 +646,7 @@ function submitEvaluation() {
     return;
   }
 
-  Swal.fire({
+  const result = await Swal.fire({
     icon: 'question',
     title: 'ยืนยันการส่งแบบประเมิน',
     html: `
@@ -609,16 +660,78 @@ function submitEvaluation() {
     cancelButtonText: 'ยกเลิก',
     confirmButtonColor: '#2E3094',
     cancelButtonColor: '#6c757d'
-  }).then((result) => {
-    if (result.isConfirmed) {
-      saveProgress();
-      
+  });
+  
+  if (!result.isConfirmed) return;
+  
+  // แสดง loading
+  Swal.fire({
+    title: 'กำลังบันทึกข้อมูล...',
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading()
+  });
+  
+  // รวบรวมคำตอบ
+  saveProgress();
+  const answers = currentEvalPeriod.evaluations[currentEvalNum].answers;
+  
+  // คำนวณสัปดาห์จากครั้งที่ประเมิน
+  const week = Math.ceil(currentEvalNum / 3);
+  
+  // Debug: ตรวจสอบว่ามี observationId หรือไม่
+  if (!currentEvalPeriod || !currentEvalPeriod.id) {
+    console.error('Missing observation ID:', currentEvalPeriod);
+    Swal.fire({
+      icon: 'error',
+      title: 'เกิดข้อผิดพลาด',
+      text: 'ไม่พบข้อมูลงวดการสังเกต กรุณาเลือกงวดใหม่'
+    });
+    return;
+  }
+  
+  try {
+    // ส่งข้อมูลไป backend
+    const payload = {
+      observationId: currentEvalPeriod.id,
+      week: week,
+      evaluationNum: currentEvalNum,
+      answers: answers
+    };
+    
+    console.log('Submitting evaluation:', payload);
+    
+    const response = await fetch('/api/evaluation/save-week', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    
+    console.log('Response status:', response.status);
+    
+    const data = await response.json();
+    console.log('Response data:', data);
+    
+    if (data.success) {
+      // อัปเดต local state
       currentEvalPeriod.evaluations[currentEvalNum].submitted = true;
-      saveEvaluationData();
       loadEvaluationStates();
       showSuccessAndClose();
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        text: data.message || 'ไม่สามารถบันทึกข้อมูลได้'
+      });
     }
-  });
+  } catch (error) {
+    console.error('Error submitting evaluation:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'เกิดข้อผิดพลาด',
+      text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง',
+      footer: `<small>รายละเอียด: ${error.message}</small>`
+    });
+  }
 }
 
 function showSuccessAndClose() {
@@ -631,6 +744,8 @@ function showSuccessAndClose() {
     const form = document.getElementById('evaluationForm');
     if (form) form.reset();
     closeEvaluationModal();
+    // Update UI to show completed status
+    loadEvaluationStates();
   });
 }
 
@@ -640,10 +755,14 @@ function loadLessonPlanStatus() {
   const statusText = document.getElementById('lessonPlanStatusText');
   const fileNameEl = document.getElementById('mainLessonPlanFileName');
   const submitBtn = document.getElementById('submitLessonPlanBtn');
+  const uploadBtn = document.querySelector('button[onclick*="mainLessonPlanInput.click"]');
+  const previewDiv = document.getElementById('mainLessonPlanPreview');
+  const removeBtn = document.querySelector('button[onclick="removeMainLessonPlan()"]');
   
   if (!statusDiv || !statusText) return;
   
   if (currentEvalPeriod.lessonPlan && currentEvalPeriod.lessonPlan.uploaded) {
+    // ส่งแล้ว - ล็อกทุกอย่าง
     statusDiv.style.display = 'block';
     statusDiv.style.background = '#d4edda';
     statusDiv.style.color = '#155724';
@@ -657,7 +776,25 @@ function loadLessonPlanStatus() {
       submitBtn.textContent = '✅ ส่งแล้ว';
       submitBtn.disabled = true;
     }
+    if (uploadBtn) {
+      uploadBtn.disabled = true;
+      uploadBtn.style.opacity = '0.5';
+      uploadBtn.style.cursor = 'not-allowed';
+    }
+    if (previewDiv) {
+      previewDiv.style.display = 'none';
+    }
+    
+    // แสดงข้อความเตือนว่าไม่สามารถแก้ไขได้
+    const warningDiv = document.createElement('div');
+    warningDiv.id = 'lessonPlanWarning';
+    warningDiv.style.cssText = 'margin-top:12px;padding:12px;background:#fff3cd;color:#856404;border-radius:8px;font-size:0.9rem';
+    warningDiv.innerHTML = '<strong>⚠️ หมายเหตุ:</strong> ไฟล์ที่ส่งแล้วไม่สามารถลบหรือแก้ไขได้';
+    if (!document.getElementById('lessonPlanWarning')) {
+      statusDiv.parentElement.appendChild(warningDiv);
+    }
   } else {
+    // ยังไม่ส่ง - ปกติ
     statusDiv.style.display = 'block';
     statusText.textContent = 'สถานะ: รอส่งแผนการจัดการเรียนรู้';
     if (fileNameEl) {
@@ -667,6 +804,56 @@ function loadLessonPlanStatus() {
     if (submitBtn) {
       submitBtn.textContent = '📤 ส่งแผนการจัดการเรียนรู้';
       submitBtn.disabled = !mainLessonPlanFile;
+    }
+    if (uploadBtn) {
+      uploadBtn.disabled = false;
+      uploadBtn.style.opacity = '1';
+      uploadBtn.style.cursor = 'pointer';
+    }
+    
+    // ลบข้อความเตือน (ถ้ามี)
+    const warningDiv = document.getElementById('lessonPlanWarning');
+    if (warningDiv) {
+      warningDiv.remove();
+    }
+  }
+}
+
+function loadVideoStatus() {
+  const statusDiv = document.getElementById('videoStatus');
+  const statusText = document.getElementById('videoStatusText');
+  const videoInput = document.getElementById('videoLinkInput');
+  const submitBtn = document.getElementById('submitVideoBtn');
+  const previewDiv = document.getElementById('videoPreview');
+  
+  if (!statusDiv || !statusText) return;
+  
+  if (currentEvalPeriod.videoLink && currentEvalPeriod.videoLink.submitted) {
+    statusDiv.style.display = 'block';
+    statusDiv.style.background = '#d4edda';
+    statusDiv.style.color = '#155724';
+    statusText.textContent = `สถานะ: ส่งลิงก์วิดีโอเรียบร้อยแล้ว (${formatThaiDate(currentEvalPeriod.videoLink.submittedDate)})`;
+    
+    if (videoInput) {
+      videoInput.value = currentEvalPeriod.videoLink.url;
+      videoInput.disabled = true;
+    }
+    if (submitBtn) {
+      submitBtn.textContent = '✅ ส่งแล้ว';
+      submitBtn.disabled = true;
+    }
+    if (previewDiv && currentEvalPeriod.videoLink.videoId) {
+      showVideoPreview(currentEvalPeriod.videoLink.videoId);
+    }
+  } else {
+    statusDiv.style.display = 'block';
+    statusText.textContent = 'สถานะ: รอส่งลิงก์วิดีโอ';
+    if (videoInput) {
+      videoInput.disabled = false;
+    }
+    if (submitBtn) {
+      submitBtn.textContent = '📤 ส่งลิงก์วิดีโอ';
+      submitBtn.disabled = true;
     }
   }
 }
@@ -776,6 +963,17 @@ function getFileTypeName(mimeType) {
 }
 
 function removeMainLessonPlan() {
+  // ตรวจสอบว่าส่งแล้วหรือยัง
+  if (currentEvalPeriod && currentEvalPeriod.lessonPlan && currentEvalPeriod.lessonPlan.uploaded) {
+    Swal.fire({
+      icon: 'error',
+      title: 'ไม่สามารถลบได้',
+      text: 'ไฟล์ที่ส่งแล้วไม่สามารถลบหรือแก้ไขได้',
+      confirmButtonText: 'รับทราบ'
+    });
+    return;
+  }
+  
   mainLessonPlanFile = null;
   document.getElementById('mainLessonPlanInput').value = '';
   document.getElementById('mainLessonPlanFileName').textContent = 'ยังไม่ได้เลือกไฟล์';
@@ -791,7 +989,7 @@ function removeMainLessonPlan() {
   });
 }
 
-function submitLessonPlan() {
+async function submitLessonPlan() {
   if (!mainLessonPlanFile) {
     Swal.fire({
       icon: 'warning',
@@ -802,7 +1000,7 @@ function submitLessonPlan() {
     return;
   }
   
-  Swal.fire({
+  const result = await Swal.fire({
     icon: 'question',
     title: 'ยืนยันการส่งแผนการจัดการเรียนรู้',
     html: `
@@ -817,30 +1015,139 @@ function submitLessonPlan() {
     cancelButtonText: 'ยกเลิก',
     confirmButtonColor: '#2E3094',
     cancelButtonColor: '#6c757d'
-  }).then((result) => {
-    if (result.isConfirmed) {
+  });
+  
+  if (!result.isConfirmed) return;
+  
+  // ตรวจสอบ observationId
+  if (!currentEvalPeriod || !currentEvalPeriod.id) {
+    console.error('Missing observation ID:', currentEvalPeriod);
+    Swal.fire({
+      icon: 'error',
+      title: 'เกิดข้อผิดพลาด',
+      text: 'ไม่พบข้อมูลงวดการสังเกต กรุณาเลือกงวดใหม่'
+    });
+    return;
+  }
+  
+  // แสดง loading
+  Swal.fire({
+    title: 'กำลังบันทึกข้อมูล...',
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading()
+  });
+  
+  console.log('Submitting lesson plan for observation:', currentEvalPeriod.id);
+  
+  try {
+    // สร้าง FormData เพื่อส่งไฟล์
+    const formData = new FormData();
+    formData.append('lessonPlanFile', mainLessonPlanFile);
+    formData.append('observationId', currentEvalPeriod.id);
+    
+    const response = await fetch('/api/evaluation/submit-lesson-plan', {
+      method: 'POST',
+      body: formData
+      // ไม่ต้องตั้ง Content-Type เพราะ browser จะตั้งให้อัตโนมัติพร้อม boundary สำหรับ multipart/form-data
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      // อัปเดต local state
       currentEvalPeriod.lessonPlan = {
         uploaded: true,
         fileName: mainLessonPlanFile.name,
+        fileUrl: data.data?.fileUrl,
         submittedDate: new Date().toISOString().split('T')[0]
       };
       
-      saveEvaluationData();
       loadLessonPlanStatus();
       
-      Swal.fire({
+      await Swal.fire({
         icon: 'success',
         title: 'ส่งแผนการจัดการเรียนรู้สำเร็จ',
-        text: 'บันทึกแผนการจัดการเรียนรู้เรียบร้อยแล้ว',
+        html: `
+          <p>บันทึกแผนการจัดการเรียนรู้เรียบร้อยแล้ว</p>
+          <p style="color:var(--color-muted);font-size:0.9rem;margin-top:8px">ไฟล์: ${mainLessonPlanFile.name}</p>
+          <p style="color:var(--color-danger);font-size:0.85rem;margin-top:12px">
+            <strong>⚠️ หมายเหตุ:</strong> ไม่สามารถลบหรือแก้ไขได้อีก
+          </p>
+        `,
         confirmButtonText: 'ตกลง'
       });
+      
+      // ล้างไฟล์ที่เลือกไว้
+      mainLessonPlanFile = null;
+      document.getElementById('mainLessonPlanInput').value = '';
+    } else {
+      // ถ้าส่งไปแล้ว แสดงสถานะปัจจุบัน
+      if (data.alreadySubmitted) {
+        loadLessonPlanStatus();
+      }
+      Swal.fire({
+        icon: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        text: data.message || 'ไม่สามารถบันทึกข้อมูลได้'
+      });
     }
-  });
+  } catch (error) {
+    console.error('Error submitting lesson plan:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'เกิดข้อผิดพลาด',
+      text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่'
+    });
+  }
 }
 
-function saveEvaluationData() {
-  localStorage.setItem('evaluationPracticeHistory_' + userYear, JSON.stringify(evaluationPracticeHistory));
-  // TODO: send to server via API
+async function saveEvaluationData() {
+  // This function is now mainly for local state management
+  // Actual backend saving happens in submitEvaluation()
+  // Keep this for compatibility with existing code
+  if (!currentEvalPeriod || !currentEvalNum) return;
+  
+  const evalData = currentEvalPeriod.evaluations[currentEvalNum];
+  if (!evalData || !evalData.submitted) return;
+  
+  // Auto-save only if already submitted (for updates)
+  const week = Math.ceil(currentEvalNum / 3);
+  
+  try {
+    const response = await fetch('/api/evaluation/save-week', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        observationId: currentEvalPeriod.id,
+        week: week,
+        evaluationNum: currentEvalNum,
+        answers: evalData.answers
+      })
+    });
+    
+    const result = await response.json();
+    if (!result.success) {
+      console.error('Failed to save evaluation:', result.message);
+    }
+  } catch (error) {
+    console.error('Error saving evaluation data:', error);
+  }
+}
+
+// Load evaluation data from backend
+async function loadEvaluationDataFromBackend(observationId) {
+  try {
+    const response = await fetch(`/api/evaluation/my-data?observationId=${observationId}`);
+    const result = await response.json();
+    
+    if (result.success && result.hasData) {
+      return result.data;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error loading evaluation data:', error);
+    return null;
+  }
 }
 
 // Initialize page
@@ -865,8 +1172,23 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
     
     if (currentEvalPeriod) {
+      // Load evaluation data from backend
+      const backendData = await loadEvaluationDataFromBackend(currentEvalPeriod.id);
+      if (backendData) {
+        // Merge backend data with current period
+        currentEvalPeriod.evaluations = backendData.evaluations || {};
+        currentEvalPeriod.weekStatus = backendData.weekStatus || {};
+        currentEvalPeriod.lessonPlan = backendData.lessonPlan || {};
+        currentEvalPeriod.videoLink = backendData.videoLink || {};
+      }
+      
       changeEvalPeriod();
       updateFormAvailability();
+      
+      // Update UI to show loaded data
+      loadEvaluationStates();
+      loadLessonPlanStatus();
+      loadVideoStatus();
     } else {
       console.warn('No observations available');
     }
@@ -887,3 +1209,200 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (e.target === this) closeDetailsModal();
   });
 });
+
+// Video Link Functions (Year 3 Only)
+async function validateVideoLink() {
+  const input = document.getElementById('videoLinkInput');
+  const url = input?.value.trim();
+  
+  if (!url) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'กรุณากรอกลิงก์',
+      text: 'กรุณาวางลิงก์ YouTube ของคุณ'
+    });
+    return;
+  }
+  
+  Swal.fire({
+    title: 'กำลังตรวจสอบ...',
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading()
+  });
+  
+  try {
+    const response = await fetch('/api/evaluation/validate-video-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ videoUrl: url })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success && result.valid) {
+      Swal.fire({
+        icon: 'success',
+        title: 'ลิงก์ถูกต้อง!',
+        text: result.message,
+        confirmButtonText: 'ตกลง'
+      });
+      
+      showVideoPreview(result.embedUrl, result.videoId);
+      document.getElementById('submitVideoBtn').disabled = false;
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'ลิงก์ไม่ถูกต้อง',
+        html: result.message.replace(/\n/g, '<br>'),
+        confirmButtonText: 'ตกลง'
+      });
+      document.getElementById('submitVideoBtn').disabled = true;
+    }
+  } catch (error) {
+    console.error('Error validating video:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'เกิดข้อผิดพลาด',
+      text: 'ไม่สามารถตรวจสอบลิงก์ได้ กรุณาลองใหม่'
+    });
+  }
+}
+
+function showVideoPreview(embedUrl, videoId) {
+  const preview = document.getElementById('videoPreview');
+  const content = document.getElementById('videoPreviewContent');
+  
+  preview.style.display = 'block';
+  content.innerHTML = `
+    <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px">
+      <iframe 
+        src="${embedUrl}" 
+        frameborder="0" 
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+        allowfullscreen
+        style="position:absolute;top:0;left:0;width:100%;height:100%">
+      </iframe>
+    </div>
+    <div style="margin-top:12px;padding:12px;background:white;border-radius:6px">
+      <div style="font-size:0.9rem;color:var(--color-text)">
+        <strong>Video ID:</strong> ${videoId}
+      </div>
+    </div>
+  `;
+}
+
+function removeVideoLink() {
+  document.getElementById('videoLinkInput').value = '';
+  document.getElementById('videoPreview').style.display = 'none';
+  document.getElementById('submitVideoBtn').disabled = true;
+  
+  Swal.fire({
+    icon: 'success',
+    title: 'ลบลิงก์สำเร็จ',
+    timer: 1500,
+    showConfirmButton: false
+  });
+}
+
+async function submitVideoLink() {
+  const input = document.getElementById('videoLinkInput');
+  const url = input?.value.trim();
+  
+  if (!url) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'กรุณากรอกลิงก์',
+      text: 'กรุณาวางลิงก์ YouTube ของคุณ'
+    });
+    return;
+  }
+  
+  const result = await Swal.fire({
+    icon: 'question',
+    title: 'ยืนยันการส่งลิงก์วิดีโอ',
+    html: `
+      <p>คุณต้องการส่งลิงก์วิดีโอการสอนหรือไม่?</p>
+      <p style="color:var(--color-danger);margin-top:12px">
+        <strong>⚠️ หมายเหตุ:</strong> เมื่อส่งแล้วจะไม่สามารถแก้ไขได้อีก
+      </p>
+    `,
+    showCancelButton: true,
+    confirmButtonText: 'ยืนยันส่ง',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#2E3094'
+  });
+  
+  if (!result.isConfirmed) return;
+  
+  // ตรวจสอบ observationId
+  if (!currentEvalPeriod || !currentEvalPeriod.id) {
+    console.error('Missing observation ID:', currentEvalPeriod);
+    Swal.fire({
+      icon: 'error',
+      title: 'เกิดข้อผิดพลาด',
+      text: 'ไม่พบข้อมูลงวดการสังเกต กรุณาเลือกงวดใหม่'
+    });
+    return;
+  }
+  
+  Swal.fire({
+    title: 'กำลังส่งข้อมูล...',
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading()
+  });
+  
+  console.log('Submitting video link for observation:', currentEvalPeriod.id);
+  
+  try {
+    const response = await fetch('/api/evaluation/submit-video', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        observationId: currentEvalPeriod.id,
+        videoUrl: url
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      await Swal.fire({
+        icon: 'success',
+        title: 'ส่งลิงก์สำเร็จ!',
+        text: data.message,
+        confirmButtonText: 'ตกลง'
+      });
+      
+      // Update UI
+      const videoStatus = document.getElementById('videoStatus');
+      const videoStatusText = document.getElementById('videoStatusText');
+      
+      if (videoStatus && videoStatusText) {
+        videoStatus.style.display = 'block';
+        videoStatus.style.background = '#d4edda';
+        videoStatus.style.color = '#155724';
+        videoStatusText.textContent = 'สถานะ: ส่งลิงก์วิดีโอเรียบร้อยแล้ว ✓';
+      }
+      
+      // Disable inputs
+      input.disabled = true;
+      document.getElementById('submitVideoBtn').disabled = true;
+      const validateBtn = document.querySelector('button[onclick="validateVideoLink()"]');
+      if (validateBtn) validateBtn.disabled = true;
+      
+    } else {
+      Swal.fire({
+        icon: 'error',
+        title: 'เกิดข้อผิดพลาด',
+        text: data.message
+      });
+    }
+  } catch (error) {
+    console.error('Error submitting video:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'เกิดข้อผิดพลาด',
+      text: 'ไม่สามารถส่งข้อมูลได้ กรุณาลองใหม่'
+    });
+  }
+}

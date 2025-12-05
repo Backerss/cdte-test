@@ -105,7 +105,6 @@
           <label class="form-label">วิทยฐานะ <span class="required">*</span></label>
           <select class="form-input" required>
             <option value="">เลือกวิทยฐานะ</option>
-            <option value="ครูผู้ช่วย">ครูผู้ช่วย</option>
             <option value="ครู (คศ.1)">ครู (คศ.1)</option>
             <option value="ครูชำนาญการ (คศ.2)">ครูชำนาญการ (คศ.2)</option>
             <option value="ครูชำนาญการพิเศษ (คศ.3)">ครูชำนาญการพิเศษ (คศ.3)</option>
@@ -131,14 +130,35 @@
         <h3 class="form-section-title">วุฒิการศึกษา</h3>
         
         <div id="educationContainer">
-          <div class="education-entry" style="display:flex;gap:8px;align-items:flex-end;margin-bottom:12px">
-            <div class="form-group" style="flex:1;margin:0">
-              <label class="form-label">วุฒิการศึกษา</label>
-              <input type="text" class="form-input education-input" placeholder="เช่น ค.บ. เทคโนโลยีดิจิทัลเพื่อการศึกษา">
+          <div class="education-entry" style="margin-bottom:20px;padding:16px;background:var(--color-bg);border-radius:8px;border:1px solid var(--color-border)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+              <label class="form-label" style="margin:0;font-weight:600;color:var(--color-primary)">วุฒิการศึกษาที่ 1</label>
+              <button type="button" class="btn btn--danger btn--icon" onclick="removeEducation(this)" style="padding:6px 12px;font-size:0.9rem">
+                ✕ ลบ
+              </button>
             </div>
-            <button type="button" class="btn btn--danger btn--icon" onclick="removeEducation(this)" style="padding:10px 16px">
-              ✕
-            </button>
+            
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div class="form-group" style="margin:0">
+                <label class="form-label" style="font-size:0.9rem">ระดับการศึกษา <span class="required">*</span></label>
+                <input type="text" class="form-input education-degree" placeholder="เช่น ค.บ., ศศ.บ., กศ.ม." required>
+              </div>
+              <div class="form-group" style="margin:0">
+                <label class="form-label" style="font-size:0.9rem">ปีที่จบ <span class="required">*</span></label>
+                <input type="number" class="form-input education-year" placeholder="เช่น 2560" min="2500" max="2570" required>
+              </div>
+            </div>
+            
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+              <div class="form-group" style="margin:0">
+                <label class="form-label" style="font-size:0.9rem">มหาวิทยาลัย <span class="required">*</span></label>
+                <input type="text" class="form-input education-university" placeholder="เช่น มหาวิทยาลัยราชภัฏนครสวรรค์" required>
+              </div>
+              <div class="form-group" style="margin:0">
+                <label class="form-label" style="font-size:0.9rem">จังหวัด <span class="required">*</span></label>
+                <input type="text" class="form-input education-province" placeholder="เช่น นครสวรรค์" required>
+              </div>
+            </div>
           </div>
         </div>
         
@@ -791,25 +811,71 @@
 // Education Management
 function addEducation() {
   const container = document.getElementById('educationContainer');
+  const entries = container.querySelectorAll('.education-entry');
+  const newIndex = entries.length + 1;
+  
   const entry = document.createElement('div');
   entry.className = 'education-entry';
-  entry.style.cssText = 'display:flex;gap:8px;align-items:flex-end;margin-bottom:12px';
+  entry.style.cssText = 'margin-bottom:20px;padding:16px;background:var(--color-bg);border-radius:8px;border:1px solid var(--color-border)';
   entry.innerHTML = `
-    <div class="form-group" style="flex:1;margin:0">
-      <input type="text" class="form-input education-input" placeholder="เช่น ค.บ. เทคโนโลยีดิจิทัลเพื่อการศึกษา">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <label class="form-label" style="margin:0;font-weight:600;color:var(--color-primary)">วุฒิการศึกษาที่ ${newIndex}</label>
+      <button type="button" class="btn btn--danger btn--icon" onclick="removeEducation(this)" style="padding:6px 12px;font-size:0.9rem">
+        ✕ ลบ
+      </button>
     </div>
-    <button type="button" class="btn btn--danger btn--icon" onclick="removeEducation(this)" style="padding:10px 16px">
-      ✕
-    </button>
+    
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group" style="margin:0">
+        <label class="form-label" style="font-size:0.9rem">ระดับการศึกษา <span class="required">*</span></label>
+        <input type="text" class="form-input education-degree" placeholder="เช่น ค.บ., ศศ.บ., กศ.ม." required>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label class="form-label" style="font-size:0.9rem">ปีที่จบ <span class="required">*</span></label>
+        <input type="number" class="form-input education-year" placeholder="เช่น 2560" min="2500" max="2570" required>
+      </div>
+    </div>
+    
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+      <div class="form-group" style="margin:0">
+        <label class="form-label" style="font-size:0.9rem">มหาวิทยาลัย <span class="required">*</span></label>
+        <input type="text" class="form-input education-university" placeholder="เช่น มหาวิทยาลัยราชภัฏนครสวรรค์" required>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label class="form-label" style="font-size:0.9rem">จังหวัด <span class="required">*</span></label>
+        <input type="text" class="form-input education-province" placeholder="เช่น นครสวรรค์" required>
+      </div>
+    </div>
   `;
   container.appendChild(entry);
+  
+  // อัปเดตหมายเลขใหม่
+  updateEducationIndexes();
 }
 
 function removeEducation(btn) {
   const entries = document.querySelectorAll('.education-entry');
   if (entries.length > 1) {
     btn.closest('.education-entry').remove();
+    updateEducationIndexes();
+  } else {
+    Swal.fire({
+      icon: 'warning',
+      title: 'ไม่สามารถลบได้',
+      text: 'ต้องมีวุฒิการศึกษาอย่างน้อย 1 รายการ',
+      confirmButtonText: 'รับทราบ'
+    });
   }
+}
+
+function updateEducationIndexes() {
+  const entries = document.querySelectorAll('.education-entry');
+  entries.forEach((entry, idx) => {
+    const label = entry.querySelector('label.form-label');
+    if (label) {
+      label.textContent = `วุฒิการศึกษาที่ ${idx + 1}`;
+    }
+  });
 }
 
 // Teaching Modal
@@ -1091,9 +1157,43 @@ function displayReadOnlyMentorData(data) {
 
     <div class="readonly-section">
       <h3 class="readonly-title">🎓 วุฒิการศึกษา</h3>
-      <ul style="margin:0;padding-left:24px;color:var(--color-text)">
-        ${data.education.map(edu => `<li style="margin-bottom:8px;font-weight:600">${edu}</li>`).join('')}
-      </ul>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        ${data.education.map((edu, idx) => {
+          // รองรับทั้งรูปแบบเก่า (string) และรูปแบบใหม่ (object)
+          if (typeof edu === 'string') {
+            return `
+              <div style="background:var(--color-bg);padding:12px 16px;border-radius:8px;border:1px solid var(--color-border)">
+                <div style="font-weight:700;color:var(--color-primary);margin-bottom:4px">วุฒิการศึกษาที่ ${idx + 1}</div>
+                <div style="color:var(--color-text);font-weight:600">${edu}</div>
+              </div>
+            `;
+          } else {
+            return `
+              <div style="background:var(--color-bg);padding:16px;border-radius:8px;border:1px solid var(--color-border)">
+                <div style="font-weight:700;color:var(--color-primary);margin-bottom:12px;font-size:1.05rem">วุฒิการศึกษาที่ ${idx + 1}</div>
+                <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:12px">
+                  <div>
+                    <div style="font-size:0.85rem;color:var(--color-muted);margin-bottom:4px">ระดับการศึกษา</div>
+                    <div style="font-weight:600;color:var(--color-text)">${edu.degree || '-'}</div>
+                  </div>
+                  <div>
+                    <div style="font-size:0.85rem;color:var(--color-muted);margin-bottom:4px">ปีที่จบ</div>
+                    <div style="font-weight:600;color:var(--color-text)">${edu.year ? 'พ.ศ. ' + edu.year : '-'}</div>
+                  </div>
+                  <div>
+                    <div style="font-size:0.85rem;color:var(--color-muted);margin-bottom:4px">มหาวิทยาลัย</div>
+                    <div style="font-weight:600;color:var(--color-text)">${edu.university || '-'}</div>
+                  </div>
+                  <div>
+                    <div style="font-size:0.85rem;color:var(--color-muted);margin-bottom:4px">จังหวัด</div>
+                    <div style="font-weight:600;color:var(--color-text)">${edu.province || '-'}</div>
+                  </div>
+                </div>
+              </div>
+            `;
+          }
+        }).join('')}
+      </div>
     </div>
 
     <div class="readonly-section">

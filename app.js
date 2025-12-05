@@ -64,6 +64,10 @@ app.use('/', studentRoutes);
 app.use('/', schoolInfoRoutes);
 app.use('/', mentorInfoRoutes);
 
+// Evaluation routes
+const evaluationRoutes = require('./routes/evaluation');
+app.use('/', evaluationRoutes);
+
 // Register routes
 app.get('/register', requireGuest, (req, res) => {
 	res.render('auth/register');

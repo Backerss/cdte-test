@@ -89,14 +89,14 @@
         <div style="margin:8px 0 0 44px;font-size:0.9rem;color:var(--color-muted)">
           <strong style="color:var(--color-text)">ชั้นปีที่ <%= userYear %>:</strong>
           <% if (userYear <= 3) { %>
-            <span>ต้องประเมิน <strong>9 ครั้ง</strong> (3 สัปดาห์ × 3 ครั้ง)</span>
+            <span>ต้องประเมิน <strong>อย่างน้อย 1 ครั้งต่อสัปดาห์</strong> (รวม 3 สัปดาห์, แนะนำไม่เกิน 9 ครั้ง)</span>
           <% } else { %>
             <span style="color:var(--color-success)">✅ ไม่ต้องทำการประเมิน (ปี 4 ไม่มีการประเมินการสังเกตการสอน)</span>
           <% } %>
         </div>
         <% if (userYear <= 3) { %>
           <p style="margin:8px 0 0 44px;font-size:0.9rem;color:var(--color-muted)">
-            * การประเมินสามารถทำได้เฉพาะภายในช่วงฝึกเท่านั้น หากเกินกำหนดกรุณาติดต่ออาจารย์นิเทศ
+            * การประเมินสามารถทำได้เฉพาะภายในช่วงฝึกเท่านั้น | ไม่บังคับ 3 ครั้ง/สัปดาห์ แต่ต้องประเมินอย่างน้อย 1 ครั้งทุกสัปดาห์
           </p>
         <% } %>
       </div>
@@ -151,6 +151,69 @@
           <div style="display:flex;align-items:center;gap:8px">
             <span>📋</span>
             <span id="lessonPlanStatusText">สถานะ: รอส่งแผนการจัดการเรียนรู้</span>
+          </div>
+        </div>
+      </div>
+      <% } %>
+
+      <!-- Video Upload Section (Year 3 Only) -->
+      <% if (userYear === 3) { %>
+      <div class="card" style="margin-bottom:24px;background:linear-gradient(135deg, rgba(46,48,148,0.05) 0%, rgba(251,180,37,0.05) 100%);border:2px solid var(--color-primary)">
+        <h3 style="color:var(--color-primary);margin:0 0 16px 0;display:flex;align-items:center;gap:12px">
+          <span>🎥</span>
+          การส่งคลิปวิดีโอการสอน
+          <span style="background:var(--color-danger);color:white;font-size:0.75rem;padding:4px 12px;border-radius:12px;font-weight:600">บังคับ - ปี 3</span>
+        </h3>
+        <p style="margin:0 0 16px 0;color:var(--color-muted)">
+          นักศึกษาชั้นปีที่ 3 กรุณาอัพโหลดคลิปวิดีโอการสอนของคุณลงบน <strong>YouTube</strong> แล้วนำลิงก์มาวางที่นี่
+        </p>
+
+        <!-- Video URL Input UI -->
+        <div style="background:white;padding:20px;border-radius:8px;border:1px solid var(--color-border)">
+          <div class="form-group" style="margin-bottom:16px">
+            <label class="form-label" style="font-weight:600;color:var(--color-text);margin-bottom:8px;display:block">
+              🔗 ลิงก์ YouTube ของคลิปวิดีโอการสอน <span class="required">*</span>
+            </label>
+            <input 
+              type="url" 
+              id="videoLinkInput" 
+              class="form-input" 
+              placeholder="https://www.youtube.com/watch?v=xxxxx หรือ https://youtu.be/xxxxx"
+              style="padding:12px;font-size:1rem"
+            >
+            <small style="display:block;margin-top:8px;color:var(--color-muted);font-size:0.85rem">
+              💡 วิธีการ: อัพโหลดคลิปลง YouTube แล้วคัดลอกลิงก์มาวางที่นี่ | คลิปควรตั้งเป็น <strong>สาธารณะ</strong> หรือ <strong>Unlisted</strong>
+            </small>
+          </div>
+
+          <!-- Video Preview -->
+          <div id="videoPreview" style="display:none;margin-top:20px;padding:16px;background:var(--color-bg);border-radius:8px;border:1px solid var(--color-border)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+              <strong style="color:var(--color-text)">ตัวอย่างวิดีโอ:</strong>
+              <button type="button" class="btn btn--danger btn--icon" onclick="removeVideoLink()" title="ลบลิงก์">
+                🗑️
+              </button>
+            </div>
+            <div id="videoPreviewContent" style="margin-top:12px"></div>
+          </div>
+
+          <div style="margin-top:16px;display:flex;gap:12px;align-items:center">
+            <button type="button" class="btn btn--primary" onclick="validateVideoLink()" style="display:flex;align-items:center;gap:8px">
+              <span>✅</span>
+              ตรวจสอบลิงก์
+            </button>
+            <button type="button" class="btn btn--success" onclick="submitVideoLink()" id="submitVideoBtn" disabled style="display:flex;align-items:center;gap:8px">
+              <span>📤</span>
+              ส่งลิงก์วิดีโอ
+            </button>
+          </div>
+        </div>
+        
+        <!-- Video Status -->
+        <div id="videoStatus" style="margin-top:16px;padding:12px;border-radius:8px;background:#fff3cd;color:#856404;display:none">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span>🎥</span>
+            <span id="videoStatusText">สถานะ: รอส่งลิงก์วิดีโอ</span>
           </div>
         </div>
       </div>

@@ -104,8 +104,9 @@
     <!-- Recent Activities -->
     <div class="system-section">
       <h3 class="section-title">
-        <span>🕐</span> กิจกรรมล่าสุด
+        <span>🕐</span> กิจกรรมล่าสุด (5 รายการ)
       </h3>
+      <p style="color: var(--color-muted); margin: 0 0 16px 0; font-size: 0.9rem;">📝 แสดงการกระทำล่าสุดของผู้ใช้และผู้ดูแลระบบ</p>
 
       <div class="activity-list" id="activityList">
         <!-- Will be populated by JavaScript -->
@@ -498,6 +499,24 @@
   .status-badge.inactive {
     background: #ffebee;
     color: #c62828;
+  }
+
+  .status-badge.success {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #a5d6a7;
+  }
+
+  .status-badge.error {
+    background: #ffebee;
+    color: #c62828;
+    border: 1px solid #ef9a9a;
+  }
+
+  .status-badge.pending {
+    background: #fff3e0;
+    color: #ef6c00;
+    border: 1px solid #ffcc02;
   }
 
   /* Modal Styles */
@@ -924,40 +943,84 @@
 
     if (currentActivities.length === 0) {
       container.innerHTML = `
-        <div style="text-align:center;padding:40px;color:var(--color-muted);">
-          <div style="font-size:2.5rem;margin-bottom:16px;">💭</div>
-          <p>ยังไม่มีกิจกรรมล่าสุด</p>
+        <div class="activity-item" style="text-align:center;padding:40px;color:var(--color-muted);border:2px dashed var(--color-border);">
+          <div style="font-size:3rem;margin-bottom:16px;">📝</div>
+          <h4 style="margin:0 0 8px 0;color:var(--color-text);">ยังไม่มีกิจกรรมล่าสุด</h4>
+          <p style="margin:0;">ระบบจะบันทึกการกระทำของผู้ใช้และผู้ดูแลระบบ<br><small>แสดงเฉพาะ 5 กิจกรรมล่าสุด</small></p>
         </div>
       `;
       return;
     }
 
-    container.innerHTML = currentActivities.map(activity => {
+    // แสดงเฉพาะ 5 กิจกรรมล่าสุด
+    const recentActivities = currentActivities.slice(0, 5);
+
+    container.innerHTML = recentActivities.map(activity => {
       const iconMap = {
-        'login': '🔑',
-        'logout': '🚻',
-        'register': '👤',
-        'update': '🔄',
+        'login': '🔐',
+        'logout': '🚪',
+        'register': '👤', 
+        'update': '✏️',
         'delete': '🗑️',
         'create': '➕',
-        'upload': '📎',
-        'download': '📎',
-        'error': '⚠️',
-        'success': '✅',
+        'upload': '📤',
+        'download': '📥',
+        'view': '👁️',
+        'approve': '✅',
+        'reject': '❌',
+        'evaluation': '📊',
+        'lesson_plan': '📝',
+        'profile_update': '👤',
+        'password_change': '🔑',
         'system': '⚙️',
-        'backup': '💾'
+        'backup': '💾',
+        'error': '⚠️',
+        'success': '✅'
+      };
+
+      const colorMap = {
+        'login': '#22c55e',
+        'logout': '#6b7280', 
+        'register': '#3b82f6',
+        'update': '#f59e0b',
+        'delete': '#ef4444',
+        'create': '#3b82f6',
+        'upload': '#8b5cf6',
+        'download': '#06b6d4',
+        'view': '#84cc16',
+        'approve': '#10b981',
+        'reject': '#f87171',
+        'evaluation': '#f97316',
+        'lesson_plan': '#0ea5e9',
+        'profile_update': '#14b8a6',
+        'password_change': '#e11d48',
+        'system': '#64748b',
+        'backup': '#7c3aed',
+        'error': '#ef4444',
+        'success': '#22c55e'
       };
 
       const icon = iconMap[activity.type] || '📝';
+      const activityColor = colorMap[activity.type] || '#6b7280';
       const timeAgo = formatTimeAgo(activity.timestamp);
 
+      const userInfo = activity.userId ? 
+        `<span style="color: ${activityColor}; font-weight: 600;">${escapeHtml(activity.userName || activity.userId)}</span>` : 
+        '<span style="color: var(--color-muted);">ระบบ</span>';
+
       return `
-        <div class="activity-item">
-          <div class="activity-icon">${icon}</div>
+        <div class="activity-item" style="border-left: 3px solid ${activityColor}; background: linear-gradient(90deg, ${activityColor}10, transparent);">
+          <div class="activity-icon" style="color: ${activityColor}; font-size: 1.5rem;">${icon}</div>
           <div class="activity-content">
-            <div class="activity-title">${escapeHtml(activity.title)}</div>
-            <div class="activity-desc">${escapeHtml(activity.description)}</div>
-            <div class="activity-time">🕐 ${timeAgo}</div>
+            <div class="activity-title" style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              ${userInfo} <span style="color: var(--color-muted);">•</span> <span>${escapeHtml(activity.title)}</span>
+            </div>
+            <div class="activity-desc" style="margin-bottom: 6px;">${escapeHtml(activity.description)}</div>
+            <div class="activity-time" style="display: flex; align-items: center; gap: 12px; font-size: 0.8rem;">
+              <span style="color: var(--color-muted);">🕐 ${timeAgo}</span>
+              ${activity.ipAddress ? `<span style="color: var(--color-muted);">🌐 ${activity.ipAddress}</span>` : ''}
+              ${activity.status ? `<span class="status-badge ${activity.status}" style="padding: 2px 8px; border-radius: 10px; font-size: 0.7rem;">${activity.status === 'success' ? '✅ สำเร็จ' : activity.status === 'error' ? '❌ ผิดพลาด' : '⏳ กำลังดำเนินการ'}</span>` : ''}
+            </div>
           </div>
         </div>
       `;

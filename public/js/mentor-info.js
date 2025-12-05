@@ -243,13 +243,40 @@ function loadMentorDataToForm(data) {
     data.education.forEach((edu, idx) => {
       const entry = document.createElement('div');
       entry.className = 'education-entry';
-      entry.style.cssText = 'display:flex;gap:8px;align-items:flex-end;margin-bottom:12px';
+      entry.style.cssText = 'margin-bottom:20px;padding:16px;background:var(--color-bg);border-radius:8px;border:1px solid var(--color-border)';
+      
+      // รองรับทั้งรูปแบบเก่า (string) และรูปแบบใหม่ (object)
+      const isOldFormat = typeof edu === 'string';
+      const degree = isOldFormat ? edu : (edu.degree || '');
+      const year = isOldFormat ? '' : (edu.year || '');
+      const university = isOldFormat ? '' : (edu.university || '');
+      const province = isOldFormat ? '' : (edu.province || '');
+      
       entry.innerHTML = `
-        <div class="form-group" style="flex:1;margin:0">
-          ${idx === 0 ? '<label class="form-label">วุฒิการศึกษา</label>' : ''}
-          <input type="text" class="form-input education-input" value="${edu}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <label class="form-label" style="margin:0;font-weight:600;color:var(--color-primary)">วุฒิการศึกษาที่ ${idx + 1}</label>
+          <button type="button" class="btn btn--danger btn--icon" onclick="removeEducation(this)" style="padding:6px 12px;font-size:0.9rem">✕ ลบ</button>
         </div>
-        <button type="button" class="btn btn--danger btn--icon" onclick="removeEducation(this)" style="padding:10px 16px">✕</button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="form-group" style="margin:0">
+            <label class="form-label" style="font-size:0.9rem">ระดับการศึกษา <span class="required">*</span></label>
+            <input type="text" class="form-input education-degree" placeholder="เช่น ค.บ., ศศ.บ., กศ.ม." value="${degree}" required>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label" style="font-size:0.9rem">ปีที่จบ <span class="required">*</span></label>
+            <input type="number" class="form-input education-year" placeholder="เช่น 2560" min="2500" max="2570" value="${year}" required>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+          <div class="form-group" style="margin:0">
+            <label class="form-label" style="font-size:0.9rem">มหาวิทยาลัย <span class="required">*</span></label>
+            <input type="text" class="form-input education-university" placeholder="เช่น มหาวิทยาลัยราชภัฏนครสวรรค์" value="${university}" required>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label class="form-label" style="font-size:0.9rem">จังหวัด <span class="required">*</span></label>
+            <input type="text" class="form-input education-province" placeholder="เช่น นครสวรรค์" value="${province}" required>
+          </div>
+        </div>
       `;
       eduContainer.appendChild(entry);
     });
@@ -287,9 +314,20 @@ async function saveMentorInfo(event) {
   
   // รวบรวมวุฒิการศึกษา
   const education = [];
-  form.querySelectorAll('.education-input').forEach(input => {
-    if (input.value.trim()) {
-      education.push(input.value.trim());
+  form.querySelectorAll('.education-entry').forEach(entry => {
+    const degree = entry.querySelector('.education-degree')?.value.trim();
+    const year = entry.querySelector('.education-year')?.value.trim();
+    const university = entry.querySelector('.education-university')?.value.trim();
+    const province = entry.querySelector('.education-province')?.value.trim();
+    
+    // ตรวจสอบว่ามีการกรอกข้อมูลอย่างน้อย 1 ฟิลด์
+    if (degree || year || university || province) {
+      education.push({
+        degree: degree,
+        year: year,
+        university: university,
+        province: province
+      });
     }
   });
   
