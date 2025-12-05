@@ -43,11 +43,11 @@
         </div>
         <p style="margin: 0; font-size: 1rem; line-height: 1.5; opacity: 0.95;">คุณเข้าสู่ระบบในฐานะ <strong>ผู้ดูแลระบบ</strong> ซึ่งไม่สามารถกรอกข้อมูลครูพี่เลี้ยงได้<br>หากต้องการกรอกข้อมูล กรุณาเข้าสู่ระบบด้วยรหัสนักศึกษา</p>
       </div>
-    <% } else if (!hasActive) { %>
-      <div id="noMentorActiveBanner" style="background:#fff3cd;border-left:4px solid #ffc107;padding:12px;border-radius:8px;margin-bottom:16px;color:#856404">
-        ⚠️ ยังไม่มีงวดการฝึกที่ถูกตั้งค่าเป็น "ปัจจุบัน" — คุณไม่สามารถกรอกข้อมูลครูพี่เลี้ยงได้จนกว่าจะมีการตั้งงวดฝึกที่ใช้งานอยู่
-      </div>
     <% } %>
+    <script>
+      // Expose server-side flag to client so we can show a non-blocking toast instead of a center banner
+      window.serverHasActiveMentor = <%= hasActive ? 'true' : 'false' %>;
+    </script>
 
     <!-- แสดงประวัติงวดที่ผ่านมา (Read-only) -->
     <div id="mentorHistoryView" style="display:none">

@@ -223,6 +223,193 @@ async function logActivity(type, title, description, userId, userName, metadata 
 }
 
 /**
+ * POST /api/system/reset-database
+ * Reset ข้อมูลฐานข้อมูลทั้งหมด (อันตรายมาก!)
+ * มีระบบ Countdown 10 นาทีเพื่อความปลอดภัย
+ */
+router.post('/api/system/reset-database', requireAdmin, async (req, res) => {
+  try {
+    console.log('Reset database request received:', req.body);
+    const { verificationCode, confirmed, timestamp } = req.body;
+    
+    console.log('Extracted parameters:', { verificationCode, confirmed, timestamp });
+    
+    if (!verificationCode || !confirmed) {
+      console.log('Validation failed:', { verificationCode: !!verificationCode, confirmed: !!confirmed });
+      return res.status(400).json({ 
+        success: false, 
+        message: 'ข้อมูลการยืนยันไม่ครบถ้วน' 
+      });
+    }
+    
+    const currentUser = req.session.user;
+    
+    // Log การพยายาม Reset (ก่อนการดำเนินการ)
+    await logActivity(
+      'system',
+      'ร้องขอ Reset Database',
+      `${currentUser.firstName} ${currentUser.lastName} ร้องขอ Reset Database ด้วยรหัสยืนยัน`,
+      currentUser.email,
+      `${currentUser.firstName} ${currentUser.lastName}`,
+      {
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        timestamp: new Date().toISOString()
+      }
+    );
+    
+    // ดำเนินการ Reset Database
+    const resetResult = await performDatabaseReset(currentUser, req.ip);
+    
+    // Log การ Reset สำเร็จ
+    await logActivity(
+      'system',
+      'Reset Database สำเร็จ',
+      'ลบข้อมูลทั้งหมดและสร้าง Admin ใหม่แล้ว',
+      currentUser.email,
+      `${currentUser.firstName} ${currentUser.lastName}`,
+      {
+        resetResult: resetResult,
+        ipAddress: req.ip,
+        completedAt: new Date().toISOString()
+      }
+    );
+    
+    res.json({ 
+      success: true, 
+      message: 'Reset Database สำเร็จ',
+      data: {
+        deletedCollections: resetResult.deletedCollections,
+        deletedDocuments: resetResult.deletedDocuments,
+        newAdmin: {
+          username: 'admin',
+          password: 'admin123',
+          note: 'รหัสผ่านนี้ควรเปลี่ยนทันทีหลังจากเข้าสู่ระบบ'
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error resetting database:', error);
+    
+    // Log การ Reset ล้มเหลว
+    try {
+      await logActivity(
+        'system',
+        'Reset Database ล้มเหลว',
+        `เกิดข้อผิดพลาด: ${error.message}`,
+        req.session.user?.email || 'unknown',
+        `${req.session.user?.firstName} ${req.session.user?.lastName}` || 'Unknown User',
+        {
+          error: error.message,
+          stack: error.stack,
+          ipAddress: req.ip,
+          timestamp: new Date().toISOString()
+        }
+      );
+    } catch (logError) {
+      console.error('Error logging failed reset:', logError);
+    }
+    
+    res.status(500).json({ 
+      success: false, 
+      message: 'เกิดข้อผิดพลาดในการ Reset Database: ' + error.message 
+    });
+  }
+});
+
+/**
+ * ฟังก์ชันสำหรับ Reset Database ทั้งหมด
+ * ลบข้อมูลทั้งหมดและสร้าง Admin ใหม่
+ */
+async function performDatabaseReset(adminUser, ipAddress) {
+  const collections = ['users', 'evaluations', 'observations', 'schools', 'mentors', 'system_activities'];
+  let deletedDocuments = 0;
+  const deletedCollections = [];
+  
+  try {
+    console.log('🔥 Starting database reset process...');
+    
+    // วนลูปลบแต่ละ collection
+    for (const collectionName of collections) {
+      try {
+        const snapshot = await db.collection(collectionName).get();
+        const batch = db.batch();
+        let batchCount = 0;
+        
+        snapshot.forEach(doc => {
+          // ถ้าเป็น collection users ให้เก็บ admin ปัจจุบันไว้ก่อน
+          if (collectionName === 'users' && doc.id === adminUser.id) {
+            return; // ข้าม admin ปัจจุบัน
+          }
+          
+          batch.delete(doc.ref);
+          batchCount++;
+          deletedDocuments++;
+        });
+        
+        if (batchCount > 0) {
+          await batch.commit();
+          deletedCollections.push({
+            name: collectionName,
+            deletedCount: batchCount
+          });
+          console.log(`✅ Deleted ${batchCount} documents from ${collectionName}`);
+        }
+        
+      } catch (collectionError) {
+        console.warn(`⚠️ Error deleting collection ${collectionName}:`, collectionError.message);
+        // ไม่หยุดการทำงาน แต่บันทึก error
+      }
+    }
+    
+    // สร้าง Admin ใหม่
+    const newAdminRef = db.collection('users').doc();
+    await newAdminRef.set({
+      username: 'admin',
+      password: 'admin123', // ในการใช้งานจริงควร hash password
+      email: 'admin@system.local',
+      firstName: 'System',
+      lastName: 'Administrator',
+      role: 'admin',
+      isActive: true,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdBy: 'system_reset',
+      metadata: {
+        resetBy: `${adminUser.firstName} ${adminUser.lastName}`,
+        resetAt: new Date().toISOString(),
+        resetFromIP: ipAddress
+      }
+    });
+    
+    console.log('✅ Created new admin user successfully');
+    
+    // Reset system settings
+    await db.collection('system_settings').doc('main').set({
+      status: 'online',
+      lastUpdate: admin.firestore.FieldValue.serverTimestamp(),
+      lastReset: admin.firestore.FieldValue.serverTimestamp(),
+      resetBy: `${adminUser.firstName} ${adminUser.lastName}`,
+      resetFromIP: ipAddress
+    });
+    
+    console.log('🎉 Database reset completed successfully');
+    
+    return {
+      success: true,
+      deletedCollections,
+      deletedDocuments,
+      newAdminCreated: true,
+      resetTimestamp: new Date().toISOString()
+    };
+    
+  } catch (error) {
+    console.error('💥 Error during database reset:', error);
+    throw new Error(`Database reset failed: ${error.message}`);
+  }
+}
+
+/**
  * Helper Function: บันทึก System Log
  * สามารถเรียกใช้จากที่อื่นได้
  */

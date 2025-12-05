@@ -15,23 +15,34 @@ async function checkMentorEligibility() {
     
     if (!data.success || !data.eligible) {
       let message = data.message || 'ไม่สามารถกรอกข้อมูลได้';
-      let icon = 'warning';
-      
+
+      // If the reason is missing school info, show a full modal with action
       if (data.needSchoolInfo) {
-        message = '<div style="text-align:left"><strong>⚠️ ไม่สามารถกรอกข้อมูลครูพี่เลี้ยงได้</strong><br><br>' +
+        const htmlMessage = '<div style="text-align:left"><strong>⚠️ ไม่สามารถกรอกข้อมูลครูพี่เลี้ยงได้</strong><br><br>' +
                   'กรุณากรอก<strong>ข้อมูลโรงเรียน</strong>ก่อน จึงจะสามารถกรอกข้อมูลครูพี่เลี้ยงได้<br><br>' +
                   '<a href="/dashboard/school-info" class="btn btn--primary" style="display:inline-block;margin-top:8px">📋 ไปกรอกข้อมูลโรงเรียน</a></div>';
-        icon = 'error';
+
+        Swal.fire({
+          icon: 'error',
+          title: 'ไม่สามารถกรอกข้อมูลได้',
+          html: htmlMessage,
+          confirmButtonText: 'รับทราบ'
+        });
+
+      } else {
+        // For general "no eligible observation" show a non-blocking toast at top-end
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'warning',
+          title: message,
+          showConfirmButton: false,
+          timer: 5000,
+          timerProgressBar: true
+        });
       }
-      
-      Swal.fire({
-        icon: icon,
-        title: 'ไม่สามารถกรอกข้อมูลได้',
-        html: message,
-        confirmButtonText: 'รับทราบ'
-      });
-      
-      // ปิดการใช้งานฟอร์ม
+
+      // Disable the form to prevent input
       const form = document.getElementById('mentorCurrentForm');
       if (form) {
         form.querySelectorAll('input, select, button, textarea').forEach(el => {
@@ -40,7 +51,7 @@ async function checkMentorEligibility() {
           }
         });
       }
-      
+
       return false;
     }
     
@@ -439,9 +450,36 @@ async function saveMentorInfo(event) {
 
 // Initialize เมื่อโหลดหน้า
 document.addEventListener('DOMContentLoaded', function() {
+  // If server indicates there is no active mentor period, show a non-blocking toast
+  if (typeof window.serverHasActiveMentor !== 'undefined' && window.serverHasActiveMentor === false) {
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'warning',
+      title: 'ยังไม่มีงวดการฝึกที่ถูกตั้งค่าเป็น "ปัจจุบัน" — ไม่สามารถกรอกข้อมูลได้',
+      showConfirmButton: false,
+      timer: 6000,
+      timerProgressBar: true
+    });
+
+    // Disable the form to prevent input
+    const form = document.getElementById('mentorCurrentForm');
+    if (form) {
+      form.querySelectorAll('input, select, button, textarea').forEach(el => {
+        if (!el.classList.contains('modal-close')) {
+          el.disabled = true;
+        }
+      });
+    }
+
+    // Still set up autocomplete so the UI is hydrated if needed
+    setupMentorNameAutocomplete();
+    return;
+  }
+
   // ตรวจสอบสิทธิ์
   checkMentorEligibility();
-  
+
   // Setup auto-suggest
   setupMentorNameAutocomplete();
 });

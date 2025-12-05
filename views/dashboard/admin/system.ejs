@@ -15,6 +15,9 @@
         <button class="btn btn--primary" onclick="openBackupModal()">
           <span>💾</span> สำรองข้อมูล
         </button>
+        <button class="btn btn--danger" onclick="openResetDatabaseModal()" style="background: var(--color-danger); color: white;">
+          <span>🗑️</span> Reset Database
+        </button>
       </div>
     </div>
 
@@ -152,6 +155,45 @@
       <button type="button" class="btn btn--secondary" onclick="closeBackupModal()">ยกเลิก</button>
       <button type="button" class="btn btn--primary" onclick="performBackup()">
         <span>💾</span> เริ่มสำรองข้อมูล
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Reset Database Modal -->
+<div id="resetDatabaseModal" class="modal-overlay" style="display:none">
+  <div class="modal-content" style="max-width:500px;">
+    <div class="modal-header" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white;">
+      <h3 style="color: white;">⚠️ Reset ฐานข้อมูล</h3>
+      <button type="button" class="modal-close" onclick="closeResetDatabaseModal()" style="color: white;">×</button>
+    </div>
+
+    <div class="modal-body" style="padding:24px;">
+      <div class="danger-warning" style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+          <span style="font-size: 2rem;">🚨</span>
+          <strong style="color: #dc2626; font-size: 1.1rem;">คำเตือนสำคัญ</strong>
+        </div>
+        <ul style="margin: 0; padding-left: 20px; color: #7f1d1d;">
+          <li>การกระทำนี้จะลบข้อมูลทั้งหมดในระบบ</li>
+          <li>ไม่สามารถเรียกคืนข้อมูลได้หลังจากลบแล้ว</li>
+          <li>จะสร้าง Admin ใหม่เท่านั้น (admin/admin123)</li>
+          <li>ข้อมูลผู้ใช้, การประเมิน, แผนการสอน จะถูกลบทั้งหมด</li>
+        </ul>
+      </div>
+
+      <div class="verification-section">
+        <label class="form-label" style="font-weight: 600; color: #dc2626;">กรอกรหัสยืนยันด้านล่าง:</label>
+        <div id="verificationCode" style="background: #f3f4f6; padding: 12px; border-radius: 6px; font-family: 'Courier New', monospace; font-size: 1.2rem; font-weight: bold; text-align: center; letter-spacing: 4px; margin: 12px 0; color: #1f2937; user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;"></div>
+        <input type="text" id="verificationInput" class="form-input" placeholder="พิมพ์รหัสยืนยัน 16 ตัวอักษร" maxlength="16" autocomplete="off" style="font-family: 'Courier New', monospace; letter-spacing: 2px; text-align: center; font-size: 1.1rem;">
+        <small style="color: #6b7280; display: block; margin-top: 8px;">⚠️ จำเป็นต้องพิมพ์เอง ไม่สามารถ Copy-Paste ได้</small>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn--secondary" onclick="closeResetDatabaseModal()">ยกเลิก</button>
+      <button type="button" class="btn btn--danger" onclick="verifyResetDatabase()" style="background: var(--color-danger); color: white;">
+        <span>🗑️</span> ยืนยันการ Reset
       </button>
     </div>
   </div>
@@ -625,6 +667,70 @@
   .logs-viewer::-webkit-scrollbar-thumb:hover {
     background: #777;
   }
+
+  /* Reset Database Styles */
+  .btn--danger {
+    background: var(--color-danger) !important;
+    color: white !important;
+    border: 2px solid var(--color-danger) !important;
+  }
+
+  .btn--danger:hover {
+    background: #dc2626 !important;
+    border-color: #dc2626 !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+  }
+
+  .danger-warning {
+    animation: pulseWarning 2s infinite;
+  }
+
+  @keyframes pulseWarning {
+    0%, 100% {
+      box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4);
+    }
+    50% {
+      box-shadow: 0 0 0 8px rgba(220, 38, 38, 0);
+    }
+  }
+
+  #verificationCode {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+
+  #verificationInput:focus {
+    outline: none;
+    border-color: var(--color-danger);
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+  }
+
+  /* Disable text selection for verification code */
+  #verificationCode {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    cursor: default;
+  }
+  
+  /* Countdown animation */
+  @keyframes pulse {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.05);
+      opacity: 0.8;
+    }
+  }
+  
+  #countdownDisplay {
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+  }
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -641,7 +747,7 @@
     initializeSystemData();
     loadLogs();
     loadActivities();
-    updateSystemHealth();
+    // updateSystemHealth(); // คอมเมนต์ไว้เพราะยังไม่ได้สร้างฟังก์ชัน
 
     // Start auto-refresh
     toggleAutoRefresh();
@@ -649,6 +755,9 @@
     // Update time display
     updateLastUpdateTime();
     setInterval(updateLastUpdateTime, 1000);
+    
+    // Setup reset input prevention
+    setupResetInputPrevention();
   });
 
   async function initializeSystemData() {
@@ -1142,11 +1251,434 @@
     });
   }
 
+  // Reset Database System
+  let currentVerificationCode = '';
+  let resetCountdownInterval = null;
+  let resetCountdownData = null;
+
+  function generateVerificationCode() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    let result = '';
+    for (let i = 0; i < 16; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  }
+
+  function openResetDatabaseModal() {
+    // Generate new verification code
+    currentVerificationCode = generateVerificationCode();
+    
+    // Display the code
+    document.getElementById('verificationCode').textContent = currentVerificationCode;
+    
+    // Clear input
+    document.getElementById('verificationInput').value = '';
+    
+    // Show modal
+    document.getElementById('resetDatabaseModal').style.display = 'flex';
+    
+    // Focus on input
+    setTimeout(() => {
+      document.getElementById('verificationInput').focus();
+    }, 100);
+  }
+
+  function closeResetDatabaseModal() {
+    // Simply hide the modal. Do NOT clear the verification code here
+    // so it remains available for the countdown / reset process.
+    document.getElementById('resetDatabaseModal').style.display = 'none';
+  }
+
+  function verifyResetDatabase() {
+    const inputCode = document.getElementById('verificationInput').value.trim();
+    
+    if (inputCode === '') {
+      Swal.fire({
+        icon: 'warning',
+        title: 'กรุณากรอกรหัสยืนยัน',
+        text: 'โปรดพิมพ์รหัสยืนยัน 16 ตัวอักษรที่แสดงด้านบน'
+      });
+      return;
+    }
+    
+    if (inputCode.length !== 16) {
+      Swal.fire({
+        icon: 'error',
+        title: 'รหัสยืนยันไม่ครบ',
+        text: 'รหัสยืนยันต้องมี 16 ตัวอักษร'
+      });
+      return;
+    }
+    
+    if (inputCode !== currentVerificationCode) {
+      Swal.fire({
+        icon: 'error',
+        title: 'รหัสยืนยันไม่ถูกต้อง',
+        text: 'โปรดตรวจสอบและพิมพ์รหัสให้ถูกต้อง',
+        didClose: () => {
+          // Generate new code for security
+          currentVerificationCode = generateVerificationCode();
+          document.getElementById('verificationCode').textContent = currentVerificationCode;
+          document.getElementById('verificationInput').value = '';
+          document.getElementById('verificationInput').focus();
+        }
+      });
+      return;
+    }
+    
+    // Close reset modal first
+    closeResetDatabaseModal();
+    
+    // Final confirmation
+    Swal.fire({
+      title: '⚠️ ยืนยันการ Reset ฐานข้อมูล',
+      html: `
+        <div style="text-align: left; background: #fef2f2; padding: 16px; border-radius: 8px; margin: 16px 0;">
+          <h4 style="color: #dc2626; margin: 0 0 12px 0;">การกระทำนี้จะ:</h4>
+          <ul style="color: #7f1d1d; margin: 0; padding-left: 20px;">
+            <li><strong>ลบข้อมูลผู้ใช้ทั้งหมด</strong></li>
+            <li><strong>ลบข้อมูลการประเมินทั้งหมด</strong></li>
+            <li><strong>ลบแผนการสอนและไฟล์ทั้งหมด</strong></li>
+            <li><strong>ลบข้อมูลโรงเรียนและครูพี่เลี้ยง</strong></li>
+            <li><strong>สร้าง Admin ใหม่:</strong> admin/admin123</li>
+          </ul>
+          <p style="color: #dc2626; font-weight: 600; margin: 12px 0 0 0;">⚠️ ไม่สามารถเรียกคืนข้อมูลได้!</p>
+        </div>
+        <p style="font-size: 1.1rem; color: #dc2626; font-weight: 600;">คุณแน่ใจที่จะดำเนินการหรือไม่?</p>
+      `,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: '🗑️ ยืนยัน Reset ทั้งหมด',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      reverseButtons: true
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        await performDatabaseReset();
+      }
+    });
+  }
+
+  async function performDatabaseReset() {
+    // Start 10-minute countdown
+    startResetCountdown();
+  }
+  
+  function startResetCountdown() {
+    const countdownMinutes = 10;
+    const countdownStart = new Date();
+    const countdownEnd = new Date(countdownStart.getTime() + countdownMinutes * 60 * 1000);
+    
+    // Store the verification code in the countdown data
+    resetCountdownData = {
+      startTime: countdownStart,
+      endTime: countdownEnd,
+      verificationCode: currentVerificationCode
+    };
+    
+    console.log('Starting countdown with verification code:', currentVerificationCode);
+    
+    // Show countdown modal
+    showCountdownModal();
+    
+    // Start countdown interval
+    resetCountdownInterval = setInterval(() => {
+      updateCountdownDisplay();
+    }, 1000);
+  }
+  
+  function showCountdownModal() {
+    Swal.fire({
+      title: '⏰ Reset Database - Countdown',
+      html: `
+        <div style="text-align: center;">
+          <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+            <div style="font-size: 2rem; margin-bottom: 10px;">⏰</div>
+            <h3 style="color: #92400e; margin: 0 0 10px 0;">Countdown ก่อน Reset Database</h3>
+            <p style="color: #7c2d12; margin: 0;">ระบบจะทำการ Reset อัตโนมัติใน:</p>
+          </div>
+          
+          <div id="countdownDisplay" style="font-size: 3rem; font-weight: bold; color: #dc2626; margin: 20px 0; font-family: 'Courier New', monospace;">
+            10:00
+          </div>
+          
+          <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin: 20px 0;">
+            <h4 style="color: #dc2626; margin: 0 0 10px 0;">⚠️ อีก 10 นาที ระบบจะ:</h4>
+            <ul style="text-align: left; color: #7f1d1d; margin: 0; padding-left: 20px;">
+              <li>ลบข้อมูลผู้ใช้ทั้งหมด</li>
+              <li>ลบข้อมูลการประเมินทั้งหมด</li>
+              <li>ลบไฟล์และเอกสารทั้งหมด</li>
+              <li>สร้าง Admin ใหม่ (admin/admin123)</li>
+            </ul>
+          </div>
+          
+          <p style="color: #059669; font-weight: 600;">✅ คุณสามารถยกเลิกได้ทุกเวลา</p>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: '✅ ยกเลิกการ Reset',
+      cancelButtonText: '⏱️ รอ Countdown ต่อไป',
+      confirmButtonColor: '#16a34a',
+      cancelButtonColor: '#6b7280',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      reverseButtons: true
+    }).then((result) => {
+      if (result.isConfirmed) {
+        cancelResetCountdown();
+      } else if (result.isDismissed) {
+        // ปิด modal แต่ยังรัน countdown ต่อ
+        Swal.close();
+      }
+    });
+  }
+  
+  function updateCountdownDisplay() {
+    if (!resetCountdownData) return;
+    
+    const now = new Date();
+    const remaining = Math.max(0, resetCountdownData.endTime.getTime() - now.getTime());
+    
+    if (remaining <= 0) {
+      // Time's up - execute reset
+      clearInterval(resetCountdownInterval);
+      resetCountdownInterval = null;
+      Swal.close();
+      executeActualReset();
+      return;
+    }
+    
+    const minutes = Math.floor(remaining / (1000 * 60));
+    const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+    
+    const countdownElement = document.getElementById('countdownDisplay');
+    if (countdownElement) {
+      countdownElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      
+      // Change color as time runs out
+      if (remaining < 60000) { // Less than 1 minute
+        countdownElement.style.color = '#dc2626';
+        countdownElement.style.animation = 'pulse 1s infinite';
+      } else if (remaining < 180000) { // Less than 3 minutes
+        countdownElement.style.color = '#f59e0b';
+      }
+    }
+  }
+  
+  function cancelResetCountdown() {
+    if (resetCountdownInterval) {
+      clearInterval(resetCountdownInterval);
+      resetCountdownInterval = null;
+    }
+    // Clear countdown data and verification code when user cancels
+    resetCountdownData = null;
+    currentVerificationCode = '';
+    
+    Swal.fire({
+      icon: 'info',
+      title: '✅ ยกเลิกการ Reset แล้ว',
+      text: 'การ Reset Database ถูกยกเลิกเรียบร้อยแล้ว',
+      timer: 2000,
+      showConfirmButton: false
+    });
+  }
+  
+  async function executeActualReset() {
+    // Get verification code from countdown data or current verification code
+    const verificationCodeToUse = resetCountdownData?.verificationCode || currentVerificationCode;
+    
+    // Debug: Check if verification code exists
+    if (!verificationCodeToUse) {
+      Swal.fire({
+        icon: 'error',
+        title: '❌ ข้อผิดพลาด',
+        text: 'ไม่พบรหัสยืนยัน กรุณาเริ่มต้นกระบวนการใหม่',
+        confirmButtonText: 'ตกลง'
+      });
+      return;
+    }
+    
+    console.log('Sending reset request with verification code:', verificationCodeToUse);
+    
+    Swal.fire({
+      title: '🗑️ กำลัง Reset ฐานข้อมูล...',
+      html: 'กรุณารอสักครู่ กำลังดำเนินการ Reset...<br><div style="color: #dc2626; font-weight: 600;">⚠️ ไม่สามารถหยุดได้แล้ว!</div>',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
+    });
+
+    try {
+      const requestData = {
+        verificationCode: verificationCodeToUse,
+        confirmed: true,
+        timestamp: new Date().toISOString()
+      };
+      
+      console.log('Request data:', requestData);
+      
+      const response = await fetch('/api/system/reset-database', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestData)
+      });
+
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        
+        try {
+          const errorText = await response.text();
+          console.error('Server error response:', errorText);
+          
+          // Try to parse JSON error response
+          try {
+            const errorJson = JSON.parse(errorText);
+            if (errorJson.message) {
+              errorMessage = errorJson.message;
+            }
+          } catch (jsonError) {
+            // If not JSON, use text as is
+            if (errorText) {
+              errorMessage = errorText;
+            }
+          }
+        } catch (textError) {
+          console.error('Error reading response text:', textError);
+        }
+        
+        throw new Error(errorMessage);
+      }
+      
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        throw new Error('เซิร์เวอร์ตอบกลับข้อมูลที่ไม่ใช่ JSON: ' + text.substring(0, 100));
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        Swal.fire({
+          icon: 'success',
+          title: '✅ Reset ฐานข้อมูลสำเร็จ',
+          html: `
+            <div style="text-align: left; background: #f0fdf4; padding: 16px; border-radius: 8px; margin: 16px 0;">
+              <h4 style="color: #16a34a; margin: 0 0 12px 0;">การดำเนินการสำเร็จ:</h4>
+              <ul style="color: #15803d; margin: 0; padding-left: 20px;">
+                <li>ลบข้อมูลเก่าทั้งหมดแล้ว</li>
+                <li>สร้าง Admin ใหม่แล้ว</li>
+                <li>ระบบพร้อมใช้งาน</li>
+              </ul>
+              <div style="background: #fef3c7; border: 1px solid #fcd34d; border-radius: 6px; padding: 12px; margin-top: 16px;">
+                <strong style="color: #92400e;">ข้อมูลการเข้าสู่ระบบใหม่:</strong><br>
+                <code style="background: #fff; padding: 4px 8px; border-radius: 4px; color: #1f2937;">Username: admin</code><br>
+                <code style="background: #fff; padding: 4px 8px; border-radius: 4px; color: #1f2937;">Password: admin123</code>
+              </div>
+            </div>
+          `,
+          confirmButtonText: '🔄 รีโหลดหน้าเว็บ',
+          allowOutsideClick: false
+        }).then(() => {
+          // Reload the page
+          window.location.reload();
+        });
+      } else {
+        throw new Error(result.message || 'เกิดข้อผิดพลาดในการ Reset ฐานข้อมูล');
+      }
+    } catch (error) {
+      console.error('Error resetting database:', error);
+      Swal.fire({
+        icon: 'error',
+        title: '❌ เกิดข้อผิดพลาด',
+        text: 'ไม่สามารถ Reset ฐานข้อมูลได้: ' + error.message,
+        confirmButtonText: 'ตกลง'
+      });
+    } finally {
+      // Always clear verification/ countdown state after attempt
+      try {
+        if (resetCountdownInterval) {
+          clearInterval(resetCountdownInterval);
+          resetCountdownInterval = null;
+        }
+      } catch (e) {
+        console.error('Error clearing countdown interval in finally:', e);
+      }
+
+      resetCountdownData = null;
+      currentVerificationCode = '';
+    }
+  }
+
+  // Setup input prevention for reset verification
+  function setupResetInputPrevention() {
+    // Use event delegation since the input might not exist yet
+    document.addEventListener('paste', function(e) {
+      if (e.target && e.target.id === 'verificationInput') {
+        e.preventDefault();
+        Swal.fire({
+          icon: 'warning',
+          title: 'ไม่อนุญาตให้ Paste',
+          text: 'โปรดพิมพ์รหัสยืนยันด้วยตนเอง',
+          timer: 2000
+        });
+      }
+    });
+      
+    document.addEventListener('drop', function(e) {
+      if (e.target && e.target.id === 'verificationInput') {
+        e.preventDefault();
+      }
+    });
+      
+    document.addEventListener('contextmenu', function(e) {
+      if (e.target && e.target.id === 'verificationInput') {
+        e.preventDefault();
+      }
+    });
+      
+    document.addEventListener('input', function(e) {
+      if (e.target && e.target.id === 'verificationInput') {
+        // Allow only English letters
+        e.target.value = e.target.value.replace(/[^A-Za-z]/g, '');
+      }
+    });
+    
+    // Prevent common keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+      if (e.target && e.target.id === 'verificationInput') {
+        // Prevent Ctrl+V, Ctrl+C, Ctrl+X, Ctrl+A
+        if (e.ctrlKey && (e.key === 'v' || e.key === 'c' || e.key === 'x' || e.key === 'a')) {
+          e.preventDefault();
+          if (e.key === 'v') {
+            Swal.fire({
+              icon: 'warning',
+              title: 'ไม่อนุญาต Keyboard Shortcuts',
+              text: 'โปรดพิมพ์ด้วยตนเอง',
+              timer: 1500
+            });
+          }
+        }
+      }
+    });
+  }
+
   // Close modal when clicking outside
   window.onclick = function (event) {
-    const modal = document.getElementById('backupModal');
-    if (event.target === modal) {
+    const backupModal = document.getElementById('backupModal');
+    const resetModal = document.getElementById('resetDatabaseModal');
+    
+    if (event.target === backupModal) {
       closeBackupModal();
+    }
+    
+    if (event.target === resetModal) {
+      closeResetDatabaseModal();
     }
   }
 </script>
