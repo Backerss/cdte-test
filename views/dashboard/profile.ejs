@@ -419,6 +419,16 @@ async function loadProfile() {
 
     const user = data.data || {};
 
+    // Expose current user globally for other scripts and debugging
+    try {
+      window.currentUser = user;
+      console.log('[profile] loaded user', user);
+      if (!user.role) console.warn('[profile] warning: user.role is missing — server did not return a role');
+      else console.log('[profile] detected role =', user.role);
+    } catch (e) {
+      // ignore when not allowed
+    }
+
     // Populate fields
     const _firstNameInput = document.getElementById('firstNameInput');
     const _lastNameInput = document.getElementById('lastNameInput');
@@ -479,15 +489,40 @@ async function loadProfile() {
     const roomLabel = document.getElementById('roomLabel');
     const roomRequired = document.getElementById('roomRequired');
     
-    const isStudent = user.studentId && user.studentId.trim() !== '';
-    const isAdmin = user.role === 'admin';
-    const isTeacher = user.role === 'teacher';
+    // IMPORTANT: Check role first, then fallback to studentId presence
+    // This prevents admins/teachers with studentId from being treated as students
+    const userRole = String(user.role || '').toLowerCase();
+    const isAdmin = userRole === 'admin';
+    const isTeacher = userRole === 'teacher';
+    const isStudent = !isAdmin && !isTeacher && !!(user.studentId && String(user.studentId).trim() !== '');
+    console.log('[profile] role flags -> role:', userRole, 'isStudent:', isStudent, 'isTeacher:', isTeacher, 'isAdmin:', isAdmin);
+
+    // Helper to hide/show form-group by element id
+    function hideGroup(id) {
+      try {
+        const el = document.getElementById(id);
+        if (!el) return null;
+        const grp = el.closest('.form-group');
+        if (grp) grp.style.display = 'none';
+        return grp;
+      } catch (e) { return null; }
+    }
+    function showGroup(id) {
+      try {
+        const el = document.getElementById(id);
+        if (!el) return null;
+        const grp = el.closest('.form-group');
+        if (grp) grp.style.display = '';
+        return grp;
+      } catch (e) { return null; }
+    }
     
     // Handle major/position field based on role
     const majorSelect = document.getElementById('majorSelect');
     
     if (isStudent) {
       // Student view - only show 2 academic majors
+      console.log('[profile] applying student view');
       if (studentIdLabel) studentIdLabel.textContent = 'รหัสนักศึกษา';
       if (studentIdInput) studentIdInput.value = user.studentId || '';
       if (studentIdHint) studentIdHint.textContent = 'ไม่สามารถแก้ไขได้';
@@ -513,35 +548,53 @@ async function loadProfile() {
         if (roomHint) roomHint.textContent = 'นักศึกษาสามารถเลือกห้องได้ครั้งเดียว';
       }
     } else if (isTeacher) {
-      // Teacher view - locked to teacher role
-      if (studentIdLabel) studentIdLabel.textContent = 'รหัสอาจารย์';
+      // Teacher view - editable academic position and major
+      console.log('[profile] applying teacher view');
+      if (studentIdLabel) studentIdLabel.textContent = 'รหัสเจ้าหน้าที่';
       if (studentIdInput) studentIdInput.value = user.staffCode || '';
-      if (studentIdHint) studentIdHint.textContent = 'รหัสประจำตัวอาจารย์';
+      if (studentIdHint) studentIdHint.textContent = 'รหัสประจำตัวเจ้าหน้าที่';
       
-      // Lock major to teacher
+      // Replace select with text input for academic position and major
       if (majorSelect) {
-        majorSelect.innerHTML = '<option value="teacher" selected>อาจารย์</option>';
-        majorSelect.disabled = true;
-        majorSelect.style.backgroundColor = 'var(--color-bg)';
-        majorSelect.style.cursor = 'not-allowed';
+        const currentValue = user.major || user.academicPosition || '';
+        const inputField = document.createElement('input');
+        inputField.type = 'text';
+        inputField.id = 'majorSelect';
+        inputField.className = 'form-input';
+        inputField.value = currentValue;
+        inputField.placeholder = 'เช่น อาจารย์, ผู้ช่วยศาสตราจารย์, รองศาสตราจารย์';
+        majorSelect.parentNode.replaceChild(inputField, majorSelect);
       }
       if (majorRequired) majorRequired.style.display = 'none';
-      if (majorLabel) majorLabel.innerHTML = 'ตำแหน่ง';
+      if (majorLabel) majorLabel.innerHTML = 'ตำแหน่งทางวิชาการ / สาขาที่จบ';
+      
+      // Hide year and room fields
+      hideGroup('yearLabel');
+      hideGroup('roomLabel');
     } else if (isAdmin) {
-      // Admin view - locked to admin role
-      if (studentIdLabel) studentIdLabel.textContent = 'รหัสผู้ดูแล';
+      // Admin view - editable major/background
+      console.log('[profile] applying admin view');
+      if (studentIdLabel) studentIdLabel.textContent = 'รหัสเจ้าหน้าที่';
       if (studentIdInput) studentIdInput.value = user.staffCode || '';
-      if (studentIdHint) studentIdHint.textContent = 'รหัสประจำตัวผู้ดูแลระบบ';
+      if (studentIdHint) studentIdHint.textContent = 'รหัสประจำตัวเจ้าหน้าที่';
       
-      // Lock major to admin
+      // Replace select with text input for academic background
       if (majorSelect) {
-        majorSelect.innerHTML = '<option value="admin" selected>ผู้ดูแลระบบ</option>';
-        majorSelect.disabled = true;
-        majorSelect.style.backgroundColor = 'var(--color-bg)';
-        majorSelect.style.cursor = 'not-allowed';
+        const currentValue = user.major || '';
+        const inputField = document.createElement('input');
+        inputField.type = 'text';
+        inputField.id = 'majorSelect';
+        inputField.className = 'form-input';
+        inputField.value = currentValue;
+        inputField.placeholder = 'เช่น วิทยาการคอมพิวเตอร์, เทคโนโลยีสารสนเทศ, บริหารการศึกษา';
+        majorSelect.parentNode.replaceChild(inputField, majorSelect);
       }
       if (majorRequired) majorRequired.style.display = 'none';
-      if (majorLabel) majorLabel.innerHTML = 'ตำแหน่ง';
+      if (majorLabel) majorLabel.innerHTML = 'สาขาวิชาที่จบ / ความเชี่ยวชาญ';
+      
+      // Hide year and room fields
+      hideGroup('yearLabel');
+      hideGroup('roomLabel');
       
       // Year field becomes "ประสบการณ์" for admin/teacher
       if (yearLabel) yearLabel.textContent = 'ประสบการณ์ (ปี)';
@@ -578,6 +631,12 @@ async function loadProfile() {
         });
       }
     }
+
+    // Mark form with resolved role for easier CSS/debugging
+    try {
+      const pf = document.getElementById('profileForm');
+      if (pf && user.role) pf.setAttribute('data-user-role', String(user.role));
+    } catch (e) {}
 
   } catch (err) {
     console.error('Load profile error', err);
@@ -619,7 +678,7 @@ if (_profileFormEl) {
 
   const firstName = firstNameEl ? firstNameEl.value.trim() : '';
   const lastName = lastNameEl ? lastNameEl.value.trim() : '';
-  const major = majorEl ? majorEl.value : '';
+  const major = majorEl ? (majorEl.value ? majorEl.value.trim() : '') : '';
   const email = emailInput ? emailInput.value.trim() : '';
   const phone = phoneEl ? phoneEl.value.trim() : '';
   const currentPassword = currentPasswordEl ? currentPasswordEl.value : '';

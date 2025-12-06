@@ -78,7 +78,17 @@ router.get('/profile', requireAuth, async (req, res) => {
       roomLocked: !!(userData.room && String(userData.room).trim() !== '')
     };
 
-    res.json({ success: true, data: { ...userData, ...derived } });
+    // Ensure the role is present for the client UI to adapt based on role
+    const role = userData.role || (req.session && req.session.user && req.session.user.role) || null;
+
+    // Debug log for role detection
+    try {
+      console.log(`[profile] GET /api/profile userId=${userId} role=${role}`);
+    } catch (e) {
+      // ignore logging errors
+    }
+
+    res.json({ success: true, data: { ...userData, role, ...derived } });
   } catch (error) {
     console.error('Get profile error:', error);
     res.status(500).json({
