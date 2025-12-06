@@ -134,20 +134,44 @@ router.get('/api/observations/:id', requireAuth, async (req, res) => {
       const studentData = studentDoc.data();
       
       // ดึงข้อมูลนักศึกษาจาก users collection
-      const userSnapshot = await db.collection('users')
-        .where('studentId', '==', studentData.studentId)
-        .limit(1)
-        .get();
-      
-      let userName = 'ไม่ทราบชื่อ';
-      if (!userSnapshot.empty) {
-        const userData = userSnapshot.docs[0].data();
-        userName = `${userData.firstName} ${userData.lastName}`;
+      // ใช้ canonical id (user_id) เป็นหลัก แล้ว fallback ไปยัง studentId แบบเดิม
+      const sid = studentData.user_id || studentData.studentId || '';
+      let userSnapshot = { empty: true };
+      if (sid) {
+        userSnapshot = await db.collection('users')
+          .where('user_id', '==', sid)
+          .limit(1)
+          .get();
+        if (userSnapshot.empty) {
+          userSnapshot = await db.collection('users')
+            .where('studentId', '==', sid)
+            .limit(1)
+            .get();
+        }
       }
-      
+
+      let userName = null;
+      if (userSnapshot && !userSnapshot.empty) {
+        const userData = userSnapshot.docs[0].data();
+        // หากไม่มีชื่อ-นามสกุล ให้ข้ามการดึงข้อมูลเพื่อประหยัดเวลา
+        if (userData.firstName && userData.lastName) {
+          userName = `${userData.firstName} ${userData.lastName}`;
+        } else {
+          // log minimal info for debugging and skip this student
+          console.warn(`Skipping student ${sid} in observation ${observationId} - missing name`);
+        }
+      }
+
+      // ถ้าไม่พบชื่อ-นามสกุลของผู้ใช้ ให้ข้ามการใส่รายการนี้
+      if (!userName) {
+        continue;
+      }
+
       students.push({
         id: studentDoc.id,
-        studentId: studentData.studentId,
+        // ส่ง canonical id กลับไปยัง client (user_id หรือ legacy studentId)
+        studentId: sid,
+        legacyStudentId: studentData.studentId || null,
         name: userName,
         status: studentData.status,
         evaluationsCompleted: studentData.evaluationsCompleted || 0,
@@ -238,7 +262,9 @@ router.post('/api/observations', requireAdminOrTeacher, async (req, res) => {
       const studentDocRef = db.collection('observation_students').doc();
       batch.set(studentDocRef, {
         observationId: observationRef.id,
+        // store both fields: legacy `studentId` and canonical `user_id` (client may send either)
         studentId: studentId,
+        user_id: studentId,
         status: 'active',
         evaluationsCompleted: 0,
         lessonPlanSubmitted: false,
@@ -367,10 +393,17 @@ router.get('/api/students', requireAuth, async (req, res) => {
     
     snapshot.forEach(doc => {
       const data = doc.data();
+      // Use canonical user_id when available, otherwise fallback to legacy studentId
+      const sid = String(data.user_id || data.studentId || doc.id || '').trim();
+      // Skip records without full name
+      const firstName = String(data.firstName || '').trim();
+      const lastName = String(data.lastName || '').trim();
+      if (!firstName || !lastName) return;
+
       students.push({
-        id: data.studentId,
-        studentId: data.studentId,
-        name: `${data.firstName} ${data.lastName}`,
+        id: sid,
+        studentId: sid,
+        name: `${firstName} ${lastName}`,
         yearLevel: data.year,
         status: data.status
       });
@@ -421,7 +454,7 @@ router.get('/api/observations/:id/available-students', requireAdminOrTeacher, as
         if (!studentEntry) return;
         const existingId = typeof studentEntry === 'string'
           ? studentEntry
-          : (studentEntry.studentId || studentEntry.id);
+          : (studentEntry.user_id || studentEntry.studentId || studentEntry.id);
         if (existingId) {
           existingStudentIds.add(String(existingId).trim());
         }
@@ -435,9 +468,8 @@ router.get('/api/observations/:id/available-students', requireAdminOrTeacher, as
     
     observationStudentsSnapshot.forEach(studentDoc => {
       const data = studentDoc.data();
-      if (data?.studentId) {
-        existingStudentIds.add(String(data.studentId).trim());
-      }
+      const sid = String(data?.user_id || data?.studentId || '').trim();
+      if (sid) existingStudentIds.add(sid);
     });
     
     // ดึงนักศึกษาทั้งหมด (ไม่ล็อคชั้นปี - ให้เลือกได้ทุกคน)
@@ -452,7 +484,7 @@ router.get('/api/observations/:id/available-students', requireAdminOrTeacher, as
     
     studentsSnapshot.forEach(doc => {
       const data = doc.data();
-      const studentId = String(data.studentId || '').trim();
+      const studentId = String(data.user_id || data.studentId || doc.id || '').trim();
       const firstName = String(data.firstName || '').trim();
       const lastName = String(data.lastName || '').trim();
       
@@ -461,7 +493,8 @@ router.get('/api/observations/:id/available-students', requireAdminOrTeacher, as
       // 2. ต้องมีชื่อและนามสกุลครบถ้วน (ข้อมูลสมบูรณ์)
       // 3. ยังไม่ได้อยู่ในการสังเกตนี้ (เช็คจาก observation_students)
       
-      if (!studentId || studentId.length !== 11) {
+      // Require a canonical id that looks like a student numeric id (11 digits)
+      if (!studentId || !/^\d{11}$/.test(studentId)) {
         return;
       }
       

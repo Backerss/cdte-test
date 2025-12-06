@@ -170,9 +170,10 @@ function populateStudentPrefixes() {
   const prefixSet = new Set();
   
   allStudents.forEach(student => {
-    if (student.studentId && student.studentId.length >= 2) {
-      // เอา 2 หลักแรกของรหัสนักศึกษา
-      const prefix = student.studentId.substring(0, 2);
+    const sid = (student.user_id || student.studentId || student.id || '');
+    if (sid && sid.length >= 2) {
+      // เอา 2 หลักแรกของรหัสนักศึกษา (ใช้ user_id เป็นหลัก, fallback to studentId)
+      const prefix = String(sid).substring(0, 2);
       prefixSet.add(prefix);
     }
   });
@@ -186,7 +187,8 @@ function populateStudentPrefixes() {
   sortedPrefixes.forEach(prefix => {
     const option = document.createElement('option');
     option.value = prefix;
-    option.textContent = `${prefix}xxxxx (${allStudents.filter(s => s.studentId.startsWith(prefix)).length} คน)`;
+    const count = allStudents.filter(s => ((s.user_id || s.studentId || s.id || '').startsWith(prefix))).length;
+    option.textContent = `${prefix}xxxxx (${count} คน)`;
     prefixFilter.appendChild(option);
   });
 }
@@ -204,7 +206,7 @@ function filterStudentsList() {
   
   items.forEach(item => {
     const studentId = item.querySelector('.student-checkbox').value;
-    const student = allStudents.find(s => s.studentId === studentId);
+    const student = allStudents.find(s => (s.user_id || s.studentId || s.id || '') === studentId);
     
     if (!student) {
       item.style.display = 'none';
@@ -218,8 +220,9 @@ function filterStudentsList() {
       shouldShow = false;
     }
     
-    // Filter by prefix
-    if (prefixFilter && !student.studentId.startsWith(prefixFilter)) {
+    // Filter by prefix (use canonical id)
+    const sid = (student.user_id || student.studentId || '');
+    if (prefixFilter && !sid.startsWith(prefixFilter)) {
       shouldShow = false;
     }
     
@@ -339,12 +342,12 @@ function renderStudentsList() {
   
   container.innerHTML = allStudents.map(student => `
     <div class="student-item">
-      <input type="checkbox" class="student-checkbox" value="${student.studentId}" 
-             onchange="toggleStudentSelection('${student.studentId}')"
-             ${selectedStudents.includes(student.studentId) ? 'checked' : ''}>
+      <input type="checkbox" class="student-checkbox" value="${(student.user_id || student.studentId || student.id || '')}" 
+             onchange="toggleStudentSelection('${(student.user_id || student.studentId || student.id || '')}')"
+             ${selectedStudents.includes((student.user_id || student.studentId || student.id || '')) ? 'checked' : ''}>
       <div class="student-info">
         <div class="student-name">${escapeHtml(student.name)}</div>
-        <div class="student-id">รหัส: ${student.studentId} | ปี ${student.yearLevel}</div>
+        <div class="student-id">รหัส: ${(student.user_id || student.studentId || '')} | ปี ${student.yearLevel}</div>
       </div>
     </div>
   `).join('');
@@ -628,11 +631,13 @@ async function manageStudents(observationId) {
       </div>
       
       <div class="managed-students-list">
-        ${observation.students.map(student => `
-          <div class="managed-student-item" data-student-search="${student.name} ${student.studentId}">
+        ${observation.students.map(student => {
+          const sid = (student.user_id || student.studentId || '');
+          return `
+          <div class="managed-student-item" data-student-search="${student.name} ${sid}">
             <div style="flex:1;">
               <div style="font-weight:500;color:var(--color-text);">${escapeHtml(student.name)}</div>
-              <div style="font-size:0.85rem;color:var(--color-muted);margin:4px 0;">รหัส: ${student.studentId}</div>
+              <div style="font-size:0.85rem;color:var(--color-muted);margin:4px 0;">รหัส: ${sid}</div>
               <div style="display:flex;gap:16px;font-size:0.8rem;">
                 <span>การประเมิน: ${student.evaluationsCompleted}/9</span>
                 <span>แผนการสอน: ${student.lessonPlanSubmitted ? '✅ ส่งแล้ว' : '❌ ยังไม่ส่ง'}</span>
@@ -653,7 +658,7 @@ async function manageStudents(observationId) {
               `}
             </div>
           </div>
-        `).join('')}
+        `}).join('')}
       </div>
     </div>
   `;
