@@ -15,7 +15,16 @@ function requireStudent(req, res, next) {
   if (!req.session.user) {
     return res.status(401).json({ success: false, message: 'กรุณาเข้าสู่ระบบ' });
   }
-  if (!req.session.user.studentId) {
+  const user = req.session.user;
+  const userId = user.user_id || user.studentId || user.id;
+  let role = user.role;
+  if (!role && userId) {
+    const firstChar = String(userId).charAt(0).toUpperCase();
+    if (firstChar === 'T') role = 'teacher';
+    else if (firstChar === 'A') role = 'admin';
+    else if (/^\d/.test(firstChar)) role = 'student';
+  }
+  if (role !== 'student') {
     return res.status(403).json({ success: false, message: 'เฉพาะนักศึกษาเท่านั้น' });
   }
   next();
@@ -27,7 +36,7 @@ function requireStudent(req, res, next) {
  */
 router.get('/api/school-info/check-eligibility', requireStudent, async (req, res) => {
   try {
-    const studentId = req.session.user.studentId;
+    const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
     
     // หา observation ที่ active และมีนักศึกษาคนนี้อยู่
     const observationsSnapshot = await db.collection('observations')
@@ -76,7 +85,7 @@ router.get('/api/school-info/check-eligibility', requireStudent, async (req, res
       res.json({
         success: true,
         eligible: false,
-        message: 'ไม่พบงวดการสังเกตที่สามารถกรอกข้อมูลได้ (ต้องอยู่ในสถานะ active และภายใน 15 วัน)'
+        message: 'ไม่พบการฝึกประสบการณ์วิชาชีพครูที่สามารถกรอกข้อมูลได้ (ต้องอยู่ในสถานะ active และภายใน 15 วัน)'
       });
     }
   } catch (error) {
@@ -145,7 +154,7 @@ router.get('/api/school-info/search-schools', requireAuth, async (req, res) => {
  */
 router.post('/api/school-info/save', requireStudent, async (req, res) => {
   try {
-    const studentId = req.session.user.studentId;
+    const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
     const schoolData = req.body;
     
     // ตรวจสอบความสมบูรณ์ของข้อมูล (ไม่บังคับผู้อำนวยการ สามารถกรอกทีหลังได้)
@@ -345,7 +354,7 @@ router.post('/api/school-info/save', requireStudent, async (req, res) => {
  */
 router.get('/api/school-info/my-submission', requireStudent, async (req, res) => {
   try {
-    const studentId = req.session.user.studentId;
+    const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
     
     // หา observation ที่ active
     const eligibilityCheck = await checkEligibility(studentId);
@@ -431,7 +440,7 @@ async function checkEligibility(studentId) {
   
   return {
     eligible: false,
-    message: 'ไม่พบงวดการสังเกตที่สามารถกรอกข้อมูลได้'
+    message: 'ไม่พบการฝึกประสบการณ์วิชาชีพครูที่สามารถกรอกข้อมูลได้'
   };
 }
 

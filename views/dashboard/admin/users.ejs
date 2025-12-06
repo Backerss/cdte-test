@@ -176,6 +176,11 @@
           <input type="email" class="form-input" id="editUserEmail" required>
         </div>
 
+        <div class="form-group">
+          <label class="form-label">เบอร์โทรศัพท์</label>
+          <input type="text" class="form-input" id="editUserPhone" placeholder="0xxxxxxxxx">
+        </div>
+
         <div class="form-group" id="editYearLevelGroup">
           <label class="form-label">ชั้นปี <span class="required">*</span></label>
           <select class="form-input" id="editUserYearLevel">
@@ -185,6 +190,25 @@
             <option value="3">ปี 3</option>
             <option value="4">ปี 4</option>
           </select>
+        </div>
+
+        <div class="form-group" id="editMajorGroup">
+          <label class="form-label">สาขา</label>
+          <select class="form-input" id="editUserMajor">
+            <option value="">-</option>
+            <option value="เทคโนโลยีดิจิทัลเพื่อการศึกษา">เทคโนโลยีดิจิทัลเพื่อการศึกษา</option>
+            <option value="คอมพิวเตอร์ศึกษา">คอมพิวเตอร์ศึกษา</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="editRoomGroup">
+          <label class="form-label">ห้อง (สามารถเลือกได้ไม่เกิน 2 ห้อง คั่นด้วยเครื่องหมาย , )</label>
+          <input type="text" class="form-input" id="editUserRoom" placeholder="ตัวอย่าง: 01,02">
+        </div>
+
+        <div class="form-group" id="editAcademicPositionGroup" style="display:none;">
+          <label class="form-label">ตำแหน่งทางวิชาการ</label>
+          <input type="text" class="form-input" id="editAcademicPosition">
         </div>
 
         <div class="form-group">
@@ -666,7 +690,7 @@
     }
 
     tbody.innerHTML = filteredUsers.map(user => {
-      const displayId = user.studentId || user.id;
+      const displayId = user.user_id || user.studentId || user.id;
       const yearLevel = user.year || user.yearLevel;
 
       return `
@@ -709,7 +733,7 @@
       const matchSearch = !searchQuery ||
         (user.firstName || '').toLowerCase().includes(searchQuery) ||
         (user.lastName || '').toLowerCase().includes(searchQuery) ||
-        (user.studentId || '').toLowerCase().includes(searchQuery) ||
+        ((user.user_id || user.studentId) || '').toLowerCase().includes(searchQuery) ||
         (user.email || '').toLowerCase().includes(searchQuery);
 
       const matchRole = !roleFilter || user.role === roleFilter;
@@ -763,7 +787,7 @@
         <div class="info-grid">
             <div class="info-item">
               <span class="info-label">รหัส</span>
-              <span class="info-value">${fullUser.studentId || fullUser.id}</span>
+              <span class="info-value">${fullUser.user_id || fullUser.studentId || fullUser.id}</span>
             </div>
           <div class="info-item">
             <span class="info-label">ชื่อ-นามสกุล</span>
@@ -949,15 +973,13 @@
       lastName: document.getElementById('newUserLastName').value,
       email: document.getElementById('newUserEmail').value,
       role: role,
-      password: document.getElementById('newUserPassword').value
+      password: document.getElementById('newUserPassword').value,
+      user_id: userId // always send user_id for all roles
     };
 
     // Add role-specific fields
     if (role === 'student') {
-      formData.studentId = userId;
       formData.yearLevel = document.getElementById('newUserYearLevel').value;
-    } else {
-      // staffCode is not used in this deployment; do not send it to the server.
     }
 
     try {

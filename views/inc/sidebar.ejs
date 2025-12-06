@@ -26,8 +26,9 @@
             </li>
             <!-- Student links are rendered below only when `isStudentUser` is true -->
             
-            <% /* Student-only menu items: visible only when the user has a numeric studentId (real student or admin who also has a studentId) */ %>
-            <% const isStudentUser = (user && user.studentId && /^\d+$/.test(String(user.studentId))); %>
+            <% /* Student-only menu items: visible only when the user has a numeric user_id (real student or admin who also has a user_id) */ %>
+            <% const userId = user && (user.user_id || user.studentId); %>
+            <% const isStudentUser = (userId && /^\d+$/.test(String(userId))); %>
             <% if (isStudentUser) { %>
             <li class="sidebar-menu-item <%= currentPage === 'school-info' ? 'active' : '' %>">
                 <a href="/dashboard/school-info" class="sidebar-link">
@@ -113,7 +114,7 @@
                     <%= user ? (user.firstName + ' ' + user.lastName) : 'ผู้ใช้งาน' %>
                 </div>
                 <div class="sidebar-user-id">
-                    รหัส: <%= user ? user.studentId : '-' %>
+                    รหัส: <%= user ? (user.user_id || user.studentId) : '-' %>
                 </div>
             </div>
         </div>

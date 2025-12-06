@@ -198,7 +198,7 @@ function renderGreeting(user) {
             </span>
           ` : `
             <span class="status-text inactive">ไม่อยู่ในช่วงฝึกประสบการณ์</span><br>
-            <span style="font-size:0.9rem;color:var(--color-muted)">กรุณารอการกำหนดงวดฝึกจากอาจารย์</span>
+            <span style="font-size:0.9rem;color:var(--color-muted)">กรุณารอการกำหนดการฝึกประสบการณ์วิชาชีพครูจากอาจารย์</span>
           `}
         </div>
       </div>
@@ -214,7 +214,7 @@ function renderActiveObservation(obs) {
   const container = document.getElementById('activeObservationSection');
   if (!container) return;
   
-  // ถ้าไม่มีงวดที่ active ไม่แสดงอะไร
+  // ถ้าไม่มีการฝึกประสบการณ์วิชาชีพครูที่ active ไม่แสดงอะไร
   if (!obs) {
     container.innerHTML = '';
     return;
@@ -233,7 +233,7 @@ function renderActiveObservation(obs) {
     ? dashboardData.mentorInfo 
     : null;
   
-  // ใช้ completedEvaluations จาก stats ที่นับเฉพาะงวดปัจจุบัน
+  // ใช้ completedEvaluations จาก stats ที่นับเฉพาะการฝึกประสบการณ์วิชาชีพครูปัจจุบัน
   const evaluationProgress = dashboardData.stats?.completedEvaluations || 0;
   const lessonPlanSubmitted = dashboardData.lessonPlans?.length > 0;
   
@@ -1307,7 +1307,7 @@ function drawLessonPlanPieChart(submitted, pending) {
           box-shadow:0 2px 8px rgba(0,0,0,0.1);
         ">
           <div style="font-size:2rem;font-weight:700;color:#1f2937;">${total}</div>
-          <div style="font-size:0.85rem;color:#6b7280;">งวดทั้งหมด</div>
+          <div style="font-size:0.85rem;color:#6b7280;">การฝึกประสบการณ์วิชาชีพครูทั้งหมด</div>
         </div>
       </div>
       <div style="display:flex;gap:24px;">
@@ -1391,7 +1391,7 @@ async function renderLessonPlans(canUpload) {
           <div style="background:var(--color-bg);padding:20px;border-radius:10px;margin:20px 0;display:flex;justify-content:space-around;align-items:center;">
             <div style="text-align:center;">
               <div style="font-size:2rem;font-weight:700;color:var(--color-primary);">${stats.total}</div>
-              <div style="font-size:0.9rem;color:var(--color-muted);">งวดทั้งหมด</div>
+              <div style="font-size:0.9rem;color:var(--color-muted);">การฝึกประสบการณ์วิชาชีพครูทั้งหมด</div>
             </div>
             <div style="text-align:center;">
               <div style="font-size:2rem;font-weight:700;color:var(--color-success);">${stats.submitted}</div>
@@ -1454,7 +1454,7 @@ async function renderLessonPlans(canUpload) {
           <div class="empty-state" style="padding:60px 20px;">
             <div class="empty-state-icon">📄</div>
             <h3>ยังไม่มีแผนการสอน</h3>
-            <p style="margin:0 0 20px 0;">คุณยังไม่ได้อยู่ในงวดฝึกประสบการณ์</p>
+            <p style="margin:0 0 20px 0;">คุณยังไม่ได้อยู่ในการฝึกประสบการณ์วิชาชีพครู</p>
             <a href="/dashboard/evaluation" class="btn btn--primary">
               ไปที่หน้าประเมิน →
             </a>
@@ -1619,7 +1619,7 @@ function getStatusText(status) {
 
 /**
  * เปลี่ยนมุมมองประวัติการฝึก (เมื่อเปลี่ยน selector)
- * @description ฟังก์ชันสำหรับจัดการเมื่อผู้ใช้เปลี่ยนการเลือกงวดฝึกใน dropdown
+ * @description ฟังก์ชันสำหรับจัดการเมื่อผู้ใช้เปลี่ยนการเลือกการฝึกประสบการณ์วิชาชีพครูใน dropdown
  */
 function changePracticeView() {
   const selector = document.getElementById('periodSelector');

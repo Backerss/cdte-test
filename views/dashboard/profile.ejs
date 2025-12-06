@@ -1,6 +1,7 @@
 <%
   // Check if user is pure admin (admin role without student ID)
-  const isPureAdmin = user && user.role === 'admin' && !user.studentId;
+  const userIdForCheck = user && (user.user_id || user.studentId);
+  const isPureAdmin = user && user.role === 'admin' && (!userIdForCheck || /^A/.test(String(userIdForCheck)));
 %>
 
 <div class="page-content">
@@ -53,7 +54,7 @@
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
         <div class="form-group">
           <label class="form-label" id="studentIdLabel">รหัสนักศึกษา</label>
-          <input type="text" id="studentIdInput" class="form-input" value="<%= user.studentId || user.staffCode || '' %>" disabled style="background-color:var(--color-bg);cursor:not-allowed">
+          <input type="text" id="studentIdInput" class="form-input" value="<%= user.user_id || user.studentId || user.staffCode || '' %>" disabled style="background-color:var(--color-bg);cursor:not-allowed">
           <small id="studentIdHint" style="color:var(--color-muted);font-size:0.85rem">ไม่สามารถแก้ไขได้</small>
         </div>
         <div class="form-group">
@@ -494,7 +495,8 @@ async function loadProfile() {
     const userRole = String(user.role || '').toLowerCase();
     const isAdmin = userRole === 'admin';
     const isTeacher = userRole === 'teacher';
-    const isStudent = !isAdmin && !isTeacher && !!(user.studentId && String(user.studentId).trim() !== '');
+    const userIdValue = user.user_id || user.studentId;
+    const isStudent = !isAdmin && !isTeacher && !!(userIdValue && /^\d+$/.test(String(userIdValue)));
     console.log('[profile] role flags -> role:', userRole, 'isStudent:', isStudent, 'isTeacher:', isTeacher, 'isAdmin:', isAdmin);
 
     // Helper to hide/show form-group by element id
@@ -524,7 +526,7 @@ async function loadProfile() {
       // Student view - only show 2 academic majors
       console.log('[profile] applying student view');
       if (studentIdLabel) studentIdLabel.textContent = 'รหัสนักศึกษา';
-      if (studentIdInput) studentIdInput.value = user.studentId || '';
+      if (studentIdInput) studentIdInput.value = user.user_id || user.studentId || '';
       if (studentIdHint) studentIdHint.textContent = 'ไม่สามารถแก้ไขได้';
       
       // Keep only student majors and make it required
@@ -539,6 +541,10 @@ async function loadProfile() {
       if (majorRequired) majorRequired.style.display = 'inline';
       if (majorLabel) majorLabel.innerHTML = 'สาขาวิชา <span id="majorRequired" style="color:var(--color-danger)">*</span>';
       
+      // Show year and room for students
+      showGroup('yearInput');
+      showGroup('roomSelect');
+      
       // Room logic for students
       if (user.roomLocked) {
         if (roomSelect) roomSelect.disabled = true;
@@ -551,7 +557,7 @@ async function loadProfile() {
       // Teacher view - editable academic position and major
       console.log('[profile] applying teacher view');
       if (studentIdLabel) studentIdLabel.textContent = 'รหัสเจ้าหน้าที่';
-      if (studentIdInput) studentIdInput.value = user.staffCode || '';
+      if (studentIdInput) studentIdInput.value = user.user_id || user.staffCode || user.id || '';
       if (studentIdHint) studentIdHint.textContent = 'รหัสประจำตัวเจ้าหน้าที่';
       
       // Replace select with text input for academic position and major
@@ -568,14 +574,14 @@ async function loadProfile() {
       if (majorRequired) majorRequired.style.display = 'none';
       if (majorLabel) majorLabel.innerHTML = 'ตำแหน่งทางวิชาการ / สาขาที่จบ';
       
-      // Hide year and room fields
-      hideGroup('yearLabel');
-      hideGroup('roomLabel');
+      // Hide year and room fields for teachers (not applicable)
+      hideGroup('yearInput');
+      hideGroup('roomSelect');
     } else if (isAdmin) {
       // Admin view - editable major/background
       console.log('[profile] applying admin view');
       if (studentIdLabel) studentIdLabel.textContent = 'รหัสเจ้าหน้าที่';
-      if (studentIdInput) studentIdInput.value = user.staffCode || '';
+      if (studentIdInput) studentIdInput.value = user.user_id || user.staffCode || user.id || '';
       if (studentIdHint) studentIdHint.textContent = 'รหัสประจำตัวเจ้าหน้าที่';
       
       // Replace select with text input for academic background
@@ -592,44 +598,35 @@ async function loadProfile() {
       if (majorRequired) majorRequired.style.display = 'none';
       if (majorLabel) majorLabel.innerHTML = 'สาขาวิชาที่จบ / ความเชี่ยวชาญ';
       
-      // Hide year and room fields
-      hideGroup('yearLabel');
-      hideGroup('roomLabel');
+      // Hide year and room fields for admins (not typically needed)
+      hideGroup('yearInput');
+      hideGroup('roomSelect');
+    } else {
+      // Fallback for unknown roles or roles without specific UI requirements
+      console.log('[profile] applying default view for role:', userRole);
+      // Show all fields generically but allow editing
+      if (studentIdLabel) studentIdLabel.textContent = user.user_id ? 'รหัสผู้ใช้' : 'รหัสผู้ใช้';
+      if (studentIdInput) studentIdInput.value = user.user_id || user.staffCode || user.studentId || user.id || '';
+      if (studentIdHint) studentIdHint.textContent = 'ไม่สามารถแก้ไขได้';
       
-      // Year field becomes "ประสบการณ์" for admin/teacher
-      if (yearLabel) yearLabel.textContent = 'ประสบการณ์ (ปี)';
-      if (yearInput) {
-        yearInput.disabled = false;
-        yearInput.style.backgroundColor = '';
-        yearInput.style.cursor = '';
-        yearInput.placeholder = 'จำนวนปีประสบการณ์';
-        yearInput.value = user.experience || user.year || '';
+      // Keep major as text input for flexibility
+      if (majorSelect && majorSelect.tagName === 'SELECT') {
+        const currentValue = user.major || '';
+        const inputField = document.createElement('input');
+        inputField.type = 'text';
+        inputField.id = 'majorSelect';
+        inputField.className = 'form-input';
+        inputField.value = currentValue;
+        inputField.placeholder = 'สาขาวิชา/ตำแหน่ง/ความเชี่ยวชาญ';
+        majorSelect.parentNode.replaceChild(inputField, majorSelect);
       }
+      if (majorRequired) majorRequired.style.display = 'none';
+      if (majorLabel) majorLabel.innerHTML = 'สาขา/ตำแหน่ง';
       
-      // Room becomes optional for admin/teacher
-      if (roomRequired) roomRequired.style.display = 'none';
-      if (roomLabel) roomLabel.textContent = 'ห้องทำงาน/สำนักงาน';
-      if (roomHint) roomHint.textContent = 'ห้องที่ปฏิบัติงานหลัก (ไม่บังคับ)';
-      if (roomSelect) {
-        roomSelect.disabled = false;
-        // Add more room options for staff
-        const additionalOptions = [
-          {value: 'admin', text: 'ห้องผู้บริหาร'},
-          {value: 'office', text: 'สำนักงานคณะ'},
-          {value: 'lab', text: 'ห้องปฏิบัติการ'},
-          {value: 'other', text: 'อื่นๆ'}
-        ];
-        
-        additionalOptions.forEach(opt => {
-          const existingOption = Array.from(roomSelect.options).find(option => option.value === opt.value);
-          if (!existingOption) {
-            const option = document.createElement('option');
-            option.value = opt.value;
-            option.textContent = opt.text;
-            roomSelect.appendChild(option);
-          }
-        });
-      }
+      // Hide year/room unless present in data
+      const userIdCheck = user.user_id || user.studentId;
+      if (!user.year && !(/^\d+$/.test(String(userIdCheck)))) hideGroup('yearInput');
+      if (!user.room && !(/^\d+$/.test(String(userIdCheck)))) hideGroup('roomSelect');
     }
 
     // Mark form with resolved role for easier CSS/debugging

@@ -17,8 +17,8 @@ const storage = multer.diskStorage({
     cb(null, lessonPlanDir);
   },
   filename: function (req, file, cb) {
-    // รูปแบบชื่อไฟล์: รหัสนักศึกษา_วันที่_observationId.นามสกุล
-    const studentId = req.session.user.studentId;
+    // รูปแบบชื่อไฟล์: user_id_วันที่_observationId.นามสกุล
+    const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
     const observationId = req.body.observationId || 'unknown';
     const date = new Date().toISOString().split('T')[0].replace(/-/g, '');
     const ext = path.extname(file.originalname);
@@ -61,9 +61,20 @@ function requireStudent(req, res, next) {
   if (!req.session.user) {
     return res.status(401).json({ success: false, message: 'กรุณาเข้าสู่ระบบ' });
   }
-  if (!req.session.user.studentId) {
+  // Respect explicit role, otherwise infer from user_id prefix
+  let role = req.session.user.role;
+  if (!role) {
+    const uid = req.session.user.user_id || req.session.user.id || req.session.user.studentId || '';
+    const prefix = String(uid).charAt(0).toUpperCase();
+    if (prefix === 'T') role = 'teacher';
+    else if (prefix === 'A') role = 'admin';
+    else role = 'student';
+  }
+  if (role !== 'student') {
+    console.warn('[requireStudent] access denied, session.user=', req.session.user, 'inferredRole=', role);
     return res.status(403).json({ success: false, message: 'เฉพาะนักศึกษาเท่านั้น' });
   }
+  console.log('[requireStudent] allowed, session.user=', req.session.user, 'inferredRole=', role);
   next();
 }
 
@@ -73,15 +84,15 @@ function requireStudent(req, res, next) {
  */
 router.get('/api/evaluation/my-data', requireStudent, async (req, res) => {
   try {
-    const studentId = req.session.user.studentId;
+    const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
     const { observationId } = req.query;
 
-    if (!observationId) {
-      return res.status(400).json({ success: false, message: 'ต้องระบุ observationId' });
-    }
+      if (!observationId) {
+        return res.status(400).json({ success: false, message: 'ต้องระบุ observationId' });
+      }
 
     // ดึงข้อมูลการประเมินของนักศึกษาในงวดนี้
-    const evaluationSnapshot = await db.collection('evaluations')
+      const evaluationSnapshot = await db.collection('evaluations')
       .where('studentId', '==', studentId)
       .where('observationId', '==', observationId)
       .limit(1)
@@ -119,7 +130,7 @@ router.get('/api/evaluation/my-data', requireStudent, async (req, res) => {
  */
 router.post('/api/evaluation/save-week', requireStudent, async (req, res) => {
   try {
-    const studentId = req.session.user.studentId;
+    const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
     const { observationId, week, evaluationNum, answers } = req.body;
 
     // Validation
@@ -234,7 +245,7 @@ router.post('/api/evaluation/save-week', requireStudent, async (req, res) => {
  */
 router.post('/api/evaluation/submit-lesson-plan', requireStudent, upload.single('lessonPlanFile'), async (req, res) => {
   try {
-    const studentId = req.session.user.studentId;
+    const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
     const userYear = req.session.user.year || 3;
     const { observationId } = req.body;
 
@@ -249,7 +260,7 @@ router.post('/api/evaluation/submit-lesson-plan', requireStudent, upload.single(
     if (!observationId) {
       return res.status(400).json({
         success: false,
-        message: 'ไม่พบข้อมูลงวดการสังเกต'
+          message: 'ไม่พบข้อมูลการฝึกประสบการณ์วิชาชีพครู'
       });
     }
 
@@ -341,7 +352,7 @@ router.post('/api/evaluation/submit-lesson-plan', requireStudent, upload.single(
  */
 router.post('/api/evaluation/submit-video', requireStudent, async (req, res) => {
   try {
-    const studentId = req.session.user.studentId;
+    const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
     const userYear = req.session.user.year || 3;
     const { observationId, videoUrl } = req.body;
 
@@ -493,7 +504,7 @@ router.post('/api/evaluation/validate-video-url', requireStudent, async (req, re
  */
 router.get('/api/evaluation/lesson-plan-stats', requireStudent, async (req, res) => {
   try {
-    const studentId = req.session.user.studentId;
+    const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
     const userYear = req.session.user.year || 3;
 
     // ดึงข้อมูลทุกงวดการสังเกตของนักศึกษา
@@ -593,7 +604,7 @@ router.get('/api/evaluation/lesson-plan-stats', requireStudent, async (req, res)
  */
 router.get('/api/student/evaluation-summary', requireStudent, async (req, res) => {
   try {
-    const studentId = req.session.user.studentId;
+    const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
     const { observationId } = req.query;
 
     let evaluationsSnapshot;

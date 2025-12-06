@@ -24,7 +24,17 @@ function requireStudent(req, res, next) {
   if (!req.session.user) {
     return res.status(401).json({ success: false, message: 'กรุณาเข้าสู่ระบบ' });
   }
-  if (req.session.user.role !== 'student') {
+  // If role is present, respect it. Otherwise infer role from unified `user_id` prefix.
+  let role = req.session.user.role;
+  if (!role) {
+    const uid = req.session.user.user_id || req.session.user.id || req.session.user.studentId || '';
+    const prefix = String(uid).charAt(0).toUpperCase();
+    if (prefix === 'T') role = 'teacher';
+    else if (prefix === 'A') role = 'admin';
+    else role = 'student';
+  }
+
+  if (role !== 'student') {
     return res.status(403).json({ success: false, message: 'เฉพาะนักศึกษาเท่านั้น' });
   }
   next();
@@ -40,8 +50,14 @@ function requireStudent(req, res, next) {
  */
 router.get('/api/student/dashboard', requireStudent, async (req, res) => {
   try {
-    const studentId = req.session.user.studentId;
+    // Support unified `user_id` (preferred) or legacy `studentId`
+    const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
     const userYear = req.session.user.year || 1;
+
+    if (!studentId) {
+      console.error('[student] missing studentId/user_id in session', req.session.user);
+      return res.status(400).json({ success: false, message: 'ข้อมูลผู้ใช้ไม่สมบูรณ์ (ไม่มี user_id)' });
+    }
 
     
 
@@ -285,7 +301,7 @@ router.get('/api/student/dashboard', requireStudent, async (req, res) => {
  */
 router.get('/api/student/evaluations', requireStudent, async (req, res) => {
   try {
-    const studentId = req.session.user.studentId;
+    const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
 
     const evalSnapshot = await db.collection('evaluations')
       .where('studentId', '==', studentId)
@@ -328,7 +344,7 @@ router.get('/api/student/evaluations', requireStudent, async (req, res) => {
  */
 router.get('/api/student/lesson-plans', requireStudent, async (req, res) => {
   try {
-    const studentId = req.session.user.studentId;
+    const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
     const userYear = req.session.user.year || 1;
 
     // เฉพาะปี 2-3 เท่านั้น
@@ -381,7 +397,7 @@ router.get('/api/student/lesson-plans', requireStudent, async (req, res) => {
  */
 router.post('/api/student/lesson-plans', requireStudent, async (req, res) => {
   try {
-    const studentId = req.session.user.studentId;
+    const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
     const userYear = req.session.user.year || 1;
 
     // เฉพาะปี 2-3 เท่านั้น
@@ -437,7 +453,7 @@ router.post('/api/student/lesson-plans', requireStudent, async (req, res) => {
  */
 router.get('/api/student/school-info', requireStudent, async (req, res) => {
   try {
-    const studentId = req.session.user.studentId;
+    const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
 
     const schoolSnapshot = await db.collection('student_schools')
       .where('studentId', '==', studentId)
@@ -479,7 +495,7 @@ router.get('/api/student/school-info', requireStudent, async (req, res) => {
  */
 router.get('/api/student/mentor-info', requireStudent, async (req, res) => {
   try {
-    const studentId = req.session.user.studentId;
+    const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
 
     const mentorSnapshot = await db.collection('student_mentors')
       .where('studentId', '==', studentId)
@@ -521,7 +537,7 @@ router.get('/api/student/mentor-info', requireStudent, async (req, res) => {
  */
 router.get('/api/student/observation/:id', requireStudent, async (req, res) => {
   try {
-    const studentId = req.session.user.studentId;
+    const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
     const observationId = req.params.id;
 
     // ตรวจสอบว่านักศึกษาอยู่ในการสังเกตนี้หรือไม่
@@ -582,7 +598,7 @@ router.get('/api/student/observation/:id', requireStudent, async (req, res) => {
  */
 router.get('/api/student/observations', requireStudent, async (req, res) => {
   try {
-    const studentId = req.session.user.studentId;
+    const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
 
     
 
@@ -597,7 +613,7 @@ router.get('/api/student/observations', requireStudent, async (req, res) => {
         observations: [],
         activeObservation: null,
         completedObservations: [],
-        message: 'ยังไม่มีงวดการฝึกประสบการณ์'
+        message: 'ยังไม่มีการฝึกประสบการณ์วิชาชีพครู'
       });
     }
 
@@ -712,7 +728,7 @@ router.get('/api/student/observations', requireStudent, async (req, res) => {
     console.error('Error fetching student observations:', error);
     res.status(500).json({
       success: false,
-      message: 'เกิดข้อผิดพลาดในการดึงข้อมูลงวดฝึก',
+      message: 'เกิดข้อผิดพลาดในการดึงข้อมูลการฝึกประสบการณ์วิชาชีพครู',
       error: error.message || String(error)
     });
   }

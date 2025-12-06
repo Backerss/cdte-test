@@ -35,7 +35,7 @@
     const pageUsers = filteredUsers.slice(startIndex, endIndex);
 
     tbody.innerHTML = pageUsers.map(user => {
-      const displayId = user.studentId || user.id;
+      const displayId = user.user_id || user.studentId || user.id;
       const yearLevel = user.year || user.yearLevel;
 
       // Escape JSON for onclick
@@ -158,13 +158,92 @@
     renderUsers();
   };
 
+  // --- Create user: auto-generate staff user_id and validate on submit ---
+  document.addEventListener('DOMContentLoaded', function() {
+    const newRoleEl = document.getElementById('newUserRole');
+    const newIdEl = document.getElementById('newUserId');
+    const createForm = document.getElementById('createUserForm');
+
+    async function generateStaffId(role) {
+      try {
+        showLoading && showLoading();
+        const resp = await fetch('/api/admin/generate-user-id', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ autoGenerate: true, role })
+        });
+        const data = await resp.json();
+        if (resp.ok && data.success && data.user_id) {
+          if (newIdEl) {
+            newIdEl.value = data.user_id;
+            newIdEl.removeAttribute('readonly');
+            newIdEl.title = 'ระบบสร้างรหัสให้ คุณสามารถแก้ไขได้ แต่ต้องเป็นรูปแบบที่ถูกต้อง (11 ตัว)';
+          }
+        } else {
+          showToast && showToast(data.message || 'ไม่สามารถสร้างรหัสได้', 'error');
+        }
+      } catch (err) {
+        console.error('Failed to generate staff id', err);
+        showToast && showToast('เกิดข้อผิดพลาดในการสร้างรหัส', 'error');
+      } finally {
+        hideLoading && hideLoading();
+      }
+    }
+
+    if (newRoleEl) {
+      newRoleEl.addEventListener('change', function() {
+        const role = this.value;
+        if (!newIdEl) return;
+        if (role === 'teacher' || role === 'admin') {
+          // Auto-generate but allow editing
+          generateStaffId(role);
+        } else if (role === 'student') {
+          // Clear and force numeric input
+          newIdEl.value = '';
+          newIdEl.placeholder = 'รหัสนักศึกษา 11 หลัก (ตัวเลขเท่านั้น)';
+          newIdEl.removeAttribute('readonly');
+        } else {
+          newIdEl.value = '';
+          newIdEl.removeAttribute('readonly');
+        }
+      });
+    }
+
+    // Create form validation
+    if (createForm) {
+      createForm.addEventListener('submit', async function(e) {
+        const role = document.getElementById('newUserRole')?.value;
+        const userId = document.getElementById('newUserId')?.value?.trim();
+        const password = document.getElementById('newUserPassword')?.value || '';
+
+        // Basic validations
+        if (!role) { showToast && showToast('กรุณาเลือกบทบาท', 'error'); e.preventDefault(); return; }
+        if (!userId) { showToast && showToast('กรุณากรอกรหัส', 'error'); e.preventDefault(); return; }
+        if ((role === 'student' && !/^\d{11}$/.test(userId))) {
+          showToast && showToast('รหัสนักศึกษาต้องเป็นตัวเลข 11 หลัก', 'error'); e.preventDefault(); return;
+        }
+        if ((role === 'teacher' && !/^T[a-zA-Z0-9]{10}$/.test(userId))) {
+          showToast && showToast('รหัสอาจารย์ต้องขึ้นต้นด้วย T และมีรวม 11 ตัวอักษร', 'error'); e.preventDefault(); return;
+        }
+        if ((role === 'admin' && !/^A[a-zA-Z0-9]{10}$/.test(userId))) {
+          showToast && showToast('รหัสผู้ดูแลต้องขึ้นต้นด้วย A และมีรวม 11 ตัวอักษร', 'error'); e.preventDefault(); return;
+        }
+        if (!password || password.length < 8) {
+          showToast && showToast('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร', 'error'); e.preventDefault(); return;
+        }
+
+        // Allow normal form submission to server (existing behavior) — we don't intercept
+      });
+    }
+  });
+
   // Open edit user modal
   window.openEditUserModal = function(user) {
     currentUserForEdit = user;
 
     const idEl = document.getElementById('editUserId');
     if (idEl) idEl.value = user.docId || user.id;
-    const roleEl = document.getElementById('editUserRole'); if (roleEl) roleEl.value = user.role;
+    const roleEl = document.getElementById('editUserRole'); if (roleEl) { roleEl.value = user.role; roleEl.disabled = true; roleEl.title = 'การเปลี่ยนบทบาทต้องใช้เมนูเปลี่ยนบทบาท (Change Role)'; }
     const fnEl = document.getElementById('editUserFirstName'); if (fnEl) fnEl.value = user.firstName || '';
     const lnEl = document.getElementById('editUserLastName'); if (lnEl) lnEl.value = user.lastName || '';
     const emailEl = document.getElementById('editUserEmail'); if (emailEl) emailEl.value = user.email || '';
@@ -172,10 +251,29 @@
     const pwdEl = document.getElementById('editUserPassword'); if (pwdEl) pwdEl.value = '';
 
     if (user.role === 'student') {
-      const sidEl = document.getElementById('editUserStudentId'); if (sidEl) sidEl.value = user.studentId || '';
+      const sidEl = document.getElementById('editUserStudentId'); if (sidEl) { sidEl.value = user.user_id || user.studentId || ''; sidEl.readOnly = true; sidEl.title = 'รหัสนักศึกษาไม่สามารถแก้ไขจากหน้านี้'; }
       const yEl = document.getElementById('editUserYearLevel'); if (yEl) yEl.value = user.year || user.yearLevel || '';
+    }
+    // Show/hide role-specific groups
+    const majorGroup = document.getElementById('editMajorGroup');
+    const roomGroup = document.getElementById('editRoomGroup');
+    const academicGroup = document.getElementById('editAcademicPositionGroup');
+    if (user.role === 'student') {
+      if (majorGroup) majorGroup.style.display = 'block';
+      if (roomGroup) roomGroup.style.display = 'block';
+      if (academicGroup) academicGroup.style.display = 'none';
+      // populate
+      const majorEl = document.getElementById('editUserMajor'); if (majorEl) majorEl.value = user.major || '';
+      const roomEl = document.getElementById('editUserRoom'); if (roomEl) roomEl.value = user.room || '';
+    } else if (user.role === 'teacher') {
+      if (majorGroup) majorGroup.style.display = 'none';
+      if (roomGroup) roomGroup.style.display = 'none';
+      if (academicGroup) academicGroup.style.display = 'block';
+      const apEl = document.getElementById('editAcademicPosition'); if (apEl) apEl.value = user.academicPosition || '';
     } else {
-      // no staffCode field in this deployment
+      if (majorGroup) majorGroup.style.display = 'none';
+      if (roomGroup) roomGroup.style.display = 'none';
+      if (academicGroup) academicGroup.style.display = 'none';
     }
 
     window.toggleEditStudentFields && window.toggleEditStudentFields();
@@ -231,21 +329,32 @@
           firstName: document.getElementById('editUserFirstName').value,
           lastName: document.getElementById('editUserLastName').value,
           email: document.getElementById('editUserEmail').value,
-          role: role,
           status: document.getElementById('editUserStatus').value
         };
 
         // Add role-specific fields
         if (role === 'student') {
-          formData.studentId = document.getElementById('editUserStudentId').value;
-          formData.yearLevel = document.getElementById('editUserYearLevel').value;
-        } else {
-          // staffCode not used; do not include
+          // Include student-specific fields: major, room (server will compute year from user_id)
+          const majorEl = document.getElementById('editUserMajor'); if (majorEl) formData.major = majorEl.value;
+          const roomEl = document.getElementById('editUserRoom'); if (roomEl) formData.room = roomEl.value;
+        } else if (role === 'teacher') {
+          const apEl = document.getElementById('editAcademicPosition'); if (apEl) formData.academicPosition = apEl.value;
         }
 
         // Add password if changed
         if (password && password.length >= 8) {
           formData.password = password;
+        }
+
+        // Client-side phone validation (if field exists)
+        const phoneEl = document.getElementById('editUserPhone');
+        if (phoneEl && phoneEl.value) {
+          if (!/^0\d{9}$/.test(phoneEl.value)) {
+            showToast('เบอร์โทรต้องเป็นจำนวน 10 หลัก และขึ้นต้นด้วย 0', 'error');
+            hideLoading();
+            return;
+          }
+          formData.phone = phoneEl.value;
         }
 
         try {

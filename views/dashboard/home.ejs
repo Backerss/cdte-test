@@ -2,11 +2,12 @@
   // ข้อมูลผู้ใช้ที่ login (จาก session)
   const userName = user.firstName && user.lastName 
     ? `${user.firstName} ${user.lastName}` 
-    : user.studentId || 'ผู้ใช้';
+    : (user.user_id || user.studentId) || 'ผู้ใช้';
   const userYear = user.year || 1;
   
   // Check if user is pure admin (admin role without student ID)
-  const isPureAdmin = user && user.role === 'admin' && !user.studentId;
+  const userIdForCheck = user && (user.user_id || user.studentId);
+  const isPureAdmin = user && user.role === 'admin' && (!userIdForCheck || /^A/.test(String(userIdForCheck)));
   
   // Check if user is admin or teacher (for showing admin dashboard)
   const isAdminOrTeacher = user && (user.role === 'admin' || user.role === 'teacher');
@@ -283,7 +284,7 @@
     <div id="lessonPlansSection"></div>
     
     <!-- Quick Access Menu -->
-    <div class="quick-access-grid" id="quickAccessSection">
+    <div class="quick-access-grid mt-2" id="quickAccessSection">
       <a href="/dashboard/school-info" class="quick-access-card">
         <div class="quick-access-icon" style="background:rgba(46, 48, 148, 0.1);color:#2E3094;">🏫</div>
         <h4 class="quick-access-title">ข้อมูลสถานศึกษา</h4>

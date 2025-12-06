@@ -81,9 +81,13 @@ router.get('/profile', requireAuth, async (req, res) => {
     // Ensure the role is present for the client UI to adapt based on role
     const role = userData.role || (req.session && req.session.user && req.session.user.role) || null;
 
-    // Debug log for role detection
+    // Debug log for role detection and full document
     try {
+      const safeUserData = Object.assign({}, userData);
+      if (safeUserData.password) delete safeUserData.password;
       console.log(`[profile] GET /api/profile userId=${userId} role=${role}`);
+      console.log('[profile] userData:', safeUserData);
+      console.log('[profile] derived fields:', derived);
     } catch (e) {
       // ignore logging errors
     }

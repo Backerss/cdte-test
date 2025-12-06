@@ -208,6 +208,14 @@ router.get('/api/system/activities', requireAdmin, async (req, res) => {
  */
 async function logActivity(type, title, description, userId, userName, metadata = {}) {
   try {
+    // sanitize metadata: Firestore rejects `undefined` values
+    const cleanMetadata = {};
+    if (metadata && typeof metadata === 'object') {
+      Object.keys(metadata).forEach(k => {
+        if (typeof metadata[k] !== 'undefined') cleanMetadata[k] = metadata[k];
+      });
+    }
+
     await db.collection('system_activities').add({
       type,
       title,
@@ -215,7 +223,7 @@ async function logActivity(type, title, description, userId, userName, metadata 
       userId,
       userName,
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
-      metadata
+      metadata: Object.keys(cleanMetadata).length ? cleanMetadata : undefined
     });
   } catch (error) {
     console.error('Error logging activity:', error);

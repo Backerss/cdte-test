@@ -723,7 +723,7 @@ function searchManagedStudents(query) {
 }
 
 /**
- * เปิดโมดัลเพิ่มนักศึกษาเข้างวดสังเกต
+ * เปิดโมดัลเพิ่มนักศึกษาเข้าการฝึกประสบการณ์วิชาชีพครู
  */
 async function openAddStudentModal(observationId, startDate) {
   // ตรวจสอบเงื่อนไขเวลา
@@ -736,7 +736,7 @@ async function openAddStudentModal(observationId, startDate) {
     Swal.fire({
       icon: 'error',
       title: 'ไม่สามารถเพิ่มนักศึกษาได้',
-      html: `<p>การสังเกตนี้เริ่มต้นมาแล้ว <strong>${daysPassed} วัน</strong></p>
+      html: `<p>การฝึกประสบการณ์วิชาชีพครูนี้เริ่มต้นมาแล้ว <strong>${daysPassed} วัน</strong></p>
              <p>ระบบอนุญาตให้เพิ่มนักศึกษาได้เฉพาะภายใน <strong>5 วัน</strong> เท่านั้น</p>`,
       confirmButtonText: 'รับทราบ'
     });
@@ -748,7 +748,7 @@ async function openAddStudentModal(observationId, startDate) {
 }
 
 /**
- * โหลดรายชื่อนักศึกษาที่ยังไม่ได้เข้าร่วมการสังเกต
+ * โหลดรายชื่อนักศึกษาที่ยังไม่ได้เข้าร่วมการฝึกประสบการณ์วิชาชีพครู
  */
 async function loadAvailableStudents(observationId) {
   Swal.fire({
@@ -787,7 +787,7 @@ function showAddStudentDialog(observationId, students) {
         <div style="text-align:left;padding:12px;">
           <p style="margin-bottom:12px;">ไม่พบนักศึกษาที่สามารถเพิ่มได้ เนื่องจาก:</p>
           <ul style="padding-left:20px;color:#6c757d;">
-            <li>นักศึกษาในชั้นปีนี้เข้าร่วมการสังเกตนี้แล้วทั้งหมด</li>
+            <li>นักศึกษาในชั้นปีนี้เข้าร่วมการฝึกประสบการณ์วิชาชีพครูนี้แล้วทั้งหมด</li>
             <li style="margin-top:8px;">หรือนักศึกษาที่เหลือยังไม่ได้กรอกข้อมูลส่วนตัว (ชื่อ-นามสกุล)</li>
           </ul>
           <div style="margin-top:16px;padding:12px;background:#fff3cd;border-radius:6px;font-size:0.9rem;">

@@ -55,7 +55,7 @@ async function loadObservations() {
 async function populateObservationSelector(selectId, selectedObsId = null, options = {}) {
   const {
     includeEmpty = true,
-    emptyText = 'เลือกงวดฝึกประสบการณ์',
+    emptyText = 'เลือกการฝึกประสบการณ์วิชาชีพครู',
     showActiveFirst = true,
     onlyActive = false
   } = options;

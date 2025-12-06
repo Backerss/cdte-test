@@ -69,22 +69,24 @@ router.post('/register', async (req, res) => {
 
         // สร้างข้อมูลผู้ใช้ใหม่ (ทุกคนที่สมัครเป็นนักศึกษา)
         const userData = {
-            studentId: studentId,
+            user_id: studentId, // Unified ID field for all roles
             password: hashedPassword,
             role: 'student', // ผู้ใช้ทุกคนที่สมัครเป็นนักศึกษา
             year: studentYear, // ชั้นปีที่คำนวณจากรหัส
+            faculty: 'คณะครุศาสตร์', // Faculty locked for students
             firstName: '',
             lastName: '',
             major: '',
             email: '',
             phone: '',
+            room: '',
             avatar: '',
             status: 'active',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString()
         };
 
-        // บันทึกลง Firestore โดยใช้ studentId เป็น document ID
+        // บันทึกลง Firestore โดยใช้ user_id เป็น document ID (immutable)
         await userRef.set(userData);
 
         // บันทึก Activity Log
@@ -94,7 +96,7 @@ router.post('/register', async (req, res) => {
             `นักศึกษารหัส ${studentId} (ชั้นปีที่ ${studentYear}) ได้ลงทะเบียนเข้าสู่ระบบ`,
             studentId,
             `นักศึกษา ${studentId}`,
-            { studentId, year: studentYear, role: 'student' }
+            { user_id: studentId, year: studentYear, role: 'student' }
         );
 
         // บันทึก System Log
@@ -128,58 +130,33 @@ router.post('/login', async (req, res) => {
             });
         }
 
-        // Flexible user lookup:
-        // - If identifier is numeric, prefer doc id or studentId field
-        // - If identifier is alphanumeric, try doc id, then staffCode field
+        // Use user_id directly as document ID (numeric=student, T*=teacher, A*=admin)
         const identifier = String(studentId).trim();
-        let userSnap = null;
+        
+        // Direct document lookup using user_id as document ID
+        const userRef = db.collection('users').doc(identifier);
+        const userSnap = await userRef.get();
 
-        // If input looks like an email, try email lookup first
-        if (identifier.includes('@')) {
-            const qEmail = await db.collection('users')
-                .where('email', '==', identifier.toLowerCase())
-                .limit(1)
-                .get();
-            if (!qEmail.empty) {
-                userSnap = qEmail.docs[0];
-            }
-        }
-
-        // If not found by email, try doc id or other fields
-        if (!userSnap) {
-            // Try doc by id first (covers admin001, teacher001, or numeric student doc ids)
-            const directRef = db.collection('users').doc(identifier);
-            const directSnap = await directRef.get();
-            if (directSnap.exists) {
-                userSnap = directSnap;
-            } else {
-                // Not a direct doc id — try queries
-                if (/^\d+$/.test(identifier)) {
-                    // numeric -> try searching by studentId field
-                    const q = await db.collection('users').where('studentId', '==', identifier).limit(1).get();
-                    if (!q.empty) userSnap = q.docs[0];
-                } else {
-                    // non-numeric -> try staffCode field first
-                    const q1 = await db.collection('users').where('staffCode', '==', identifier).limit(1).get();
-                    if (!q1.empty) userSnap = q1.docs[0];
-
-                    // fallback: maybe stored under studentId field accidentally
-                    if (!userSnap) {
-                        const q2 = await db.collection('users').where('studentId', '==', identifier).limit(1).get();
-                        if (!q2.empty) userSnap = q2.docs[0];
-                    }
-                }
-            }
-        }
-
-        if (!userSnap || !userSnap.exists) {
+        if (!userSnap.exists) {
             return res.status(401).json({
                 success: false,
                 message: 'รหัสผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'
             });
         }
-
+        
+        // Verify role matches prefix for security
         const userData = userSnap.data();
+        const expectedRole = detectRoleFromUserId(identifier);
+        if (userData.role && userData.role !== expectedRole) {
+            console.warn(`[auth] Role mismatch: user_id=${identifier} has role=${userData.role}, expected=${expectedRole}`);
+        }
+
+        // Debug: log Firestore document (sanitize password)
+        try {
+            const safeUserData = Object.assign({}, userData);
+            if (safeUserData.password) delete safeUserData.password;
+            console.log(`[auth] fetched user doc id=${userSnap.id}`, safeUserData);
+        } catch (e) { /* ignore logging errors */ }
 
         // ตรวจสอบรหัสผ่าน
         const isPasswordValid = await bcrypt.compare(password, userData.password || '');
@@ -191,22 +168,23 @@ router.post('/login', async (req, res) => {
             });
         }
 
-        // Build session user object (exclude password)
-        const sessionUser = {
-            id: userSnap.id,
-            studentId: userData.studentId || null,
-            staffCode: userData.staffCode || null,
-            firstName: userData.firstName || '',
-            lastName: userData.lastName || '',
-            major: userData.major || '',
-            email: userData.email || '',
-            avatar: userData.avatar || '',
-            role: userData.role || 'student',
-            year: userData.year || null,
-            room: userData.room || null
-        };
+        // Build session user object dynamically from Firestore document (exclude password)
+        const sessionUser = Object.assign({ id: userSnap.id }, (userData || {}));
+        // Remove password/hash from the session object if present
+        if (sessionUser.password) delete sessionUser.password;
+        // Ensure role has a sensible default so other code can rely on it
+        if (!sessionUser.role) sessionUser.role = 'student';
 
-        // ตั้งค่า session
+        // Normalize user data based on role - ensure required fields exist
+        const normalizedData = await normalizeUserDataByRole(userSnap.id, sessionUser);
+        Object.assign(sessionUser, normalizedData);
+
+        // Debug: log session user (sanitized)
+        try {
+          const safeSession = Object.assign({}, sessionUser);
+          if (safeSession.password) delete safeSession.password;
+          console.log(`[auth] session user for id=${userSnap.id}:`, safeSession);
+        } catch (e) { /* ignore logging errors */ }        // ตั้งค่า session
         req.session.userId = userSnap.id;
         req.session.user = sessionUser;
         req.session.createdAt = Date.now();
@@ -233,8 +211,7 @@ router.post('/login', async (req, res) => {
             `${sessionUser.firstName} ${sessionUser.lastName}`,
             { 
                 role: sessionUser.role,
-                studentId: sessionUser.studentId,
-                staffCode: sessionUser.staffCode,
+                user_id: sessionUser.user_id,
                 rememberMe: req.session.rememberMe,
                 ipAddress: req.session.ipAddress
             }
@@ -270,12 +247,12 @@ router.post('/logout', async (req, res) => {
             'logout',
             'ออกจากระบบ',
             `${user.firstName} ${user.lastName} (${user.role}) ออกจากระบบ`,
-            user.studentId || user.staffCode || user.id,
+            user.user_id || user.id,
             `${user.firstName} ${user.lastName}`,
             { role: user.role }
         );
         
-        await logSystem('info', 'auth', `User logged out: ${user.studentId || user.staffCode} (${user.role})`, user.studentId || user.staffCode);
+        await logSystem('info', 'auth', `User logged out: ${user.user_id} (${user.role})`, user.user_id);
     }
     
     req.session.destroy((err) => {
@@ -293,4 +270,138 @@ router.post('/logout', async (req, res) => {
     });
 });
 
+/**
+ * Detect role from user_id prefix
+ * T* = teacher, A* = admin, numeric = student
+ */
+function detectRoleFromUserId(userId) {
+    if (!userId) return 'student';
+    const firstChar = userId.charAt(0).toUpperCase();
+    if (firstChar === 'T') return 'teacher';
+    if (firstChar === 'A') return 'admin';
+    return 'student';
+}
+
+/**
+ * Normalize user data based on role
+ * Ensures required fields exist and user_id field is consistent
+ */
+async function normalizeUserDataByRole(userId, userData) {
+    const role = userData.role || detectRoleFromUserId(userId);
+    const updates = {};
+    let needsUpdate = false;
+
+    // Get current Thai Buddhist year
+    const currentYear = new Date().getFullYear() + 543;
+
+    // Ensure user_id field matches document ID
+    if (!userData.user_id || userData.user_id !== userId) {
+        updates.user_id = userId;
+        needsUpdate = true;
+    }
+
+    // Ensure role matches user_id prefix
+    const expectedRole = detectRoleFromUserId(userId);
+    if (!userData.role || userData.role !== expectedRole) {
+        updates.role = expectedRole;
+        needsUpdate = true;
+    }
+
+    if (role === 'student') {
+        // Student required fields: user_id (numeric 11 digits), faculty, year, room
+        
+        // Set faculty (locked)
+        if (!userData.faculty || userData.faculty !== 'คณะครุศาสตร์') {
+            updates.faculty = 'คณะครุศาสตร์';
+            needsUpdate = true;
+        }
+
+        // Compute year from user_id (doc ID)
+        if (userId.length >= 2 && /^\d{11}$/.test(userId)) {
+            const studentYearPrefix = parseInt(userId.substring(0, 2));
+            const studentAdmissionYear = 2500 + studentYearPrefix;
+            const yearsSinceAdmission = currentYear - studentAdmissionYear;
+            let computedYear = yearsSinceAdmission + 1;
+            if (computedYear < 1) computedYear = 1;
+            if (computedYear > 4) computedYear = 4;
+            
+            if (userData.year !== computedYear) {
+                updates.year = computedYear;
+                needsUpdate = true;
+            }
+        }
+
+    } else if (role === 'teacher') {
+        // Teacher required: user_id (T + 10 chars), faculty
+        if (!userData.faculty || userData.faculty !== 'คณะครุศาสตร์') {
+            updates.faculty = 'คณะครุศาสตร์';
+            needsUpdate = true;
+        }
+    }
+    // Admin: user_id (A + 10 chars), no additional required fields
+
+    // Set createdAt if missing
+    if (!userData.createdAt) {
+        updates.createdAt = new Date().toISOString();
+        needsUpdate = true;
+    }
+
+    // Update Firestore if needed
+    if (needsUpdate) {
+        try {
+            const userRef = db.collection('users').doc(userId);
+            // Filter out undefined values before writing
+            const cleanUpdates = {};
+            Object.keys(updates).forEach(key => {
+                if (typeof updates[key] !== 'undefined') {
+                    cleanUpdates[key] = updates[key];
+                }
+            });
+            if (Object.keys(cleanUpdates).length > 0) {
+                cleanUpdates.updatedAt = new Date().toISOString();
+                await userRef.update(cleanUpdates);
+                console.log(`[auth] normalized user data for role=${role}, userId=${userId}`);
+            }
+        } catch (err) {
+            console.error('[auth] failed to normalize user data:', err);
+        }
+    }
+
+    return updates;
+}
+
+/**
+ * Generate user_id for staff (teacher/admin) using Thai Buddhist calendar timestamp
+ * Format: T/A + YYMMDDHHMS (prefix + 10 chars = 11 total)
+ * 
+ * @param {string} prefix - 'T' for teacher, 'A' for admin
+ * @param {boolean} autoGenerate - If true, auto-generate; if false, return null
+ * @returns {string|null} Generated user_id or null if manual
+ */
+function generateStaffUserId(prefix = 'T', autoGenerate = true) {
+    if (!autoGenerate) return null;
+    
+    const now = new Date();
+    const thaiYear = (now.getFullYear() + 543).toString().slice(-2); // YY
+    const month = String(now.getMonth() + 1).padStart(2, '0'); // MM
+    const day = String(now.getDate()).padStart(2, '0'); // DD
+    const hours = String(now.getHours()).padStart(2, '0'); // HH
+    const minutes = String(now.getMinutes()).padStart(2, '0'); // mm
+    const seconds = String(now.getSeconds()).charAt(0); // S (1 digit)
+    
+    // prefix + YYMMDDHHMS = T/A + 10 chars = 11 total
+    return `${prefix.toUpperCase()}${thaiYear}${month}${day}${hours}${minutes}${seconds}`;
+}
+
+/**
+ * Check if user_id already exists in database
+ */
+async function isUserIdUnique(userId) {
+    const docSnap = await db.collection('users').doc(userId).get();
+    return !docSnap.exists;
+}
+
 module.exports = router;
+module.exports.generateStaffUserId = generateStaffUserId;
+module.exports.isUserIdUnique = isUserIdUnique;
+module.exports.detectRoleFromUserId = detectRoleFromUserId;

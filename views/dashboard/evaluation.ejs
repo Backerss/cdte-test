@@ -15,7 +15,11 @@
   const hasActive = !!activeEvalPeriod;
 
   // Check if user is pure admin (admin role without student ID)
-  const isPureAdmin = user && user.role === 'admin' && !user.studentId;
+  const userIdForCheck = user && (user.user_id || user.studentId);
+  const isPureAdmin = user && user.role === 'admin' && (!userIdForCheck || /^A/.test(String(userIdForCheck)));
+
+  // Page interactivity: enabled only when there's a practice period and an active one, and user is not a pure admin
+  const interactiveEnabled = !isPureAdmin && hasPractice && hasActive;
 %>
 
 <div class="page-content">
@@ -30,10 +34,10 @@
       </div>
       
       <div class="form-group" style="margin:0;min-width:300px">
-        <label class="form-label">เลือกงวดฝึกประสบการณ์</label>
+        <label class="form-label">เลือกการฝึกประสบการณ์วิชาชีพครู</label>
         <select id="evalPeriodSelector" class="form-input" onchange="changeEvalPeriod()" style="padding:10px 14px">
           <% if (!hasPractice) { %>
-            <option value="none" selected disabled>ยังไม่มีงวดการฝึกประสบการณ์</option>
+            <option value="none" selected disabled>ยังไม่มีการฝึกประสบการณ์วิชาชีพครู</option>
           <% } else { %>
             <% evalPractice.slice().reverse().forEach((record) => { %>
               <option value="<%= record.id %>" <%= record.status === 'active' ? 'selected' : '' %>>
@@ -56,11 +60,11 @@
       </div>
     <% } else if (!hasActive) { %>
       <div id="noEvalActiveBanner" style="background:#fff3cd;border-left:4px solid #ffc107;padding:12px;border-radius:8px;margin-bottom:16px;color:#856404">
-        ⚠️ ยังไม่มีงวดการฝึกที่ถูกตั้งค่าเป็น "ปัจจุบัน" — คุณไม่สามารถทำการประเมินได้จนกว่าจะมีการตั้งงวดฝึกที่ใช้งานอยู่
+        ⚠️ ยังไม่มีการฝึกประสบการณ์วิชาชีพครูที่ถูกตั้งค่าเป็น "ปัจจุบัน" — คุณไม่สามารถทำการประเมินได้จนกว่าจะมีการตั้งการฝึกประสบการณ์วิชาชีพครูที่ใช้งานอยู่
       </div>
     <% } %>
 
-    <!-- แสดงประวัติงวดที่ผ่านมา (Read-only) -->
+    <!-- แสดงประวัติการฝึกประสบการณ์วิชาชีพครูที่ผ่านมา (Read-only) -->
     <div id="evalHistoryView" style="display:none">
       <div style="background:rgba(251,180,37,0.1);border-left:4px solid var(--color-secondary);padding:16px;border-radius:8px;margin-bottom:24px">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
@@ -68,13 +72,13 @@
           <strong style="color:var(--color-text);font-size:1.1rem">ข้อมูลย้อนหลัง (Read-Only)</strong>
         </div>
         <p style="margin:0;color:var(--color-muted);font-size:0.9rem">
-          คุณกำลังดูข้อมูลการประเมินจากงวดฝึกที่ผ่านมาแล้ว ไม่สามารถแก้ไขได้
+          คุณกำลังดูข้อมูลการประเมินจากการฝึกประสบการณ์วิชาชีพครูที่ผ่านมาแล้ว ไม่สามารถแก้ไขได้
         </p>
       </div>
       <div id="evalHistoryContent"></div>
     </div>
 
-    <!-- ส่วนสำหรับงวดปัจจุบัน (Editable) -->
+    <!-- ส่วนสำหรับการฝึกประสบการณ์วิชาชีพครูปัจจุบัน (Editable) -->
     <% if (!isPureAdmin) { %>
     <div id="evalCurrentContent">
         <!-- Practice Period Info -->
@@ -121,7 +125,9 @@
       <div style="background:white;padding:20px;border-radius:8px;border:1px solid var(--color-border)">
         <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px">
           <input type="file" id="mainLessonPlanInput" accept=".pdf,.doc,.docx,.ppt,.pptx" style="display:none">
-          <button type="button" class="btn btn--primary" onclick="document.getElementById('mainLessonPlanInput').click()" style="display:flex;align-items:center;gap:8px">
+          <button type="button" class="btn btn--primary" onclick="document.getElementById('mainLessonPlanInput').click()" style="display:flex;align-items:center;gap:8px"
+            <%= interactiveEnabled ? '' : 'disabled title="ไม่สามารถเลือกไฟล์ได้ โปรดตั้งการฝึกประสบการณ์วิชาชีพครูที่ใช้งานก่อน"' %>
+          >
             <span>📎</span>
             เลือกไฟล์แผนการจัดการเรียนรู้
           </button>
@@ -198,14 +204,14 @@
           </div>
 
           <div style="margin-top:16px;display:flex;gap:12px;align-items:center">
-            <button type="button" class="btn btn--primary" onclick="validateVideoLink()" style="display:flex;align-items:center;gap:8px">
-              <span>✅</span>
-              ตรวจสอบลิงก์
-            </button>
-            <button type="button" class="btn btn--success" onclick="submitVideoLink()" id="submitVideoBtn" disabled style="display:flex;align-items:center;gap:8px">
-              <span>📤</span>
-              ส่งลิงก์วิดีโอ
-            </button>
+              <button type="button" class="btn btn--primary" onclick="validateVideoLink()" style="display:flex;align-items:center;gap:8px" <%= interactiveEnabled ? '' : 'disabled title="โปรดเลือกการฝึกประสบการณ์วิชาชีพครูที่ใช้งานก่อน"' %>>
+                <span>✅</span>
+                ตรวจสอบลิงก์
+              </button>
+              <button type="button" class="btn btn--success" onclick="submitVideoLink()" id="submitVideoBtn" <%= interactiveEnabled ? '' : 'disabled title="ไม่สามารถส่งได้ โปรดเลือกการฝึกประสบการณ์วิชาชีพครูที่ใช้งานก่อน"' %> style="display:flex;align-items:center;gap:8px">
+                <span>📤</span>
+                ส่งลิงก์วิดีโอ
+              </button>
           </div>
         </div>
         
@@ -246,12 +252,14 @@
                     วันที่: <span class="date-value">-</span>
                   </div>
 
-                  <button class="btn btn--primary btn-eval" 
-                          data-eval="<%= globalNum %>" 
-                          onclick="startEvaluation(<%= globalNum %>)"
-                          style="width:100%">
-                    เริ่มประเมิน
-                  </button>
+                          <button class="btn btn--primary btn-eval" 
+                                  data-eval="<%= globalNum %>" 
+                                  onclick="startEvaluation(<%= globalNum %>)"
+                                  style="width:100%"
+                                  <%= interactiveEnabled ? '' : 'disabled title="กรุณาเลือกการฝึกประสบการณ์วิชาชีพครูที่ใช้งานก่อน เพื่อเริ่มประเมิน"' %>
+                                  >
+                            เริ่มประเมิน
+                          </button>
                 </div>
               <% } %>
             </div>
@@ -669,7 +677,7 @@
       <button type="button" class="btn btn--secondary" onclick="closeEvaluationModal()">
         ยกเลิก
       </button>
-      <button type="button" class="btn btn--primary" onclick="submitEvaluation()">
+      <button type="button" class="btn btn--primary" onclick="submitEvaluation()" <%= interactiveEnabled ? '' : 'disabled title="ไม่สามารถส่งได้ โปรดเลือกการฝึกประสบการณ์วิชาชีพครูที่ใช้งานก่อน"' %>>
         ส่งแบบประเมิน
       </button>
     </div>

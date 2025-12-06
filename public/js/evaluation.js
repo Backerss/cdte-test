@@ -168,11 +168,11 @@ function displayEvalHistory() {
     <div class="readonly-section" style="margin-bottom:24px;padding:20px;background:var(--color-surface);border-radius:12px;border:1px solid var(--color-border)">
       <h3 class="readonly-title" style="color:var(--color-primary);margin:0 0 20px 0;display:flex;align-items:center;gap:10px">
         <span>📅</span>
-        ข้อมูลงวดฝึกประสบการณ์
+        ข้อมูลการฝึกประสบการณ์วิชาชีพครู
       </h3>
       <div class="readonly-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px">
         <div class="readonly-item">
-          <span class="readonly-label">งวดฝึก:</span>
+          <span class="readonly-label">การฝึกประสบการณ์วิชาชีพครู:</span>
           <span class="readonly-value">${currentEvalPeriod.period}</span>
         </div>
         <div class="readonly-item">
@@ -225,7 +225,7 @@ function displayEvalHistory() {
           แผนการจัดการเรียนรู้
         </h3>
         <div style="background:#fff3cd;padding:16px;border-radius:8px;text-align:center">
-          <p style="margin:0;color:#856404">ไม่พบการส่งแผนการจัดการเรียนรู้ในงวดนี้</p>
+          <p style="margin:0;color:#856404">ไม่พบการส่งแผนการจัดการเรียนรู้ในการฝึกประสบการณ์วิชาชีพครูนี้</p>
         </div>
       </div>
     `;
@@ -679,12 +679,12 @@ async function submitEvaluation() {
   const week = Math.ceil(currentEvalNum / 3);
   
   // Debug: ตรวจสอบว่ามี observationId หรือไม่
-  if (!currentEvalPeriod || !currentEvalPeriod.id) {
+    if (!currentEvalPeriod || !currentEvalPeriod.id) {
     console.error('Missing observation ID:', currentEvalPeriod);
     Swal.fire({
       icon: 'error',
       title: 'เกิดข้อผิดพลาด',
-      text: 'ไม่พบข้อมูลงวดการสังเกต กรุณาเลือกงวดใหม่'
+      text: 'ไม่พบข้อมูลการฝึกประสบการณ์วิชาชีพครู กรุณาเลือกการฝึกประสบการณ์ใหม่'
     });
     return;
   }
@@ -1025,7 +1025,7 @@ async function submitLessonPlan() {
     Swal.fire({
       icon: 'error',
       title: 'เกิดข้อผิดพลาด',
-      text: 'ไม่พบข้อมูลงวดการสังเกต กรุณาเลือกงวดใหม่'
+      text: 'ไม่พบข้อมูลการฝึกประสบการณ์วิชาชีพครู กรุณาเลือกการฝึกประสบการณ์ใหม่'
     });
     return;
   }
@@ -1340,7 +1340,7 @@ async function submitVideoLink() {
     Swal.fire({
       icon: 'error',
       title: 'เกิดข้อผิดพลาด',
-      text: 'ไม่พบข้อมูลงวดการสังเกต กรุณาเลือกงวดใหม่'
+      text: 'ไม่พบข้อมูลการฝึกประสบการณ์วิชาชีพครู กรุณาเลือกการฝึกประสบการณ์ใหม่'
     });
     return;
   }
