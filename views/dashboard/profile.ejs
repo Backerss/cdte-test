@@ -729,6 +729,16 @@ if (_profileFormEl) {
       Swal.fire({ icon: 'error', title: 'เปลี่ยนรหัสผ่านไม่สำเร็จ', text: pwJson.message || 'เกิดข้อผิดพลาด', confirmButtonText: 'รับทราบ' });
       return;
     }
+      // Immediate success feedback for password change
+      try {
+        Swal.fire({ icon: 'success', title: 'เปลี่ยนรหัสผ่านสำเร็จ', timer: 1800, showConfirmButton: false });
+        // Clear password inputs right away so users see the change took effect
+        if (currentPasswordEl) currentPasswordEl.value = '';
+        if (newPasswordEl) newPasswordEl.value = '';
+        if (confirmPasswordEl) confirmPasswordEl.value = '';
+      } catch (e) {
+        // ignore UI errors
+      }
   }
 
   try {

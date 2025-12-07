@@ -253,7 +253,7 @@ router.post('/api/admin/users', requireAdminOrTeacher, async (req, res) => {
 router.put('/api/admin/users/:id', requireAdminOrTeacher, async (req, res) => {
   try {
     const userId = req.params.id;
-    const { firstName, lastName, email, yearLevel, status, major, academicPosition, phone, room, role, studentId } = req.body;
+    const { firstName, lastName, email, yearLevel, status, major, academicPosition, phone, room, role, studentId, password } = req.body;
     
     const userRef = db.collection('users').doc(userId);
     const userDoc = await userRef.get();
@@ -289,6 +289,15 @@ router.put('/api/admin/users/:id', requireAdminOrTeacher, async (req, res) => {
         return res.status(400).json({ success: false, message: 'เบอร์โทรต้องเป็นจำนวน 10 หลัก เริ่มต้นด้วย 0' });
       }
       updateData.phone = phone;
+    }
+
+    // Password change: hash and store if provided
+    if (password !== undefined) {
+      if (typeof password !== 'string' || password.length < 8) {
+        return res.status(400).json({ success: false, message: 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร' });
+      }
+      const hashed = await bcrypt.hash(password, 10);
+      updateData.password = hashed;
     }
     
     // Update role-specific fields and enforce constraints per role
