@@ -372,6 +372,67 @@
   to { transform: rotate(360deg); }
 }
 
+/* Export Modal Styles */
+.export-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.export-option-btn {
+  width: 100%;
+  padding: 16px;
+  text-align: left;
+  border: 2px solid var(--color-border);
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.export-option-btn:not(:disabled):hover {
+  border-color: var(--color-primary);
+  background: var(--color-bg);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(67, 56, 202, 0.15);
+}
+
+.export-option-btn:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.export-option-btn .icon {
+  font-size: 24px;
+  min-width: 32px;
+  text-align: center;
+}
+
+.export-option-btn .content {
+  flex: 1;
+}
+
+.export-option-btn .title {
+  font-weight: 600;
+  color: var(--color-primary);
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+
+.export-option-btn:disabled .title {
+  color: var(--color-muted);
+}
+
+.export-option-btn .description {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  margin: 0;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .page-header {
@@ -393,5 +454,17 @@
   .modal-content {
     width: 98%;
     max-height: 95vh;
+  }
+  
+  .export-option-btn {
+    padding: 12px;
+  }
+  
+  .export-option-btn .title {
+    font-size: 0.95rem;
+  }
+  
+  .export-option-btn .description {
+    font-size: 0.8rem;
   }
 }

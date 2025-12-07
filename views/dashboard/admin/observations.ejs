@@ -174,6 +174,65 @@
   </div>
 </div>
 
+<!-- Export Modal -->
+<div id="exportModal" class="modal-overlay" style="display:none">
+  <div class="modal-content" style="max-width:500px;">
+    <div class="modal-header">
+      <h3>📄 ส่งออกข้อมูล</h3>
+      <button type="button" class="modal-close" onclick="closeExportModal()">×</button>
+    </div>
+    
+    <div class="modal-body" style="padding:24px;">
+      <p style="margin-bottom:20px;color:var(--color-text);">เลือกรูปแบบการส่งออกข้อมูล</p>
+      
+      <div class="export-options" style="display:flex;flex-direction:column;gap:12px;">
+        <button class="export-option-btn" onclick="exportStudentList()" style="width:100%;padding:16px;text-align:left;border:2px solid var(--color-border);border-radius:8px;background:white;cursor:pointer;transition:all 0.2s;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="font-size:24px;">📋</span>
+            <div>
+              <div style="font-weight:600;color:var(--color-primary);font-size:1rem;">รายชื่อนักศึกษา</div>
+              <div style="font-size:0.85rem;color:var(--color-muted);margin-top:4px;">เอกสารรายชื่อนักศึกษาในงวดการสังเกตุ (PDF)</div>
+            </div>
+          </div>
+        </button>
+
+        <button class="export-option-btn" onclick="showComingSoon()" style="width:100%;padding:16px;text-align:left;border:2px solid var(--color-border);border-radius:8px;background:#f5f5f5;cursor:not-allowed;transition:all 0.2s;" disabled>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="font-size:24px;opacity:0.5;">📊</span>
+            <div>
+              <div style="font-weight:600;color:var(--color-muted);font-size:1rem;">สรุปผลการประเมิน (เร็วๆ นี้)</div>
+              <div style="font-size:0.85rem;color:var(--color-muted);margin-top:4px;">รายงานสรุปผลการประเมินและความคืบหน้า</div>
+            </div>
+          </div>
+        </button>
+
+        <button class="export-option-btn" onclick="showComingSoon()" style="width:100%;padding:16px;text-align:left;border:2px solid var(--color-border);border-radius:8px;background:#f5f5f5;cursor:not-allowed;transition:all 0.2s;" disabled>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span style="font-size:24px;opacity:0.5;">📈</span>
+            <div>
+              <div style="font-weight:600;color:var(--color-muted);font-size:1rem;">รายงานแผนการสอน (เร็วๆ นี้)</div>
+              <div style="font-size:0.85rem;color:var(--color-muted);margin-top:4px;">รายงานสถานะการส่งแผนการสอน</div>
+            </div>
+          </div>
+        </button>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn btn--secondary" onclick="closeExportModal()">ปิด</button>
+    </div>
+  </div>
+</div>
+
+<style>
+.export-option-btn:not(:disabled):hover {
+  border-color: var(--color-primary);
+  background: var(--color-bg);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+</style>
+
 <!-- Pass user data to JavaScript -->
 <script>
   window.currentUser = {
@@ -183,5 +242,7 @@
 
 <!-- External JavaScript -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 <script src="/js/observations.js"></script>
 <script src="/js/school-info.js"></script>

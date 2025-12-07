@@ -12,6 +12,83 @@ let currentObservations = []; // เก็บรายการ observations ป
 let allStudents = []; // เก็บรายชื่อนักศึกษาทั้งหมด
 
 // ========================================
+// Thai Font Loading for jsPDF
+// ========================================
+
+// ArrayBuffer to base64 converter
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+// Load and register Thai font with jsPDF
+async function loadAndRegisterFont(doc, fontUrl, vfsName, fontName, fontStyle = 'normal') {
+  try {
+    console.log(`Loading font: ${fontUrl}`);
+    const resp = await fetch(fontUrl);
+    if (!resp.ok) throw new Error(`Failed to fetch font: ${resp.status} ${resp.statusText}`);
+    
+    const buf = await resp.arrayBuffer();
+    const b64 = arrayBufferToBase64(buf);
+    
+    // Register font with jsPDF VFS
+    doc.addFileToVFS(vfsName, b64);
+    doc.addFont(vfsName, fontName, fontStyle);
+    
+    console.log(`Font registered successfully: ${fontName} (${fontStyle})`);
+    return true;
+  } catch (err) {
+    console.error(`Font loading error for ${fontUrl}:`, err);
+    return false;
+  }
+}
+
+// Global font loading cache
+window._fontsLoaded = window._fontsLoaded || { done: false, promise: null };
+
+// Ensure Thai fonts are loaded before PDF generation
+async function ensureThaiFont(doc) {
+  if (window._fontsLoaded.done) return window._fontsLoaded.success;
+  if (window._fontsLoaded.promise) return window._fontsLoaded.promise;
+
+  window._fontsLoaded.promise = (async () => {
+    try {
+      // Load THSarabunNew font from public/fonts/
+      const success = await loadAndRegisterFont(
+        doc, 
+        '/fonts/THSarabunNew.ttf', 
+        'THSarabunNew.ttf', 
+        'THSarabunNew', 
+        'normal'
+      );
+      
+      window._fontsLoaded.done = true;
+      window._fontsLoaded.success = success;
+      
+      if (success) {
+        console.log('✅ Thai font loaded successfully for PDF generation');
+      } else {
+        console.warn('⚠️ Thai font loading failed, will use fallback helvetica');
+      }
+      
+      return success;
+    } catch (error) {
+      console.error('Font loading error:', error);
+      window._fontsLoaded.done = true;
+      window._fontsLoaded.success = false;
+      return false;
+    }
+  })();
+
+  return window._fontsLoaded.promise;
+}
+
+// ========================================
 // Initialization
 // ========================================
 document.addEventListener('DOMContentLoaded', function() {
@@ -1033,10 +1110,342 @@ function viewProgress(observationId) {
 }
 
 /**
- * ส่งออกข้อมูล (Coming Soon)
+ * ส่งออกข้อมูล - เปิด Export Modal
  */
+let currentExportObservationId = null;
+
 function exportData(observationId) {
-  Swal.fire('Coming Soon', 'ฟีเจอร์ส่งออกข้อมูลกำลังพัฒนา', 'info');
+  currentExportObservationId = observationId;
+  document.getElementById('exportModal').style.display = 'flex';
+}
+
+/**
+ * ปิด Export Modal
+ */
+function closeExportModal() {
+  document.getElementById('exportModal').style.display = 'none';
+  currentExportObservationId = null;
+}
+
+/**
+ * แสดงข้อความ Coming Soon
+ */
+function showComingSoon() {
+  Swal.fire({
+    icon: 'info',
+    title: 'เร็วๆ นี้',
+    text: 'ฟีเจอร์นี้กำลังอยู่ระหว่างการพัฒนา',
+    confirmButtonText: 'รับทราบ'
+  });
+}
+
+/**
+ * ส่งออกรายชื่อนักศึกษาเป็น PDF
+ */
+async function exportStudentList() {
+  if (!currentExportObservationId) {
+    Swal.fire({
+      icon: 'error',
+      title: 'เกิดข้อผิดพลาด',
+      text: 'ไม่พบข้อมูลการสังเกตุ'
+    });
+    return;
+  }
+
+  // แสดง loading
+  Swal.fire({
+    title: 'กำลังสร้างเอกสาร...',
+    text: 'กรุณารอสักครู่',
+    allowOutsideClick: false,
+    didOpen: () => {
+      Swal.showLoading();
+    }
+  });
+
+  try {
+    // ดึงข้อมูล observation และนักศึกษา
+    const result = await loadObservationDetail(currentExportObservationId);
+    
+    if (!result.success) {
+      throw new Error(result.message || 'ไม่สามารถดึงข้อมูลได้');
+    }
+
+    const observation = result.observation;
+    
+    // สร้าง PDF
+    await generateStudentListPDF(observation);
+    
+    Swal.close();
+    closeExportModal();
+    
+    Swal.fire({
+      icon: 'success',
+      title: 'สำเร็จ',
+      text: 'ส่งออกเอกสารเรียบร้อยแล้ว',
+      timer: 2000,
+      showConfirmButton: false
+    });
+  } catch (error) {
+    console.error('Error exporting student list:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'เกิดข้อผิดพลาด',
+      text: error.message || 'ไม่สามารถส่งออกเอกสารได้'
+    });
+  }
+}
+
+/**
+ * สร้างเอกสาร PDF รายชื่อนักศึกษา (แบบเอกสารทางการไทย)
+ */
+async function generateStudentListPDF(observation) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+    putOnlyUsedFonts: true,
+    compress: true
+  });
+
+  // Load Thai font before generating content
+  const fontLoaded = await ensureThaiFont(doc);
+  
+  // Set font based on loading success
+  if (fontLoaded) {
+    doc.setFont('THSarabunNew', 'normal');
+    console.log('Using Thai font: THSarabunNew');
+  } else {
+    doc.setFont('helvetica', 'normal');
+    console.log('Using fallback font: helvetica');
+  }
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 25; // เพิ่มระยะขอบให้มาตรฐาน
+  let yPos = margin + 10;
+
+  // === ส่วนหัวเอกสารแบบทางการ ===
+  
+  // หัวเรื่องหลัก - ใช้ฟอนต์เดียวกันทั้งหมด
+  doc.setFontSize(fontLoaded ? 18 : 16);
+  doc.setTextColor(0, 0, 0);
+  doc.setFont(fontLoaded ? 'THSarabunNew' : 'helvetica', 'normal');
+  doc.text('สาขาวิชาคอมพิวเตอร์ศึกษา', pageWidth / 2, yPos, { align: 'center' });
+  yPos += 8;
+
+  doc.setFontSize(fontLoaded ? 16 : 14);
+  doc.text('มหาวิทยาลัยราชภัฏนครศรีธรรมราช', pageWidth / 2, yPos, { align: 'center' });
+  yPos += 12;
+  
+  // เส้นแบ่งแบบเรียบ
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(1);
+  doc.line(margin + 40, yPos, pageWidth - margin - 40, yPos);
+  yPos += 15;
+
+
+  // === หัวข้อเอกสาร ===
+  doc.setFontSize(fontLoaded ? 18 : 16);
+  doc.setFont(fontLoaded ? 'THSarabunNew' : 'helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+  doc.text('รายชื่อนักศึกษาในงวดการสังเกตการสอน', pageWidth / 2, yPos, { align: 'center' });
+  yPos += 15;
+
+  // === รายละเอียดงวดการสังเกต ===
+  doc.setFontSize(fontLoaded ? 14 : 11);
+  doc.setFont(fontLoaded ? 'THSarabunNew' : 'helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+  
+  const obsDetails = [
+    `ชื่องวด: ${observation.name}`,
+    `ปีการศึกษา: ${observation.academicYear}`,
+    `ชั้นปี: ปีที่ ${observation.yearLevel}`,
+    `ระยะเวลา: ${formatThaiDate(observation.startDate)} - ${formatThaiDate(observation.endDate)}`,
+    `จำนวนนักศึกษา: ${observation.totalStudents} คน`,
+    `สถานะ: ${getStatusText(observation.status)}`
+  ];
+
+  // กรอบข้อมูลงวดแบบเรียบ
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.5);
+  doc.rect(margin, yPos - 3, pageWidth - 2 * margin, (obsDetails.length * 6) + 8);
+  
+  yPos += 3;
+  obsDetails.forEach(detail => {
+    doc.text(detail, margin + 5, yPos);
+    yPos += 6;
+  });
+
+  yPos += 10;
+
+  // วันที่ส่งออก
+  doc.setFontSize(fontLoaded ? 12 : 10);
+  doc.setFont(fontLoaded ? 'THSarabunNew' : 'helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+  const today = new Date();
+  const exportDate = `วันที่ส่งออกเอกสาร: ${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear() + 543}`;
+  doc.text(exportDate, pageWidth - margin, yPos, { align: 'right' });
+  yPos += 15;
+
+  // === ตารางรายชื่อนักศึกษา ===
+  doc.setTextColor(0, 0, 0);
+  
+  const tableData = observation.students.map((student, index) => [
+    (index + 1).toString(),
+    student.studentId || '-',
+    student.name || '-',
+    getStatusText(student.status),
+    `${student.evaluationsCompleted || 0}/9`,
+    student.lessonPlanSubmitted ? 'ส่งแล้ว' : 'ยังไม่ส่ง'
+  ]);
+
+  doc.autoTable({
+    startY: yPos,
+    head: [['ลำดับ', 'รหัสนักศึกษา', 'ชื่อ-นามสกุล', 'สถานะ', 'การประเมิน', 'แผนการสอน']],
+    body: tableData,
+    theme: 'grid',
+    styles: {
+      font: fontLoaded ? 'THSarabunNew' : 'helvetica',
+      fontSize: fontLoaded ? 12 : 9,
+      cellPadding: 4,
+      halign: 'center',
+      valign: 'middle',
+      lineColor: [0, 0, 0],
+      lineWidth: 0.3
+    },
+    headStyles: {
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
+      font: fontLoaded ? 'THSarabunNew' : 'helvetica',
+      fontStyle: 'normal',
+      halign: 'center',
+      fontSize: fontLoaded ? 13 : 10,
+      lineColor: [0, 0, 0],
+      lineWidth: 0.5
+    },
+    columnStyles: {
+      0: { cellWidth: 15, halign: 'center' },
+      1: { cellWidth: 28, halign: 'center' },
+      2: { cellWidth: 45, halign: 'left', cellPadding: { left: 6 } },
+      3: { cellWidth: 22, halign: 'center' },
+      4: { cellWidth: 18, halign: 'center' },
+      5: { cellWidth: 22, halign: 'center' }
+    },
+    alternateRowStyles: {
+      fillColor: [248, 248, 248]
+    },
+    margin: { left: margin + 15, right: margin + 15 },
+    tableWidth: 'auto'
+  });
+
+  // === ส่วนท้าย ===
+  const finalY = doc.lastAutoTable.finalY + 15;
+  
+  if (finalY < pageHeight - 40) {
+    yPos = finalY;
+  } else {
+    doc.addPage();
+    yPos = margin;
+  }
+
+  // สรุปข้อมูล
+  doc.setFontSize(fontLoaded ? 15 : 13);
+  doc.setFont(fontLoaded ? 'THSarabunNew' : 'helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+  doc.text('สรุปข้อมูล', margin, yPos);
+  yPos += 8;
+  
+  doc.setFontSize(fontLoaded ? 13 : 11);
+  doc.setFont(fontLoaded ? 'THSarabunNew' : 'helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+  
+  const completionPercent = observation.totalStudents > 0 
+    ? Math.round((observation.completedEvaluations / observation.totalStudents) * 100) 
+    : 0;
+  
+  const summary = [
+    `• นักศึกษาทั้งหมด: ${observation.totalStudents} คน`,
+    `• ประเมินครบแล้ว: ${observation.completedEvaluations} คน (${completionPercent}%)`,
+    `• ส่งแผนการสอนแล้ว: ${observation.submittedLessonPlans} คน`,
+    `• ยังไม่ประเมิน: ${observation.totalStudents - observation.completedEvaluations} คน`
+  ];
+
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.5);
+  doc.rect(margin, yPos - 3, pageWidth - 2 * margin, (summary.length * 6) + 8);
+  
+  yPos += 2;
+  summary.forEach(line => {
+    doc.text(line, margin + 5, yPos);
+    yPos += 6;
+  });
+
+  yPos += 10;
+
+  // ลายเซ็น
+  doc.setFontSize(fontLoaded ? 13 : 11);
+  doc.setFont(fontLoaded ? 'THSarabunNew' : 'helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+  const signatureY = pageHeight - 60;
+  
+  // กรอบลายเซ็น
+  const sigWidth = 80;
+  const sig1X = pageWidth / 2 - sigWidth - 20;
+  const sig2X = pageWidth / 2 + 20;
+  
+  doc.text('ผู้จัดทำเอกสาร', sig1X + sigWidth / 2, signatureY, { align: 'center' });
+  doc.text('ผู้ตรวจสอบ', sig2X + sigWidth / 2, signatureY, { align: 'center' });
+  
+  // เส้นลายเซ็น
+  doc.setLineWidth(0.5);
+  doc.setDrawColor(0, 0, 0);
+  doc.line(sig1X + 10, signatureY + 20, sig1X + sigWidth - 10, signatureY + 20);
+  doc.line(sig2X + 10, signatureY + 20, sig2X + sigWidth - 10, signatureY + 20);
+  
+  doc.setFontSize(fontLoaded ? 11 : 9);
+  doc.text('( ......................................... )', sig1X + sigWidth / 2, signatureY + 25, { align: 'center' });
+  doc.text('( ......................................... )', sig2X + sigWidth / 2, signatureY + 25, { align: 'center' });
+  
+  doc.text('วันที่ ........ / ........ / ........', sig1X + sigWidth / 2, signatureY + 32, { align: 'center' });
+  doc.text('วันที่ ........ / ........ / ........', sig2X + sigWidth / 2, signatureY + 32, { align: 'center' });
+
+  // Footer และเลขหน้า
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    
+    // เส้นแบ่งท้ายหน้า
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.5);
+    doc.line(margin + 20, pageHeight - 20, pageWidth - margin - 20, pageHeight - 20);
+    
+    // เลขหน้า
+    doc.setFontSize(fontLoaded ? 11 : 9);
+    doc.setFont(fontLoaded ? 'THSarabunNew' : 'helvetica', 'normal');
+    doc.setTextColor(0, 0, 0);
+    doc.text(
+      `หน้า ${i} จาก ${pageCount}`,
+      pageWidth / 2,
+      pageHeight - 12,
+      { align: 'center' }
+    );
+    
+    // ข้อความท้ายหน้า
+    doc.setFontSize(fontLoaded ? 10 : 8);
+    doc.text(
+      'สาขาวิชาคอมพิวเตอร์ศึกษา มหาวิทยาลัยราชภัฏนครศรีธรรมราช',
+      pageWidth / 2,
+      pageHeight - 6,
+      { align: 'center' }
+    );
+  }
+
+  // บันทึกไฟล์
+  const fileDate = new Date();
+  const dateStr = `${fileDate.getDate()}-${fileDate.getMonth() + 1}-${fileDate.getFullYear() + 543}`;
+  const fileName = `รายชื่อนักศึกษา_${observation.name.replace(/[^ก-๙a-zA-Z0-9]/g, '_')}_${dateStr}.pdf`;
+  doc.save(fileName);
 }
 
 /**

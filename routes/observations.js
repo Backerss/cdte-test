@@ -603,7 +603,7 @@ router.post('/api/observations/:id/add-students', requireAdminOrTeacher, async (
         if (!studentEntry) return;
         const existingId = typeof studentEntry === 'string'
           ? studentEntry
-          : (studentEntry.studentId || studentEntry.id);
+          : (studentEntry.user_id || studentEntry.studentId || studentEntry.id);
         if (existingId) {
           existingStudentIds.add(String(existingId).trim());
         }
@@ -616,9 +616,9 @@ router.post('/api/observations/:id/add-students', requireAdminOrTeacher, async (
 
     observationStudentsSnapshot.forEach(studentDoc => {
       const data = studentDoc.data();
-      if (data?.studentId) {
-        existingStudentIds.add(String(data.studentId).trim());
-      }
+      // Normalize both possible id fields to avoid false positives
+      if (data?.user_id) existingStudentIds.add(String(data.user_id).trim());
+      if (data?.studentId) existingStudentIds.add(String(data.studentId).trim());
     });
 
     const studentsToAdd = [];
@@ -634,23 +634,36 @@ router.post('/api/observations/:id/add-students', requireAdminOrTeacher, async (
         continue;
       }
 
-      const userSnapshot = await db.collection('users')
+      // Try to resolve the canonical id from users collection. Some records store
+      // canonical id in `user_id`, others in `studentId` – check both.
+      let userSnapshot = await db.collection('users')
         .where('role', '==', 'student')
-        .where('studentId', '==', studentId)
+        .where('user_id', '==', studentId)
         .limit(1)
         .get();
 
       if (userSnapshot.empty) {
+        userSnapshot = await db.collection('users')
+          .where('role', '==', 'student')
+          .where('studentId', '==', studentId)
+          .limit(1)
+          .get();
+      }
+
+      if (userSnapshot.empty) {
+        // If not found by either field, skip this id (client may have sent bad id)
         continue;
       }
 
       const userData = userSnapshot.docs[0].data();
+      const canonicalId = String(userData.user_id || userData.studentId || studentId).trim();
       const fullName = [userData.firstName, userData.lastName].filter(Boolean).join(' ').trim();
 
       const studentEntry = {
-        id: studentId,
-        studentId,
-        name: fullName || studentId,
+        id: canonicalId,
+        studentId: canonicalId,
+        user_id: canonicalId,
+        name: fullName || canonicalId,
         status: 'active',
         addedAt: admin.firestore.Timestamp.now(),
         evaluationsCompleted: 0,
@@ -665,7 +678,8 @@ router.post('/api/observations/:id/add-students', requireAdminOrTeacher, async (
         ref: studentDocRef,
         data: {
           observationId,
-          studentId,
+          studentId: canonicalId,
+          user_id: canonicalId,
           status: 'active',
           evaluationsCompleted: 0,
           lessonPlanSubmitted: false,
@@ -675,7 +689,7 @@ router.post('/api/observations/:id/add-students', requireAdminOrTeacher, async (
         }
       });
 
-      existingStudentIds.add(studentId);
+      existingStudentIds.add(canonicalId);
     }
 
     if (studentsToAdd.length === 0) {
