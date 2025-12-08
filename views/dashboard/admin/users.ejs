@@ -778,6 +778,9 @@
 
       const fullUser = data.user;
 
+      // Make the fetched fullUser available globally so "Edit from detail" can use it
+      window.currentUserForEdit = fullUser;
+
       document.getElementById('userDetailTitle').textContent = `รายละเอียดผู้ใช้: ${fullUser.firstName} ${fullUser.lastName}`;
 
       let content = `
@@ -796,6 +799,10 @@
           <div class="info-item">
             <span class="info-label">อีเมล</span>
             <span class="info-value">${fullUser.email}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">เบอร์โทรศัพท์</span>
+            <span class="info-value">${fullUser.phone || '-'}</span>
           </div>
           <div class="info-item">
             <span class="info-label">บทบาท</span>

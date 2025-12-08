@@ -247,6 +247,7 @@
     const fnEl = document.getElementById('editUserFirstName'); if (fnEl) fnEl.value = user.firstName || '';
     const lnEl = document.getElementById('editUserLastName'); if (lnEl) lnEl.value = user.lastName || '';
     const emailEl = document.getElementById('editUserEmail'); if (emailEl) emailEl.value = user.email || '';
+    const phoneEl = document.getElementById('editUserPhone'); if (phoneEl) phoneEl.value = user.phone || '';
     const statusEl = document.getElementById('editUserStatus'); if (statusEl) statusEl.value = user.status || 'active';
     const pwdEl = document.getElementById('editUserPassword'); if (pwdEl) pwdEl.value = '';
 
@@ -282,9 +283,11 @@
 
   // Open edit modal from detail modal
   window.openEditModalFromDetail = function() {
-    if (currentUserForEdit) {
+    // Prefer the currentUserForEdit inside this module, but fall back to a global
+    const target = (typeof currentUserForEdit !== 'undefined' && currentUserForEdit) ? currentUserForEdit : (window.currentUserForEdit || null);
+    if (target) {
       closeUserDetailModal();
-      window.openEditUserModal && window.openEditUserModal(currentUserForEdit);
+      window.openEditUserModal && window.openEditUserModal(target);
     }
   };
 
