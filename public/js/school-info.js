@@ -12,7 +12,7 @@ const __currentUserRole = (typeof window !== 'undefined' && window.currentUser &
 // ตรวจสอบสิทธิ์เมื่อโหลดหน้า
 async function checkEligibility() {
   try {
-    const response = await fetch('/api/school-info/check-eligibility');
+    const response = await fetch('/api/school-info/check-eligibility', { credentials: 'same-origin' });
     const data = await response.json();
     
     if (!data.success || !data.eligible) {
@@ -58,7 +58,7 @@ async function checkEligibility() {
 // โหลดข้อมูลที่เคยกรอกไว้
 async function loadMySubmission() {
   try {
-    const response = await fetch('/api/school-info/my-submission');
+    const response = await fetch('/api/school-info/my-submission', { credentials: 'same-origin' });
     const result = await response.json();
     
     if (result.success && result.hasSubmission) {
@@ -116,6 +116,7 @@ function setupSchoolNameAutocomplete() {
   suggestionContainer.id = 'schoolSuggestions';
   suggestionContainer.className = 'suggestion-box';
   suggestionContainer.style.display = 'none';
+  suggestionContainer.style.zIndex = 1600;
   nameInput.parentElement.style.position = 'relative';
   nameInput.parentElement.appendChild(suggestionContainer);
   
@@ -132,10 +133,12 @@ function setupSchoolNameAutocomplete() {
     
     debounceTimer = setTimeout(async () => {
       try {
-        const response = await fetch(`/api/school-info/search-schools?query=${encodeURIComponent(query)}`);
+        console.log('[school-info] search query:', query);
+        const response = await fetch(`/api/school-info/search-schools?query=${encodeURIComponent(query)}`, { credentials: 'same-origin' });
         const data = await response.json();
-        
-        if (data.success && data.schools.length > 0) {
+        console.log('[school-info] search result:', data);
+
+        if (data.success && data.schools && data.schools.length > 0) {
           schoolSuggestions = data.schools;
           showSchoolSuggestions(data.schools, suggestionContainer);
         } else {
@@ -495,8 +498,9 @@ async function saveSchoolInfo(event, confirmChange = false, deleteEvaluations = 
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
-  // Only run student flows on pages for students
-  if (__currentUserRole !== 'student') {
+  // Only skip flows when we explicitly know user is NOT a student.
+  // If `window.currentUser` wasn't set on the page, assume this page needs the student flows.
+  if (typeof __currentUserRole === 'string' && __currentUserRole !== 'student') {
     // Skip eligibility check and autosuggest for non-student users (eg. admin pages)
     return;
   }

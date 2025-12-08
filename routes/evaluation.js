@@ -74,7 +74,6 @@ function requireStudent(req, res, next) {
     console.warn('[requireStudent] access denied, session.user=', req.session.user, 'inferredRole=', role);
     return res.status(403).json({ success: false, message: 'เฉพาะนักศึกษาเท่านั้น' });
   }
-  console.log('[requireStudent] allowed, session.user=', req.session.user, 'inferredRole=', role);
   next();
 }
 

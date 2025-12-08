@@ -151,12 +151,6 @@ router.post('/login', async (req, res) => {
             console.warn(`[auth] Role mismatch: user_id=${identifier} has role=${userData.role}, expected=${expectedRole}`);
         }
 
-        // Debug: log Firestore document (sanitize password)
-        try {
-            const safeUserData = Object.assign({}, userData);
-            if (safeUserData.password) delete safeUserData.password;
-            console.log(`[auth] fetched user doc id=${userSnap.id}`, safeUserData);
-        } catch (e) { /* ignore logging errors */ }
 
         // ตรวจสอบรหัสผ่าน
         const isPasswordValid = await bcrypt.compare(password, userData.password || '');
@@ -179,12 +173,7 @@ router.post('/login', async (req, res) => {
         const normalizedData = await normalizeUserDataByRole(userSnap.id, sessionUser);
         Object.assign(sessionUser, normalizedData);
 
-        // Debug: log session user (sanitized)
-        try {
-          const safeSession = Object.assign({}, sessionUser);
-          if (safeSession.password) delete safeSession.password;
-          console.log(`[auth] session user for id=${userSnap.id}:`, safeSession);
-        } catch (e) { /* ignore logging errors */ }        // ตั้งค่า session
+    
         req.session.userId = userSnap.id;
         req.session.user = sessionUser;
         req.session.createdAt = Date.now();

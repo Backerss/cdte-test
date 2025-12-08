@@ -36,7 +36,8 @@ function requireStudent(req, res, next) {
  */
 router.get('/api/school-info/check-eligibility', requireStudent, async (req, res) => {
   try {
-    const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
+    const studentId = String(req.session.user.user_id || req.session.user.studentId || req.session.user.id || '');
+    console.log('[school-info] check-eligibility requested by studentId=', studentId);
     
     // หา observation ที่ active และมีนักศึกษาคนนี้อยู่
     const observationsSnapshot = await db.collection('observations')
@@ -89,7 +90,7 @@ router.get('/api/school-info/check-eligibility', requireStudent, async (req, res
       });
     }
   } catch (error) {
-    console.error('Error checking eligibility:', error);
+    console.error('Error checking eligibility');
     res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด' });
   }
 });
@@ -101,6 +102,7 @@ router.get('/api/school-info/check-eligibility', requireStudent, async (req, res
 router.get('/api/school-info/search-schools', requireAuth, async (req, res) => {
   try {
     const query = (req.query.query || '').trim();
+    console.log('[school-info] search-schools query=', query, 'from=', req.session && req.session.user ? req.session.user.user_id || req.session.user.id : 'unknown');
     
     if (!query || query.length < 2) {
       return res.json({ success: true, schools: [] });
@@ -143,7 +145,7 @@ router.get('/api/school-info/search-schools', requireAuth, async (req, res) => {
     
     res.json({ success: true, schools });
   } catch (error) {
-    console.error('Error searching schools:', error);
+    console.error('Error searching schools');
     res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด' });
   }
 });
@@ -154,7 +156,7 @@ router.get('/api/school-info/search-schools', requireAuth, async (req, res) => {
  */
 router.post('/api/school-info/save', requireStudent, async (req, res) => {
   try {
-    const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
+    const studentId = String(req.session.user.user_id || req.session.user.studentId || req.session.user.id || '');
     const schoolData = req.body;
     
     // ตรวจสอบความสมบูรณ์ของข้อมูล (ไม่บังคับผู้อำนวยการ สามารถกรอกทีหลังได้)
@@ -340,7 +342,7 @@ router.post('/api/school-info/save', requireStudent, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('Error saving school info:', error);
+    console.error('Error saving school info');
     res.status(500).json({ 
       success: false, 
       message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล' 
@@ -354,7 +356,8 @@ router.post('/api/school-info/save', requireStudent, async (req, res) => {
  */
 router.get('/api/school-info/my-submission', requireStudent, async (req, res) => {
   try {
-    const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
+    const studentId = String(req.session.user.user_id || req.session.user.studentId || req.session.user.id || '');
+    console.log('[school-info] my-submission requested by studentId=', studentId);
     
     // หา observation ที่ active
     const eligibilityCheck = await checkEligibility(studentId);
@@ -369,6 +372,7 @@ router.get('/api/school-info/my-submission', requireStudent, async (req, res) =>
       .limit(1)
       .get();
     
+    console.log('[school-info] my-submission - schools found=', schoolSnapshot.size);
     if (schoolSnapshot.empty) {
       return res.json({ success: true, hasSubmission: false });
     }
@@ -399,10 +403,12 @@ router.get('/api/school-info/my-submission', requireStudent, async (req, res) =>
         lastUpdatedBy: schoolData.lastUpdatedBy || null,
         lastUpdatedAt: schoolData.lastUpdatedAt || null
       }
+    ,
+      observationId: eligibilityCheck.observationId
     });
     
   } catch (error) {
-    console.error('Error fetching submission:', error);
+    console.error('Error fetching submission');
     res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด' });
   }
 });
@@ -466,7 +472,7 @@ async function checkStudentEvaluations(studentId, observationId) {
     
     return { hasData: false, count: 0 };
   } catch (error) {
-    console.error('Error checking evaluations:', error);
+    console.error('Error checking evaluations');
     return { hasData: false, count: 0 };
   }
 }
@@ -491,7 +497,7 @@ async function deleteStudentEvaluations(studentId, observationId) {
     
     await Promise.all(deletePromises);
   } catch (error) {
-    console.error('Error deleting evaluations:', error);
+    console.error('Error deleting evaluations');
     throw error;
   }
 }

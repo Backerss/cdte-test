@@ -743,6 +743,7 @@ function changePeriod() {
   currentPeriodId = selectedId;
   
   const selectedPeriod = ObservationUtils.getObservationById(selectedId);
+  console.log('[school-info] changePeriod selectedId=', selectedId, 'selectedPeriod=', selectedPeriod);
   if (!selectedPeriod) {
     console.warn('Observation not found:', selectedId);
     return;
@@ -755,6 +756,7 @@ function changePeriod() {
     
     // ถ้ามีข้อมูล ให้โหลดเข้าฟอร์ม
     if (selectedPeriod.schoolData) {
+      console.log('[school-info] loadDataToForm - schoolData exists:', selectedPeriod.schoolData);
       loadDataToForm(selectedPeriod.schoolData);
     } else {
       // ยังไม่มีข้อมูล ล้างฟอร์ม
@@ -782,6 +784,7 @@ function changePeriod() {
 
 function loadDataToForm(data) {
   // โหลดข้อมูลเข้าฟอร์ม
+  console.log('[school-info] loadDataToForm data=', data);
   const form = document.getElementById('currentForm');
   form.querySelector('input[type="text"]').value = data.name || '';
   document.getElementById('affiliationSelect').value = data.affiliation || '';
@@ -805,7 +808,8 @@ function loadDataToForm(data) {
   const statInputs = form.querySelectorAll('input[type="number"]');
   if (statInputs[0]) statInputs[0].value = data.studentCount || '';
   if (statInputs[1]) statInputs[1].value = data.teacherCount || '';
-  if (statInputs[2]) statInputs[2].value = data.classroomCount || '';
+  // backend uses `staffCount` for number of staff; display in the third input
+  if (statInputs[2]) statInputs[2].value = data.staffCount || '';
   
   // โหลดข้อมูลติดต่อ
   const contactInputs = form.querySelectorAll('.form-section:last-of-type input');
@@ -876,8 +880,8 @@ function displayReadOnlyData(data) {
           <div>${data.teacherCount} คน</div>
         </div>
         <div class="readonly-item">
-          <label>จำนวนห้องเรียน:</label>
-          <div>${data.classroomCount} ห้อง</div>
+          <label>จำนวนเจ้าหน้าที่:</label>
+          <div>${data.staffCount} คน</div>
         </div>
       </div>
     </div>
@@ -913,6 +917,16 @@ document.addEventListener('DOMContentLoaded', async function() {
   // Load Thai address dataset and bind autocomplete
   loadThaiAddressData();
   
+  // Load student's saved submission immediately so the form is populated without waiting
+  try {
+    if (typeof loadMySubmission === 'function') {
+      await loadMySubmission();
+      console.log('[school-info] loadMySubmission ran on init');
+    }
+  } catch (err) {
+    console.warn('Immediate loadMySubmission failed', err);
+  }
+  
   // Load observations from API
   try {
     await ObservationUtils.populateObservationSelector('periodSelector', null, {
@@ -923,6 +937,44 @@ document.addEventListener('DOMContentLoaded', async function() {
     practiceData = ObservationUtils.data.all;
     const activePeriod = ObservationUtils.getActiveObservation();
     currentPeriodId = activePeriod ? activePeriod.id : (practiceData.length > 0 ? practiceData[0].id : null);
+    // โหลดข้อมูลโรงเรียนที่นักศึกษากรอกไว้ (ถ้ามี) และแนบเป็น `schoolData` ให้กับ active observation
+    try {
+      const myRes = await fetch('/api/school-info/my-submission');
+      if (myRes.ok) {
+        const myJson = await myRes.json();
+        console.log('[school-info] my-submission (browser):', myJson);
+        if (myJson.success && myJson.hasSubmission) {
+          const obsId = myJson.observationId || null;
+          let attached = false;
+          if (obsId && ObservationUtils.data && Array.isArray(ObservationUtils.data.all)) {
+            for (let i = 0; i < ObservationUtils.data.all.length; i++) {
+              if (ObservationUtils.data.all[i].id === obsId) {
+                ObservationUtils.data.all[i].schoolData = myJson.data;
+                attached = true;
+                break;
+              }
+            }
+          }
+          // also attach to active if exists and not attached yet
+          if (!attached && ObservationUtils.getActiveObservation()) {
+            ObservationUtils.getActiveObservation().schoolData = myJson.data;
+            attached = true;
+          }
+          // fallback: attach to first
+          if (!attached && ObservationUtils.data && ObservationUtils.data.all && ObservationUtils.data.all.length > 0) {
+            ObservationUtils.data.all[0].schoolData = myJson.data;
+            attached = true;
+          }
+
+          // if the currently selected period matches this observation, re-run changePeriod to load the form
+          if (obsId && currentPeriodId === obsId) {
+            try { changePeriod(); } catch (err) { console.warn('changePeriod re-run failed', err); }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch my-submission:', err);
+    }
     
     // Hide server-side warning banner if active observation exists
     if (activePeriod) {
