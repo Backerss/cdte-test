@@ -125,9 +125,7 @@
       <div style="background:white;padding:20px;border-radius:8px;border:1px solid var(--color-border)">
         <div style="display:flex;gap:12px;align-items:center;margin-bottom:16px">
           <input type="file" id="mainLessonPlanInput" accept=".pdf,.doc,.docx,.ppt,.pptx" style="display:none">
-          <button type="button" class="btn btn--primary" onclick="document.getElementById('mainLessonPlanInput').click()" style="display:flex;align-items:center;gap:8px"
-            <%= interactiveEnabled ? '' : 'disabled title="ไม่สามารถเลือกไฟล์ได้ โปรดตั้งการฝึกประสบการณ์วิชาชีพครูที่ใช้งานก่อน"' %>
-          >
+          <button type="button" class="btn btn--primary" onclick="document.getElementById('mainLessonPlanInput').click()" style="display:flex;align-items:center;gap:8px">
             <span>📎</span>
             เลือกไฟล์แผนการจัดการเรียนรู้
           </button>
@@ -204,11 +202,11 @@
           </div>
 
           <div style="margin-top:16px;display:flex;gap:12px;align-items:center">
-              <button type="button" class="btn btn--primary" onclick="validateVideoLink()" style="display:flex;align-items:center;gap:8px" <%= interactiveEnabled ? '' : 'disabled title="โปรดเลือกการฝึกประสบการณ์วิชาชีพครูที่ใช้งานก่อน"' %>>
+              <button type="button" class="btn btn--primary" onclick="validateVideoLink()" style="display:flex;align-items:center;gap:8px">
                 <span>✅</span>
                 ตรวจสอบลิงก์
               </button>
-              <button type="button" class="btn btn--success" onclick="submitVideoLink()" id="submitVideoBtn" <%= interactiveEnabled ? '' : 'disabled title="ไม่สามารถส่งได้ โปรดเลือกการฝึกประสบการณ์วิชาชีพครูที่ใช้งานก่อน"' %> style="display:flex;align-items:center;gap:8px">
+              <button type="button" class="btn btn--success" onclick="submitVideoLink()" id="submitVideoBtn" style="display:flex;align-items:center;gap:8px">
                 <span>📤</span>
                 ส่งลิงก์วิดีโอ
               </button>
@@ -255,9 +253,7 @@
                           <button class="btn btn--primary btn-eval" 
                                   data-eval="<%= globalNum %>" 
                                   onclick="startEvaluation(<%= globalNum %>)"
-                                  style="width:100%"
-                                  <%= interactiveEnabled ? '' : 'disabled title="กรุณาเลือกการฝึกประสบการณ์วิชาชีพครูที่ใช้งานก่อน เพื่อเริ่มประเมิน"' %>
-                                  >
+                                  style="width:100%">
                             เริ่มประเมิน
                           </button>
                 </div>
@@ -677,7 +673,7 @@
       <button type="button" class="btn btn--secondary" onclick="closeEvaluationModal()">
         ยกเลิก
       </button>
-      <button type="button" class="btn btn--primary" onclick="submitEvaluation()" <%= interactiveEnabled ? '' : 'disabled title="ไม่สามารถส่งได้ โปรดเลือกการฝึกประสบการณ์วิชาชีพครูที่ใช้งานก่อน"' %>>
+      <button type="button" class="btn btn--primary" onclick="submitEvaluation()">
         ส่งแบบประเมิน
       </button>
     </div>

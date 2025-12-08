@@ -514,38 +514,48 @@ function loadEvaluationStates() {
   }
 }
 
-function startEvaluation(evalNum) {
+async function startEvaluation(evalNum) {
   currentEvalNum = evalNum;
-  
+
+  // Guard: ensure period data exists
+  if (!currentEvalPeriod) {
+    Swal.fire({ icon: 'error', title: 'ข้อมูลช่วงการประเมินไม่พร้อม', text: 'ไม่พบข้อมูลงวดการสังเกต โปรดรีเฟรชหน้า' });
+    return;
+  }
+
   // Check if lesson plan is required and uploaded (Year 2-3)
   if (userYear >= 2 && userYear <= 3) {
     if (!currentEvalPeriod.lessonPlan || !currentEvalPeriod.lessonPlan.uploaded) {
-      Swal.fire({
+      const result = await Swal.fire({
         icon: 'warning',
-        title: 'กรุณาอัปโหลดแผนการสอนก่อน',
+        title: 'ยังไม่ได้อัปโหลดแผนการสอน',
         html: `
-          <p>นักศึกษาปี ${userYear} ต้องอัปโหลด<strong>แผนการจัดการเรียนรู้</strong>ก่อนทำการประเมิน</p>
-          <p style="margin-top:12px;color:var(--color-muted)">กรุณาเลื่อนขึ้นไปด้านบนเพื่ออัปโหลดแผนการสอน</p>
+          <p>นักศึกษาปี ${userYear} ยังไม่ได้อัปโหลด<strong>แผนการจัดการเรียนรู้</strong>.</p>
+          <p style="margin-top:12px;color:var(--color-muted)">คุณสามารถดำเนินการต่อเพื่อทำการประเมิน แต่แนะนำให้อัปโหลดแผนก่อน</p>
         `,
-        confirmButtonText: 'รับทราบ'
+        showCancelButton: true,
+        confirmButtonText: 'ดำเนินการต่อ',
+        cancelButtonText: 'ยกเลิก'
       });
-      return;
+      if (!result.isConfirmed) return;
     }
   }
-  
+
   // Check if video is required and uploaded (Year 3 only)
   if (userYear === 3) {
     if (!currentEvalPeriod.videoLink || !currentEvalPeriod.videoLink.submitted) {
-      Swal.fire({
+      const result = await Swal.fire({
         icon: 'warning',
-        title: 'กรุณาส่งลิงก์วิดีโอก่อน',
+        title: 'ยังไม่ได้ส่งลิงก์วิดีโอ',
         html: `
-          <p>นักศึกษาปี 3 ต้องส่ง<strong>ลิงก์วิดีโอการสอน</strong>ก่อนทำการประเมิน</p>
-          <p style="margin-top:12px;color:var(--color-muted)">กรุณาเลื่อนขึ้นไปด้านบนเพื่อส่งลิงก์วิดีโอ YouTube</p>
+          <p>นักศึกษาปี 3 ยังไม่ได้ส่ง<strong>ลิงก์วิดีโอการสอน</strong>.</p>
+          <p style="margin-top:12px;color:var(--color-muted)">คุณสามารถดำเนินการต่อเพื่อทำการประเมิน แต่แนะนำให้ส่งลิงก์วิดีโอก่อน</p>
         `,
-        confirmButtonText: 'รับทราบ'
+        showCancelButton: true,
+        confirmButtonText: 'ดำเนินการต่อ',
+        cancelButtonText: 'ยกเลิก'
       });
-      return;
+      if (!result.isConfirmed) return;
     }
   }
 
