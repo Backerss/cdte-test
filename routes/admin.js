@@ -5,6 +5,23 @@ const bcrypt = require('bcryptjs');
 
 const db = admin.firestore();
 
+// Helper function: Log system activities
+async function logSystemActivity(level, category, message, userId, userEmail, metadata = {}) {
+  try {
+    await db.collection('system_logs').add({
+      level,
+      category,
+      message,
+      userId,
+      userEmail,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      metadata
+    });
+  } catch (error) {
+    console.error('Error logging system activity:', error);
+  }
+}
+
 // Middleware: check if user is admin or teacher
 function requireAdminOrTeacher(req, res, next) {
   if (!req.session.user) {
@@ -228,6 +245,25 @@ router.post('/api/admin/users', requireAdminOrTeacher, async (req, res) => {
     // Create user document with user_id as document ID
     await docRef.set(userData);
     
+    // บันทึก log การสร้างผู้ใช้ใหม่
+    await logSystemActivity(
+      'info',
+      'user_management',
+      `สร้างผู้ใช้ใหม่ ${firstName} ${lastName} (${userId})`,
+      req.session.user.email,
+      req.session.user.email,
+      {
+        newUserId: userId,
+        newUserName: `${firstName} ${lastName}`,
+        newUserRole: role,
+        newUserEmail: email,
+        createdBy: `${req.session.user.firstName || ''} ${req.session.user.lastName || ''}`,
+        createdByRole: req.session.user.role,
+        timestamp: new Date().toISOString(),
+        ipAddress: req.ip || req.connection.remoteAddress
+      }
+    );
+    
     // Return created user (without password)
     delete userData.password;
     
@@ -242,6 +278,22 @@ router.post('/api/admin/users', requireAdminOrTeacher, async (req, res) => {
     });
   } catch (error) {
     console.error('Error creating user:', error, error && error.stack);
+    
+    // บันทึก error log
+    await logSystemActivity(
+      'error',
+      'user_management',
+      `ล้มเหลวในการสร้างผู้ใช้ใหม่: ${error.message}`,
+      req.session.user?.email || 'unknown',
+      req.session.user?.email || 'unknown',
+      {
+        attemptedData: { firstName, lastName, email, role, user_id },
+        error: error.message,
+        createdBy: `${req.session.user?.firstName || ''} ${req.session.user?.lastName || ''}`,
+        timestamp: new Date().toISOString()
+      }
+    );
+    
     res.status(500).json({ 
       success: false, 
       message: error && error.message ? error.message : 'เกิดข้อผิดพลาดในการเพิ่มผู้ใช้' 
@@ -249,11 +301,12 @@ router.post('/api/admin/users', requireAdminOrTeacher, async (req, res) => {
   }
 });
 
-// PUT /api/admin/users/:id - Update user (cannot change role or ID - use change-role endpoint)
+// PUT /api/admin/users/:id - Update user (อาจารย์และผู้ดูแลระบบสามารถแก้ไขได้ไม่จำกัด)
 router.put('/api/admin/users/:id', requireAdminOrTeacher, async (req, res) => {
   try {
     const userId = req.params.id;
     const { firstName, lastName, email, yearLevel, status, major, academicPosition, phone, room, role, studentId, password } = req.body;
+    const currentUser = req.session.user;
     
     const userRef = db.collection('users').doc(userId);
     const userDoc = await userRef.get();
@@ -263,32 +316,30 @@ router.put('/api/admin/users/:id', requireAdminOrTeacher, async (req, res) => {
     }
     
     const currentData = userDoc.data();
+    const originalData = { ...currentData }; // เก็บข้อมูลเดิมเพื่อ log
     
     const updateData = {
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      lastModifiedBy: currentUser.email,
+      lastModifiedAt: new Date().toISOString()
     };
-    // Prevent role or user_id changes from this endpoint
-    if (role && role !== currentData.role) {
-      return res.status(400).json({ success: false, message: 'การเปลี่ยนบทบาทต้องใช้หน้าจอเปลี่ยนบทบาท (Change Role)' });
-    }
+    
+    // อาจารย์และผู้ดูแลระบบสามารถแก้ไขได้ทั้งหมด (ไม่มีข้อจำกัด)
 
-    // Update common fields
+    // อัปเดตข้อมูลพื้นฐาน - อาจารย์และผู้ดูแลระบบสามารถแก้ไขได้ทั้งหมด
     if (firstName !== undefined) updateData.firstName = firstName;
     if (lastName !== undefined) updateData.lastName = lastName;
-    // Email is write-once: if existing and different, reject
-    if (email !== undefined) {
-      if (currentData.email && currentData.email !== email) {
-        return res.status(400).json({ success: false, message: 'อีเมลเปลี่ยนไม่ได้ (กรอกได้ครั้งเดียว)' });
-      }
-      updateData.email = email;
-    }
+    if (email !== undefined) updateData.email = email; // อนุญาตให้เปลี่ยนได้
+    if (role !== undefined) updateData.role = role; // อนุญาตให้เปลี่ยนบทบาทได้
     if (status !== undefined) updateData.status = status;
-    // Phone validation: must be 10 digits starting with 0
+    
+    // ตรวจสอบเบอร์โทรศัพท์ (ถ้ามี)
     if (phone !== undefined) {
-      if (!/^0\d{9}$/.test(String(phone))) {
+      const phoneStr = String(phone || '').trim();
+      if (phoneStr && !/^0\d{9}$/.test(phoneStr)) {
         return res.status(400).json({ success: false, message: 'เบอร์โทรต้องเป็นจำนวน 10 หลัก เริ่มต้นด้วย 0' });
       }
-      updateData.phone = phone;
+      updateData.phone = phoneStr;
     }
 
     // Password change: hash and store if provided
@@ -300,29 +351,15 @@ router.put('/api/admin/users/:id', requireAdminOrTeacher, async (req, res) => {
       updateData.password = hashed;
     }
     
-    // Update role-specific fields and enforce constraints per role
-    if (currentData.role === 'student') {
-      // Student: faculty locked
+    // จัดการข้อมูลตามบทบาทใหม่ (ถ้ามีการเปลี่ยนบทบาท)
+    const finalRole = updateData.role || currentData.role;
+    
+    // อัปเดตข้อมูลตามบทบาท
+    if (finalRole === 'student') {
       updateData.faculty = 'คณะครุศาสตร์';
-
-      // studentId (document ID) is canonical — do not allow changing via this endpoint
-      if (studentId !== undefined && String(studentId).trim() !== userId) {
-        return res.status(400).json({ success: false, message: 'การเปลี่ยนรหัสนักศึกษา (user_id) ต้องใช้การย้ายบัญชี/เปลี่ยนบทบาท' });
-      }
-
-      // Compute year from the document ID (userId)
-      if (/^\d{11}$/.test(userId)) {
-        const currentYear = new Date().getFullYear() + 543;
-        const studentYearPrefix = parseInt(String(userId).substring(0,2));
-        const studentAdmissionYear = 2500 + studentYearPrefix;
-        const yearsSinceAdmission = currentYear - studentAdmissionYear;
-        let computedYear = yearsSinceAdmission + 1;
-        if (computedYear < 1) computedYear = 1;
-        if (computedYear > 4) computedYear = 4;
-        updateData.year = computedYear;
-      }
-
-      // Major must be one of allowed majors if provided
+      if (yearLevel !== undefined) updateData.year = parseInt(yearLevel) || 1;
+      
+      // ตรวจสอบสาขา
       const allowedMajors = ['เทคโนโลยีดิจิทัลเพื่อการศึกษา', 'คอมพิวเตอร์ศึกษา'];
       if (major !== undefined) {
         if (major && !allowedMajors.includes(major)) {
@@ -330,8 +367,8 @@ router.put('/api/admin/users/:id', requireAdminOrTeacher, async (req, res) => {
         }
         updateData.major = major || '';
       }
-
-      // Room: allow up to 2 rooms (comma separated) or single value
+      
+      // ห้อง: อนุญาตไม่เกิน 2 ห้อง
       if (room !== undefined) {
         const roomStr = String(room || '').trim();
         if (roomStr) {
@@ -344,19 +381,69 @@ router.put('/api/admin/users/:id', requireAdminOrTeacher, async (req, res) => {
           updateData.room = '';
         }
       }
-
-    } else if (currentData.role === 'teacher') {
+    } else if (finalRole === 'teacher') {
+      updateData.faculty = 'คณะครุศาสตร์';
       if (academicPosition !== undefined) updateData.academicPosition = academicPosition;
+    } else if (finalRole === 'admin') {
+      // ผู้ดูแลระบบไม่ต้องมีข้อมูลเพิ่มเติม
     }
     
+    // อัปเดตข้อมูล
     await userRef.update(updateData);
+    
+    // สร้าง log การเปลี่ยนแปลง
+    const changes = [];
+    const changedFields = Object.keys(updateData).filter(key => 
+      key !== 'updatedAt' && key !== 'lastModifiedBy' && key !== 'lastModifiedAt'
+    );
+    
+    changedFields.forEach(field => {
+      if (originalData[field] !== updateData[field]) {
+        changes.push(`${field}: "${originalData[field] || ''}" → "${updateData[field] || ''}"`);
+      }
+    });
+    
+    // บันทึก log ลง system_logs
+    await logSystemActivity(
+      'info',
+      'user_management',
+      `แก้ไขข้อมูลผู้ใช้ ${originalData.firstName} ${originalData.lastName} (${userId})`,
+      currentUser.email,
+      currentUser.email,
+      {
+        targetUserId: userId,
+        targetUserName: `${originalData.firstName} ${originalData.lastName}`,
+        changes: changes.join(', '),
+        modifiedBy: `${currentUser.firstName || ''} ${currentUser.lastName || ''}`,
+        modifiedByRole: currentUser.role,
+        timestamp: new Date().toISOString(),
+        ipAddress: req.ip || req.connection.remoteAddress
+      }
+    );
     
     res.json({
       success: true,
-      message: 'อัปเดตข้อมูลผู้ใช้สำเร็จ'
+      message: 'อัปเดตข้อมูลผู้ใช้สำเร็จ',
+      changes: changes.length
     });
   } catch (error) {
     console.error('Error updating user:', error);
+    
+    // บันทึก error log
+    await logSystemActivity(
+      'error',
+      'user_management',
+      `ล้มเหลวในการแก้ไขข้อมูลผู้ใช้ ${userId}: ${error.message}`,
+      req.session.user?.email || 'unknown',
+      req.session.user?.email || 'unknown',
+      {
+        targetUserId: userId,
+        error: error.message,
+        modifiedBy: `${req.session.user?.firstName || ''} ${req.session.user?.lastName || ''}`,
+        timestamp: new Date().toISOString()
+      }
+    );
+    
     res.status(500).json({ 
       success: false, 
       message: 'เกิดข้อผิดพลาดในการอัปเดตข้อมูล' 
@@ -368,6 +455,7 @@ router.put('/api/admin/users/:id', requireAdminOrTeacher, async (req, res) => {
 router.delete('/api/admin/users/:id', requireAdminOrTeacher, async (req, res) => {
   try {
     const userId = req.params.id;
+    const currentUser = req.session.user;
     
     const userRef = db.collection('users').doc(userId);
     const userDoc = await userRef.get();
@@ -376,11 +464,33 @@ router.delete('/api/admin/users/:id', requireAdminOrTeacher, async (req, res) =>
       return res.status(404).json({ success: false, message: 'ไม่พบผู้ใช้' });
     }
     
+    const userData = userDoc.data();
+    
     // Soft delete - set status to inactive
     await userRef.update({
       status: 'inactive',
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      deletedBy: currentUser.email,
+      deletedAt: new Date().toISOString()
     });
+    
+    // บันทึก log การลบ
+    await logSystemActivity(
+      'warning',
+      'user_management',
+      `ลบผู้ใช้ ${userData.firstName} ${userData.lastName} (${userId})`,
+      currentUser.email,
+      currentUser.email,
+      {
+        targetUserId: userId,
+        targetUserName: `${userData.firstName} ${userData.lastName}`,
+        targetUserRole: userData.role,
+        deletedBy: `${currentUser.firstName || ''} ${currentUser.lastName || ''}`,
+        deletedByRole: currentUser.role,
+        timestamp: new Date().toISOString(),
+        ipAddress: req.ip || req.connection.remoteAddress
+      }
+    );
     
     res.json({
       success: true,
@@ -388,6 +498,22 @@ router.delete('/api/admin/users/:id', requireAdminOrTeacher, async (req, res) =>
     });
   } catch (error) {
     console.error('Error deleting user:', error);
+    
+    // บันทึก error log
+    await logSystemActivity(
+      'error',
+      'user_management',
+      `ล้มเหลวในการลบผู้ใช้ ${userId}: ${error.message}`,
+      req.session.user?.email || 'unknown',
+      req.session.user?.email || 'unknown',
+      {
+        targetUserId: userId,
+        error: error.message,
+        deletedBy: `${req.session.user?.firstName || ''} ${req.session.user?.lastName || ''}`,
+        timestamp: new Date().toISOString()
+      }
+    );
+    
     res.status(500).json({ 
       success: false, 
       message: 'เกิดข้อผิดพลาดในการลบผู้ใช้' 
@@ -592,6 +718,26 @@ router.post('/api/admin/change-role', requireAdminOrTeacher, async (req, res) =>
       replacedAt: new Date().toISOString()
     });
     
+    // บันทึก log การเปลี่ยนบทบาท
+    await logSystemActivity(
+      'info',
+      'user_management',
+      `เปลี่ยนบทบาทผู้ใช้ ${currentData.firstName} ${currentData.lastName} จาก ${currentData.role} เป็น ${newRole}`,
+      req.session.user.email,
+      req.session.user.email,
+      {
+        oldUserId: currentUserId,
+        newUserId: newUserId,
+        userName: `${currentData.firstName} ${currentData.lastName}`,
+        oldRole: currentData.role,
+        newRole: newRole,
+        changedBy: `${req.session.user.firstName || ''} ${req.session.user.lastName || ''}`,
+        changedByRole: req.session.user.role,
+        timestamp: new Date().toISOString(),
+        ipAddress: req.ip || req.connection.remoteAddress
+      }
+    );
+    
     res.json({
       success: true,
       message: 'เปลี่ยนบทบาทสำเร็จ',
@@ -600,6 +746,24 @@ router.post('/api/admin/change-role', requireAdminOrTeacher, async (req, res) =>
     
   } catch (error) {
     console.error('Error changing role:', error);
+    
+    // บันทึก error log
+    await logSystemActivity(
+      'error',
+      'user_management',
+      `ล้มเหลวในการเปลี่ยนบทบาท ${currentUserId} เป็น ${newRole}: ${error.message}`,
+      req.session.user?.email || 'unknown',
+      req.session.user?.email || 'unknown',
+      {
+        currentUserId,
+        newRole,
+        newUserId,
+        error: error.message,
+        changedBy: `${req.session.user?.firstName || ''} ${req.session.user?.lastName || ''}`,
+        timestamp: new Date().toISOString()
+      }
+    );
+    
     res.status(500).json({
       success: false,
       message: 'เกิดข้อผิดพลาดในการเปลี่ยนบทบาท'
