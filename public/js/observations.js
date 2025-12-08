@@ -1103,10 +1103,312 @@ async function addStudentsToObservation(observationId, studentIds) {
 // ========================================
 
 /**
- * ดูความคืบหน้า (Coming Soon)
+ * ดูความคืบหน้าการสังเกตการสอน
  */
-function viewProgress(observationId) {
-  Swal.fire('Coming Soon', 'ฟีเจอร์นี้กำลังพัฒนา', 'info');
+async function viewProgress(observationId) {
+  // แสดง loading
+  Swal.fire({
+    title: 'กำลังโหลดข้อมูล...',
+    allowOutsideClick: false,
+    didOpen: () => {
+      Swal.showLoading();
+    }
+  });
+
+  try {
+    // ดึงข้อมูลจาก API
+    const response = await fetch(`/api/observations/${observationId}/schools-summary`);
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.message || 'ไม่สามารถโหลดข้อมูลได้');
+    }
+
+    Swal.close();
+
+    // แสดง Modal
+    displayProgressModal(result);
+  } catch (error) {
+    console.error('Error loading progress:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'เกิดข้อผิดพลาด',
+      text: error.message || 'ไม่สามารถโหลดข้อมูลความคืบหน้าได้'
+    });
+  }
+}
+
+/**
+ * แสดง Progress Modal พร้อมข้อมูล
+ */
+function displayProgressModal(data) {
+  const { observation, schools, totalSchools, totalStudentsInObservation } = data;
+
+  // อัปเดต title
+  document.getElementById('progressModalTitle').innerHTML = 
+    `📊 ความคืบหน้า: ${escapeHtml(observation.name)}`;
+
+  // สร้าง summary cards
+  const summaryHTML = `
+    <div class="progress-summary">
+      <div class="progress-card">
+        <div class="progress-card-label">จำนวนโรงเรียนทั้งหมด</div>
+        <div class="progress-card-value">${totalSchools}</div>
+        <div class="progress-card-label">แห่ง</div>
+      </div>
+      <div class="progress-card">
+        <div class="progress-card-label">นักศึกษาทั้งหมด</div>
+        <div class="progress-card-value">${totalStudentsInObservation}</div>
+        <div class="progress-card-label">คน</div>
+      </div>
+      <div class="progress-card">
+        <div class="progress-card-label">ครูพี่เลี้ยงทั้งหมด</div>
+        <div class="progress-card-value">${schools.reduce((sum, s) => sum + s.totalMentors, 0)}</div>
+        <div class="progress-card-label">คน</div>
+      </div>
+      <div class="progress-card">
+        <div class="progress-card-label">ค่าเฉลี่ยนักศึกษาต่อโรงเรียน</div>
+        <div class="progress-card-value">${totalSchools > 0 ? (totalStudentsInObservation / totalSchools).toFixed(1) : 0}</div>
+        <div class="progress-card-label">คน/แห่ง</div>
+      </div>
+    </div>
+  `;
+
+  // สร้างตารางโรงเรียน
+  let tableHTML = '';
+  
+  if (schools.length === 0) {
+    tableHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">🏫</div>
+        <p>ยังไม่มีข้อมูลโรงเรียนในงวดสังเกตนี้</p>
+        <p style="font-size:0.9rem;margin-top:8px;">นักศึกษายังไม่ได้กรอกข้อมูลโรงเรียนที่เข้าสังเกต</p>
+      </div>
+    `;
+  } else {
+    tableHTML = `
+      <div style="margin-top:24px;">
+        <h4 style="margin-bottom:16px;color:var(--color-primary);display:flex;align-items:center;gap:8px;">
+          <span>🏫</span>
+          รายชื่อโรงเรียน
+        </h4>
+        <table class="schools-table">
+          <thead>
+            <tr>
+              <th style="width:40px;">ลำดับ</th>
+              <th>ชื่อโรงเรียน</th>
+              <th>จังหวัด</th>
+              <th style="text-align:center;">นักศึกษา</th>
+              <th style="text-align:center;">ครูพี่เลี้ยง</th>
+              <th style="text-align:center;">ระดับชั้น</th>
+              <th style="width:100px;text-align:center;">ดูรายละเอียด</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${schools.map((school, index) => `
+              <tr>
+                <td style="text-align:center;">${index + 1}</td>
+                <td>
+                  <strong>${escapeHtml(school.name)}</strong>
+                  ${school.district ? `<br><small style="color:var(--color-muted);">${escapeHtml(school.district)}</small>` : ''}
+                </td>
+                <td>${escapeHtml(school.province || '-')}</td>
+                <td style="text-align:center;">
+                  <span class="badge badge--primary">${school.totalStudents} คน</span>
+                </td>
+                <td style="text-align:center;">
+                  <span class="badge badge--success">${school.totalMentors} คน</span>
+                </td>
+                <td style="text-align:center;">
+                  ${school.gradeLevels && school.gradeLevels.length > 0 
+                    ? `<span class="badge badge--warning">${school.gradeLevels.join(', ')}</span>`
+                    : '<span style="color:var(--color-muted);">-</span>'}
+                </td>
+                <td style="text-align:center;">
+                  <button class="btn btn--sm btn--primary" onclick="viewSchoolDetail('${school.id}')" 
+                          style="padding:6px 12px;font-size:0.85rem;">
+                    ดูข้อมูล
+                  </button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  // แสดงเนื้อหาใน Modal
+  document.getElementById('progressContent').innerHTML = summaryHTML + tableHTML;
+
+  // เปิด Modal
+  document.getElementById('progressModal').style.display = 'flex';
+
+  // เก็บข้อมูลไว้ใช้ในการดูรายละเอียด
+  window._currentProgressData = data;
+}
+
+/**
+ * ปิด Progress Modal
+ */
+function closeProgressModal() {
+  document.getElementById('progressModal').style.display = 'none';
+  window._currentProgressData = null;
+}
+
+/**
+ * ดูรายละเอียดโรงเรียน
+ */
+function viewSchoolDetail(schoolId) {
+  if (!window._currentProgressData) {
+    Swal.fire('ข้อผิดพลาด', 'ไม่พบข้อมูล', 'error');
+    return;
+  }
+
+  const school = window._currentProgressData.schools.find(s => s.id === schoolId);
+  
+  if (!school) {
+    Swal.fire('ข้อผิดพลาด', 'ไม่พบข้อมูลโรงเรียน', 'error');
+    return;
+  }
+
+  // อัปเดต title
+  document.getElementById('schoolDetailTitle').innerHTML = 
+    `🏫 ${escapeHtml(school.name)}`;
+
+  // สร้างเนื้อหารายละเอียด
+  const detailHTML = `
+    <!-- ข้อมูลทั่วไปของโรงเรียน -->
+    <div class="school-detail-section">
+      <h4>📋 ข้อมูลทั่วไป</h4>
+      <div class="detail-grid">
+        <div class="detail-item">
+          <span class="detail-label">ชื่อโรงเรียน</span>
+          <span class="detail-value">${escapeHtml(school.name)}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">จังหวัด</span>
+          <span class="detail-value">${escapeHtml(school.province || '-')}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">อำเภอ/เขต</span>
+          <span class="detail-value">${escapeHtml(school.district || '-')}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">เบอร์โทรศัพท์</span>
+          <span class="detail-value">${escapeHtml(school.phone || '-')}</span>
+        </div>
+        <div class="detail-item" style="grid-column: 1 / -1;">
+          <span class="detail-label">ที่อยู่</span>
+          <span class="detail-value">${escapeHtml(school.address || '-')}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ข้อมูลผู้บริหาร -->
+    <div class="school-detail-section">
+      <h4>👔 ข้อมูลผู้บริหาร</h4>
+      <div class="detail-grid">
+        <div class="detail-item">
+          <span class="detail-label">ชื่อผู้อำนวยการ</span>
+          <span class="detail-value">${escapeHtml(school.principalName || '-')}</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">เบอร์ติดต่อผู้อำนวยการ</span>
+          <span class="detail-value">${escapeHtml(school.principalPhone || '-')}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- สถิติโรงเรียน -->
+    <div class="school-detail-section">
+      <h4>📊 สถิติโรงเรียน</h4>
+      <div class="detail-grid">
+        <div class="detail-item">
+          <span class="detail-label">จำนวนนักเรียน</span>
+          <span class="detail-value">${school.studentCount ? school.studentCount.toLocaleString() : '-'} คน</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">จำนวนห้องเรียน</span>
+          <span class="detail-value">${school.classroomCount || '-'} ห้อง</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">จำนวนบุคลากร</span>
+          <span class="detail-value">${school.staffCount || '-'} คน</span>
+        </div>
+        <div class="detail-item">
+          <span class="detail-label">ระดับชั้นที่เปิดสอน</span>
+          <span class="detail-value">
+            ${school.gradeLevels && school.gradeLevels.length > 0 
+              ? school.gradeLevels.join(', ') 
+              : '-'}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- นักศึกษาที่เข้าสังเกต -->
+    <div class="school-detail-section">
+      <h4>🎓 นักศึกษาที่เข้าสังเกต (${school.totalStudents} คน)</h4>
+      ${school.students && school.students.length > 0 ? `
+        <div class="students-list">
+          ${school.students.map((student, idx) => `
+            <div class="student-item">
+              <div class="student-info">
+                <span class="student-name">${idx + 1}. ${escapeHtml(student.name)}</span>
+                <span class="student-id">รหัสนักศึกษา: ${escapeHtml(student.studentId)} | ชั้นปีที่ ${student.yearLevel || '-'}</span>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      ` : `
+        <div class="empty-state" style="padding:20px;">
+          <p style="color:var(--color-muted);">ยังไม่มีข้อมูลนักศึกษา</p>
+        </div>
+      `}
+    </div>
+
+    <!-- ครูพี่เลี้ยง -->
+    <div class="school-detail-section">
+      <h4>👨‍🏫 ครูพี่เลี้ยง (${school.totalMentors} คน)</h4>
+      ${school.mentors && school.mentors.length > 0 ? `
+        <div class="mentors-list">
+          ${school.mentors.map((mentor, idx) => `
+            <div class="mentor-item">
+              <div class="mentor-info">
+                <span class="mentor-name">${idx + 1}. ${escapeHtml(mentor.name)}</span>
+                <span class="mentor-subject">
+                  วิชา: ${escapeHtml(mentor.subject)}
+                  ${mentor.phone ? ` | โทร: ${escapeHtml(mentor.phone)}` : ''}
+                  ${mentor.email ? ` | อีเมล: ${escapeHtml(mentor.email)}` : ''}
+                </span>
+              </div>
+              ${mentor.studentId ? `
+                <span class="badge badge--primary">รหัส: ${escapeHtml(mentor.studentId)}</span>
+              ` : ''}
+            </div>
+          `).join('')}
+        </div>
+      ` : `
+        <div class="empty-state" style="padding:20px;">
+          <p style="color:var(--color-muted);">ยังไม่มีข้อมูลครูพี่เลี้ยง</p>
+        </div>
+      `}
+    </div>
+  `;
+
+  // แสดงเนื้อหาใน Modal
+  document.getElementById('schoolDetailContent').innerHTML = detailHTML;
+
+  // เปิด School Detail Modal
+  document.getElementById('schoolDetailModal').style.display = 'flex';
+}
+
+/**
+ * ปิด School Detail Modal
+ */
+function closeSchoolDetailModal() {
+  document.getElementById('schoolDetailModal').style.display = 'none';
 }
 
 /**
@@ -1531,5 +1833,19 @@ if (document.getElementById('studentManagementModal')) {
     if (e.target === this) {
       closeStudentManagementModal();
     }
+  });
+}
+
+// Progress Modal - ห้ามปิดเมื่อคลิกนอก modal (ต้องกดปุ่ม Close เท่านั้น)
+if (document.getElementById('progressModal')) {
+  document.getElementById('progressModal').addEventListener('click', function(e) {
+    // ไม่ทำอะไร - บังคับให้ต้องกดปุ่ม Close
+  });
+}
+
+// School Detail Modal - ห้ามปิดเมื่อคลิกนอก modal (ต้องกดปุ่ม ย้อนกลับ เท่านั้น)
+if (document.getElementById('schoolDetailModal')) {
+  document.getElementById('schoolDetailModal').addEventListener('click', function(e) {
+    // ไม่ทำอะไร - บังคับให้ต้องกดปุ่ม ย้อนกลับ
   });
 }

@@ -724,4 +724,206 @@ router.post('/api/observations/:id/add-students', requireAdminOrTeacher, async (
   }
 });
 
+/**
+ * GET /api/observations/:id/schools-summary
+ * ดึงสรุปข้อมูลโรงเรียนทั้งหมดที่นักศึกษาในงวดสังเกตนี้เข้าไปสังเกต
+ * พร้อมรายละเอียดครูพี่เลี้ยงและข้อมูลโรงเรียน
+ */
+router.get('/api/observations/:id/schools-summary', requireAuth, async (req, res) => {
+  try {
+    const observationId = req.params.id;
+    
+    // ดึงข้อมูล observation
+    const observationDoc = await db.collection('observations').doc(observationId).get();
+    
+    if (!observationDoc.exists) {
+      return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลการสังเกตุ' });
+    }
+    
+    const observationData = observationDoc.data();
+    
+    // ดึงรายชื่อนักศึกษาในงวดนี้
+    const studentsSnapshot = await db.collection('observation_students')
+      .where('observationId', '==', observationId)
+      .get();
+    
+    const studentIds = [];
+    studentsSnapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.studentId) {
+        studentIds.push(String(data.studentId));
+      }
+    });
+    
+    if (studentIds.length === 0) {
+      return res.json({
+        success: true,
+        observation: {
+          id: observationDoc.id,
+          ...observationData
+        },
+        schools: [],
+        totalSchools: 0
+      });
+    }
+    
+    // ดึงข้อมูลโรงเรียนทั้งหมดที่นักศึกษาเหล่านี้เข้าไปสังเกต
+    const schoolsSnapshot = await db.collection('schools')
+      .where('observationId', '==', observationId)
+      .get();
+    
+    const schoolsMap = new Map();
+    
+    for (const schoolDoc of schoolsSnapshot.docs) {
+      const schoolData = schoolDoc.data();
+      const schoolId = schoolDoc.id;
+      
+      // ดึงข้อมูลนักศึกษาที่เข้าโรงเรียนนี้
+      const schoolStudentIds = schoolData.studentIds || [];
+      const studentDetails = [];
+      
+      for (const sid of schoolStudentIds) {
+        const sidStr = String(sid).trim();
+
+        // พยายามค้นหา canonical user by user_id ก่อน แล้ว fallback ไปที่ studentId
+        let userSnapshot = { empty: true };
+        if (sidStr) {
+          userSnapshot = await db.collection('users')
+            .where('user_id', '==', sidStr)
+            .limit(1)
+            .get();
+
+          if (userSnapshot.empty) {
+            userSnapshot = await db.collection('users')
+              .where('studentId', '==', sidStr)
+              .limit(1)
+              .get();
+          }
+        }
+
+        let nameVal = null;
+        let yearLevelVal = null;
+
+        if (userSnapshot && !userSnapshot.empty) {
+          const userData = userSnapshot.docs[0].data();
+          // ถ้ามีชื่อ-นามสกุล ให้ใช้ หากไม่มี ใช้ fallback เป็น displayName หรือ studentId
+          if (userData.firstName || userData.lastName) {
+            nameVal = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+          } else if (userData.displayName) {
+            nameVal = userData.displayName;
+          }
+          // รองรับทั้งฟิลด์ `year` และ `yearLevel` ใน users collection
+          yearLevelVal = userData.year || userData.yearLevel || null;
+        }
+
+        // ถ้าไม่พบชื่อ ให้แสดงอย่างน้อยรหัสนักศึกษา
+        if (!nameVal) nameVal = sidStr;
+
+        studentDetails.push({
+          studentId: sidStr,
+          name: nameVal,
+          yearLevel: yearLevelVal
+        });
+      }
+      
+      // ดึงข้อมูลครูพี่เลี้ยง (mentors)
+      const mentorsSnapshot = await db.collection('mentors')
+        .where('schoolId', '==', schoolId)
+        .where('observationId', '==', observationId)
+        .get();
+      
+      const mentors = [];
+      mentorsSnapshot.forEach(mentorDoc => {
+        const mentorData = mentorDoc.data();
+        const mentorFullName = (mentorData.firstName || mentorData.lastName)
+          ? `${mentorData.firstName || ''} ${mentorData.lastName || ''}`.trim()
+          : (mentorData.name || mentorData.displayName || '-');
+
+        // Normalize teaching subjects: accept array of strings or array of objects
+        let subjectStr = '';
+        if (Array.isArray(mentorData.teachingSubjects) && mentorData.teachingSubjects.length > 0) {
+          const parts = mentorData.teachingSubjects.map(item => {
+            if (!item && item !== 0) return '';
+            if (typeof item === 'string') return item;
+            if (typeof item === 'object') {
+              // common keys to try
+              return item.name || item.subject || item.title || (item.value ? String(item.value) : JSON.stringify(item));
+            }
+            return String(item);
+          }).filter(Boolean);
+          subjectStr = parts.join(', ');
+        } else if (mentorData.subject) {
+          // subject may itself be array/object/string
+          if (Array.isArray(mentorData.subject)) {
+            subjectStr = mentorData.subject.map(s => typeof s === 'string' ? s : (s.name || s.subject || String(s))).filter(Boolean).join(', ');
+          } else if (typeof mentorData.subject === 'object') {
+            subjectStr = mentorData.subject.name || mentorData.subject.subject || JSON.stringify(mentorData.subject);
+          } else {
+            subjectStr = String(mentorData.subject);
+          }
+        } else {
+          subjectStr = '';
+        }
+
+        mentors.push({
+          id: mentorDoc.id,
+          firstName: mentorData.firstName || '',
+          lastName: mentorData.lastName || '',
+          name: mentorFullName,
+          position: mentorData.position || mentorData.title || '',
+          subject: subjectStr || '-',
+          phone: mentorData.phone || '-',
+          email: mentorData.email || '-',
+          studentId: mentorData.studentId || null
+        });
+      });
+      
+      schoolsMap.set(schoolId, {
+        id: schoolId,
+        name: schoolData.name || '-',
+        address: schoolData.address || '-',
+        district: schoolData.district || '-',
+        province: schoolData.province || '-',
+        phone: schoolData.phone || '-',
+        email: schoolData.email || '-',
+        principalName: schoolData.principalName || '-',
+        principalPhone: schoolData.principalPhone || '-',
+        studentCount: schoolData.studentCount || 0,
+        classroomCount: schoolData.classroomCount || 0,
+        staffCount: schoolData.staffCount || 0,
+        gradeLevels: schoolData.gradeLevels || [],
+        students: studentDetails,
+        mentors: mentors,
+        totalStudents: studentDetails.length,
+        totalMentors: mentors.length,
+        createdAt: schoolData.createdAt
+      });
+    }
+    
+    const schoolsArray = Array.from(schoolsMap.values());
+    
+    // เรียงตามจำนวนนักศึกษามากไปน้อย
+    schoolsArray.sort((a, b) => b.totalStudents - a.totalStudents);
+    
+    res.json({
+      success: true,
+      observation: {
+        id: observationDoc.id,
+        name: observationData.name,
+        academicYear: observationData.academicYear,
+        yearLevel: observationData.yearLevel,
+        startDate: observationData.startDate,
+        endDate: observationData.endDate,
+        status: observationData.status
+      },
+      schools: schoolsArray,
+      totalSchools: schoolsArray.length,
+      totalStudentsInObservation: studentIds.length
+    });
+  } catch (error) {
+    console.error('Error fetching schools summary:', error);
+    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการดึงข้อมูล' });
+  }
+});
+
 module.exports = router;

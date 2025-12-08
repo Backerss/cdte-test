@@ -85,9 +85,6 @@ router.get('/profile', requireAuth, async (req, res) => {
     try {
       const safeUserData = Object.assign({}, userData);
       if (safeUserData.password) delete safeUserData.password;
-      console.log(`[profile] GET /api/profile userId=${userId} role=${role}`);
-      console.log('[profile] userData:', safeUserData);
-      console.log('[profile] derived fields:', derived);
     } catch (e) {
       // ignore logging errors
     }
