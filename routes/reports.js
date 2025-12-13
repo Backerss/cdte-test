@@ -35,7 +35,19 @@ function requireAdminOrTeacher(req, res, next) {
  */
 router.get('/api/reports/evaluation-summary', requireAdminOrTeacher, async (req, res) => {
   try {
-    const { observationId, yearLevel, studentId } = req.query;
+    const { observationId, yearLevel, studentId, evaluationNum } = req.query;
+
+    // Optional: filter/aggregate by a specific evaluation attempt (1..9)
+    const evaluationNumInt = evaluationNum !== undefined && evaluationNum !== null && String(evaluationNum).trim() !== ''
+      ? parseInt(String(evaluationNum), 10)
+      : null;
+
+    if (evaluationNumInt !== null && (!Number.isFinite(evaluationNumInt) || evaluationNumInt < 1 || evaluationNumInt > 9)) {
+      return res.status(400).json({
+        success: false,
+        message: 'ค่า evaluationNum ต้องอยู่ระหว่าง 1 ถึง 9'
+      });
+    }
 
     // Report groups based on the actual evaluation form (q1-q26)
     const categoriesLabel = {
@@ -191,14 +203,28 @@ router.get('/api/reports/evaluation-summary', requireAdminOrTeacher, async (req,
         groupCounts[key] = 0;
       });
 
-      let submittedEvalCount = 0;
+      let submittedEvalCountTotal = 0;
+      let submittedEvalCountIncluded = 0;
 
       for (const docItem of evalDocs) {
         const evRoot = docItem || {};
         const nested = evRoot.evaluations || {};
+
+        // Count total submitted attempts across all nested entries
         Object.values(nested).forEach(entry => {
+          if (entry && entry.submitted) submittedEvalCountTotal += 1;
+        });
+
+        // Aggregate either all attempts, or a selected attempt only
+        const includedEntries = (() => {
+          if (evaluationNumInt === null) return Object.values(nested);
+          const selected = nested[String(evaluationNumInt)] || nested[evaluationNumInt];
+          return selected ? [selected] : [];
+        })();
+
+        includedEntries.forEach(entry => {
           if (!entry || !entry.submitted) return;
-          submittedEvalCount += 1;
+          submittedEvalCountIncluded += 1;
           const answers = entry.answers || {};
 
           Object.keys(groupQuestions).forEach(groupKey => {
@@ -226,7 +252,12 @@ router.get('/api/reports/evaluation-summary', requireAdminOrTeacher, async (req,
           ? Number(student.yearLevel)
           : null,
         evaluationData,
-        evaluationCount: submittedEvalCount
+        // evaluationCount: number of submitted attempts INCLUDED in this report
+        // - when evaluationNumInt is set: 0/1 per student (per doc)
+        // - when not set: total submitted attempts
+        evaluationCount: submittedEvalCountIncluded,
+        // evaluationCountTotal: total submitted attempts across all 1..9 attempts
+        evaluationCountTotal: submittedEvalCountTotal
       });
     }
 
@@ -286,7 +317,8 @@ router.get('/api/reports/evaluation-summary', requireAdminOrTeacher, async (req,
         filters: {
           observationId: observationId || null,
           yearLevel: yearLevel || null,
-          studentId: studentId || null
+          studentId: studentId || null,
+          evaluationNum: evaluationNumInt
         }
       }
     });

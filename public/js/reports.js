@@ -34,7 +34,9 @@ function computeGrade(avg) {
 function getCurrentFilterState() {
   const observationSelect = document.getElementById('filterObservation');
   const yearSelect = document.getElementById('filterYear');
+  const attemptSelect = document.getElementById('filterAttempt');
   const scoreSelect = document.getElementById('filterScore');
+  const evalCountSelect = document.getElementById('filterEvalCount');
   const sortSelect = document.getElementById('sortBy');
   const searchInput = document.getElementById('searchStudent');
 
@@ -46,9 +48,13 @@ function getCurrentFilterState() {
     observationText,
     yearLevel: yearSelect?.value || '',
     yearText,
+    evaluationNum: attemptSelect?.value || '',
+    evaluationNumText: attemptSelect?.selectedOptions?.[0]?.textContent || '',
     searchText: searchInput?.value || '',
     scoreFilter: scoreSelect?.value || '',
     scoreFilterText: scoreSelect?.selectedOptions?.[0]?.textContent || '',
+    evalCountFilter: evalCountSelect?.value || '',
+    evalCountFilterText: evalCountSelect?.selectedOptions?.[0]?.textContent || '',
     sortBy: sortSelect?.value || '',
     sortByText: sortSelect?.selectedOptions?.[0]?.textContent || ''
   };
@@ -181,11 +187,13 @@ async function loadReportsData() {
     // Get current filters
     const observationId = document.getElementById('filterObservation')?.value || '';
     const yearLevel = document.getElementById('filterYear')?.value || '';
+    const evaluationNum = document.getElementById('filterAttempt')?.value || '';
     
     // Build query params
     const params = new URLSearchParams();
     if (observationId) params.append('observationId', observationId);
     if (yearLevel) params.append('yearLevel', yearLevel);
+    if (evaluationNum) params.append('evaluationNum', evaluationNum);
     
     const url = `/api/reports/evaluation-summary?${params.toString()}`;
     const response = await fetch(url);
@@ -362,7 +370,7 @@ function renderTable() {
   const startIndex = (currentTablePage - 1) * tablePageSize;
   const endIndex = Math.min(startIndex + tablePageSize, filteredStudents.length);
   const pageStudents = filteredStudents.slice(startIndex, endIndex);
-  const colCount = 3 + Object.keys(categoriesLabel).length + 2;
+  const colCount = 4 + Object.keys(categoriesLabel).length + 2;
   
   // Render body
   if (pageStudents.length === 0) {
@@ -388,11 +396,16 @@ function renderTable() {
       return `<td style="text-align:center;" class="${scoreClass}-cell">${score > 0 ? score.toFixed(1) : '-'}</td>`;
     }).join('');
     
+    const countTotal = (student.evaluationCountTotal !== undefined && student.evaluationCountTotal !== null)
+      ? Number(student.evaluationCountTotal)
+      : Number(student.evaluationCount || 0);
+
     return `
       <tr class="student-row" data-student-id="${student.id}" data-year="${student.year || ''}" data-avg="${studentAvg.toFixed(2)}">
         <td><strong>${student.id || '-'}</strong></td>
         <td>${(student.firstName || '')} ${(student.lastName || '')}</td>
         <td style="text-align:center;"><span class="year-badge-sm">ปี ${student.year || '-'}</span></td>
+        <td style="text-align:center;"><span class="year-badge-sm">${Number.isFinite(countTotal) ? countTotal : 0}/9</span></td>
         ${scoreCells}
         <td style="text-align:center;background:#f0f9ff;font-weight:700;font-size:1.05rem;">
           ${studentAvg > 0 ? studentAvg.toFixed(2) : '-'}
@@ -411,7 +424,7 @@ function renderTable() {
   
   tfoot.innerHTML = `
     <tr style="background:var(--color-primary);color:white;font-weight:600;">
-      <td colspan="3" style="text-align:center;">ค่าเฉลี่ยรวมทุกคน</td>
+      <td colspan="4" style="text-align:center;">ค่าเฉลี่ยรวมทุกคน</td>
       ${avgCells}
       <td style="text-align:center;background:#1e40af;">${reportsData.grandAverage || '0.00'}</td>
       <td></td>
@@ -781,6 +794,7 @@ async function applyFilters() {
 function filterTable() {
   const searchText = (document.getElementById('searchStudent').value || '').toLowerCase();
   const scoreFilter = document.getElementById('filterScore').value;
+  const evalCountFilter = document.getElementById('filterEvalCount')?.value || '';
   const sortBy = document.getElementById('sortBy').value;
   
   // Filter students
@@ -804,8 +818,18 @@ function filterTable() {
         case 'poor': matchScore = avg < 3; break;
       }
     }
+
+    // Evaluation count filter (total submitted attempts, 0..9)
+    let matchEvalCount = true;
+    if (evalCountFilter !== '') {
+      const expected = Number(evalCountFilter);
+      const countTotal = (student.evaluationCountTotal !== undefined && student.evaluationCountTotal !== null)
+        ? Number(student.evaluationCountTotal)
+        : Number(student.evaluationCount || 0);
+      matchEvalCount = Number.isFinite(expected) ? countTotal === expected : true;
+    }
     
-    return matchSearch && matchScore;
+    return matchSearch && matchScore && matchEvalCount;
   });
   
   // Sort students
@@ -1000,12 +1024,15 @@ window.exportToExcel = function() {
     const rows = students.map(s => {
       const avg = computeStudentAverage(s);
       const grade = computeGrade(avg);
+      const countTotal = (s.evaluationCountTotal !== undefined && s.evaluationCountTotal !== null)
+        ? Number(s.evaluationCountTotal)
+        : Number(s.evaluationCount || 0);
       return [
         s.id || '-',
         s.firstName || '',
         s.lastName || '',
         s.year || '',
-        s.evaluationCount || 0,
+        Number.isFinite(countTotal) ? countTotal : 0,
         ...categoryKeys.map(k => {
           const v = (s.evaluationData || {})[k] || 0;
           return v > 0 ? Number(v) : '';
@@ -1060,11 +1087,14 @@ window.exportToCSV = function() {
     students.forEach(s => {
       const avg = computeStudentAverage(s);
       const grade = computeGrade(avg);
+      const countTotal = (s.evaluationCountTotal !== undefined && s.evaluationCountTotal !== null)
+        ? Number(s.evaluationCountTotal)
+        : Number(s.evaluationCount || 0);
       const row = [
         s.id || '-',
         `${s.firstName || ''} ${s.lastName || ''}`.trim() || '-',
         s.year ? `ปี ${s.year}` : '-',
-        s.evaluationCount || 0,
+        Number.isFinite(countTotal) ? countTotal : 0,
         ...categoryKeys.map(k => {
           const v = (s.evaluationData || {})[k] || 0;
           return v > 0 ? Number(v).toFixed(2) : '';

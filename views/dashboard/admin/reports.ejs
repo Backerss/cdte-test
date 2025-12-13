@@ -54,6 +54,22 @@
         <option value="4">ปี 4</option>
       </select>
     </div>
+
+    <div class="form-group" style="margin:0;">
+      <label class="form-label">ครั้งที่ประเมิน</label>
+      <select id="filterAttempt" class="form-input" onchange="applyFilters()">
+        <option value="">ทุกครั้ง (ภาพรวม)</option>
+        <option value="1">ครั้งที่ 1</option>
+        <option value="2">ครั้งที่ 2</option>
+        <option value="3">ครั้งที่ 3</option>
+        <option value="4">ครั้งที่ 4</option>
+        <option value="5">ครั้งที่ 5</option>
+        <option value="6">ครั้งที่ 6</option>
+        <option value="7">ครั้งที่ 7</option>
+        <option value="8">ครั้งที่ 8</option>
+        <option value="9">ครั้งที่ 9</option>
+      </select>
+    </div>
     
     <div class="form-group" style="margin:0;">
       <label class="form-label">ค้นหานักศึกษา</label>
@@ -69,6 +85,23 @@
         <option value="good">ปานกลาง (3.5-3.99)</option>
         <option value="fair">พอใช้ (3.0-3.49)</option>
         <option value="poor">ปรับปรุง (&lt;3.0)</option>
+      </select>
+    </div>
+
+    <div class="form-group" style="margin:0;">
+      <label class="form-label">จำนวนครั้งที่ประเมินแล้ว</label>
+      <select id="filterEvalCount" class="form-input" onchange="filterTable()">
+        <option value="">ทุกจำนวน</option>
+        <option value="0">0/9</option>
+        <option value="1">1/9</option>
+        <option value="2">2/9</option>
+        <option value="3">3/9</option>
+        <option value="4">4/9</option>
+        <option value="5">5/9</option>
+        <option value="6">6/9</option>
+        <option value="7">7/9</option>
+        <option value="8">8/9</option>
+        <option value="9">9/9</option>
       </select>
     </div>
 
@@ -219,6 +252,7 @@
           <th rowspan="2" style="vertical-align:middle;">รหัสนักศึกษา</th>
           <th rowspan="2" style="vertical-align:middle;">ชื่อ-นามสกุล</th>
           <th rowspan="2" style="vertical-align:middle;">ชั้นปี</th>
+          <th rowspan="2" style="vertical-align:middle;">จำนวนครั้ง</th>
           <% Object.entries(categoriesLabel).forEach(entry => { %>
             <th><%= entry[1] %></th>
           <% }); %>
