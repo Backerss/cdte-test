@@ -13,6 +13,150 @@ let allCharts = {};
 const tablePageSize = 10;
 let currentTablePage = 1;
 
+// ========================================
+// Helpers
+// ========================================
+
+function computeStudentAverage(student) {
+  const values = Object.values(student.evaluationData || {}).filter(v => v > 0);
+  if (!values.length) return 0;
+  return values.reduce((sum, val) => sum + val, 0) / values.length;
+}
+
+function computeGrade(avg) {
+  if (avg >= 4.5) return { text: 'ดีมาก', key: 'excellent' };
+  if (avg >= 4.0) return { text: 'ดี', key: 'verygood' };
+  if (avg >= 3.5) return { text: 'ปานกลาง', key: 'good' };
+  if (avg >= 3.0) return { text: 'พอใช้', key: 'fair' };
+  return { text: 'ปรับปรุง', key: 'poor' };
+}
+
+function getCurrentFilterState() {
+  const observationSelect = document.getElementById('filterObservation');
+  const yearSelect = document.getElementById('filterYear');
+  const scoreSelect = document.getElementById('filterScore');
+  const sortSelect = document.getElementById('sortBy');
+  const searchInput = document.getElementById('searchStudent');
+
+  const observationText = observationSelect?.selectedOptions?.[0]?.textContent || '';
+  const yearText = yearSelect?.selectedOptions?.[0]?.textContent || '';
+
+  return {
+    observationId: observationSelect?.value || '',
+    observationText,
+    yearLevel: yearSelect?.value || '',
+    yearText,
+    searchText: searchInput?.value || '',
+    scoreFilter: scoreSelect?.value || '',
+    scoreFilterText: scoreSelect?.selectedOptions?.[0]?.textContent || '',
+    sortBy: sortSelect?.value || '',
+    sortByText: sortSelect?.selectedOptions?.[0]?.textContent || ''
+  };
+}
+
+function getExportStudents() {
+  if (!reportsData) return [];
+  return Array.isArray(filteredStudents) ? filteredStudents : [];
+}
+
+// ========================================
+// Thai Font for jsPDF (cache base64, register per-doc)
+// ========================================
+
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+async function loadAndRegisterFont(doc, fontUrl, vfsName, fontName, fontStyle = 'normal') {
+  try {
+    const resp = await fetch(fontUrl);
+    if (!resp.ok) throw new Error(`Failed to fetch font: ${resp.status} ${resp.statusText}`);
+    const contentType = (resp.headers.get('content-type') || '').toLowerCase();
+    const buf = await resp.arrayBuffer();
+
+    // Basic validation: expect TTF/OTF signature (avoid caching HTML/error pages)
+    const bytes = new Uint8Array(buf);
+    const sig0 = bytes[0] || 0;
+    const sig1 = bytes[1] || 0;
+    const sig2 = bytes[2] || 0;
+    const sig3 = bytes[3] || 0;
+    const isTtf = (sig0 === 0x00 && sig1 === 0x01 && sig2 === 0x00 && sig3 === 0x00);
+    const isOtf = (sig0 === 0x4F && sig1 === 0x54 && sig2 === 0x54 && sig3 === 0x4F); // 'OTTO'
+    if (!isTtf && !isOtf) {
+      throw new Error(`Invalid font signature (content-type: ${contentType || 'unknown'})`);
+    }
+
+    const b64 = arrayBufferToBase64(buf);
+    // Cache base64 for subsequent exports (each jsPDF instance needs registration)
+    window._reportsThaiFontCache = window._reportsThaiFontCache || {};
+    window._reportsThaiFontCache.b64 = b64;
+    window._reportsThaiFontCache.vfsName = vfsName;
+    window._reportsThaiFontCache.fontName = fontName;
+    window._reportsThaiFontCache.fontStyle = fontStyle;
+
+    doc.addFileToVFS(vfsName, b64);
+    doc.addFont(vfsName, fontName, fontStyle);
+    return true;
+  } catch (err) {
+    console.warn(`Font loading error for ${fontUrl}:`, err);
+    return false;
+  }
+}
+
+window._reportsThaiFontCache = window._reportsThaiFontCache || {
+  b64: null,
+  vfsName: 'THSarabunNew.ttf',
+  fontName: 'THSarabunNew',
+  fontStyle: 'normal',
+  fetchPromise: null
+};
+
+function registerCachedThaiFontToDoc(doc) {
+  const cache = window._reportsThaiFontCache;
+  if (!cache?.b64) return false;
+  try {
+    doc.addFileToVFS(cache.vfsName, cache.b64);
+    doc.addFont(cache.vfsName, cache.fontName, cache.fontStyle);
+    return true;
+  } catch (e) {
+    console.warn('Could not register cached Thai font to doc:', e);
+    return false;
+  }
+}
+
+async function ensureThaiFont(doc) {
+  // IMPORTANT: Each jsPDF instance needs addFileToVFS/addFont.
+  if (registerCachedThaiFontToDoc(doc)) return true;
+
+  const cache = window._reportsThaiFontCache;
+  if (cache.fetchPromise) {
+    const ok = await cache.fetchPromise;
+    return ok ? registerCachedThaiFontToDoc(doc) : false;
+  }
+
+  cache.fetchPromise = (async () => {
+    const ok = await loadAndRegisterFont(
+      doc,
+      '/fonts/THSarabunNew.ttf',
+      cache.vfsName,
+      cache.fontName,
+      cache.fontStyle
+    );
+    return ok;
+  })();
+
+  const loadedOk = await cache.fetchPromise;
+  cache.fetchPromise = null;
+  if (!loadedOk) return false;
+  return registerCachedThaiFontToDoc(doc);
+}
+
 // Category labels from server
 const categoriesLabel = window.categoriesLabel || {};
 
@@ -720,98 +864,277 @@ window.closeExportModal = function() {
 }
 
 window.exportToPDF = function() {
-  Swal.fire({
-    title: 'กำลังสร้าง PDF...',
-    html: 'กรุณารอสักครู่',
-    allowOutsideClick: false,
-    didOpen: () => {
-      Swal.showLoading();
+  (async () => {
+    try {
+      const students = getExportStudents();
+      if (!students.length) {
+        Swal.fire({ icon: 'info', title: 'ไม่มีข้อมูล', text: 'ไม่มีข้อมูลสำหรับ Export ตามตัวกรองปัจจุบัน' });
+        return;
+      }
+
+      Swal.fire({
+        title: 'กำลังสร้าง PDF...',
+        html: 'กรุณารอสักครู่',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      const { jsPDF } = window.jspdf || {};
+      if (!jsPDF) throw new Error('ไม่พบ jsPDF');
+
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4',
+        putOnlyUsedFonts: true,
+        compress: true
+      });
+      const thaiOk = await ensureThaiFont(doc);
+      if (thaiOk) doc.setFont('THSarabunNew', 'normal');
+      else doc.setFont('helvetica', 'normal');
+
+      if (typeof doc.autoTable !== 'function') {
+        throw new Error('ไม่พบปลั๊กอินตาราง PDF (autoTable)');
+      }
+
+      const filters = getCurrentFilterState();
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+
+      doc.setFontSize(18);
+      doc.text('รายงานผลการประเมินการฝึกประสบการณ์', 14, 14);
+
+      doc.setFontSize(11);
+      const infoLines = [
+        `วันที่ออกรายงาน: ${dateStr}`,
+        `งวดการสังเกต: ${filters.observationText || 'ทุกงวด (ภาพรวม)'}`,
+        `ชั้นปี: ${filters.yearText || 'ทุกชั้นปี'}`,
+        `ค้นหา: ${filters.searchText || '-'}`,
+        `ช่วงคะแนน: ${filters.scoreFilterText || 'ทุกระดับ'}`,
+        `เรียงตาม: ${filters.sortByText || '-'}`
+      ];
+      doc.text(infoLines, 14, 22);
+
+      const categoryKeys = Object.keys(categoriesLabel);
+      const head = [[
+        'รหัสนักศึกษา',
+        'ชื่อ-นามสกุล',
+        'ชั้นปี',
+        ...categoryKeys.map(k => categoriesLabel[k] || k),
+        'เฉลี่ย',
+        'ระดับ'
+      ]];
+
+      const body = students.map(s => {
+        const avg = computeStudentAverage(s);
+        const grade = computeGrade(avg);
+        return [
+          s.id || '-',
+          `${s.firstName || ''} ${s.lastName || ''}`.trim() || '-',
+          s.year ? `ปี ${s.year}` : '-',
+          ...categoryKeys.map(k => {
+            const v = (s.evaluationData || {})[k] || 0;
+            return v > 0 ? Number(v).toFixed(2) : '-';
+          }),
+          avg > 0 ? avg.toFixed(2) : '-',
+          avg > 0 ? grade.text : '-'
+        ];
+      });
+
+      doc.autoTable({
+        head,
+        body,
+        startY: 45,
+        theme: 'grid',
+        styles: {
+          font: thaiOk ? 'THSarabunNew' : 'helvetica',
+          fontSize: thaiOk ? 11 : 9,
+          cellPadding: 2,
+          overflow: 'linebreak'
+        },
+        headStyles: {
+          fillColor: [46, 48, 148],
+          textColor: 255,
+          font: thaiOk ? 'THSarabunNew' : 'helvetica',
+          fontStyle: 'normal',
+          fontSize: thaiOk ? 12 : 10
+        },
+        alternateRowStyles: { fillColor: [245, 247, 255] }
+      });
+
+      doc.save(`รายงานผลการประเมิน_${dateStr}.pdf`);
+
+      closeExportModal();
+      Swal.fire({ icon: 'success', title: 'Export PDF สำเร็จ', timer: 1500, showConfirmButton: false });
+    } catch (error) {
+      console.error('Export PDF error:', error);
+      Swal.fire({ icon: 'error', title: 'Export PDF ไม่สำเร็จ', text: error.message || 'เกิดข้อผิดพลาด' });
     }
-  });
-  
-  setTimeout(() => {
-    closeExportModal();
-    Swal.fire({
-      icon: 'success',
-      title: 'Export PDF สำเร็จ!',
-      text: 'ไฟล์ได้ถูกดาวน์โหลดแล้ว',
-      timer: 2000
-    });
-  }, 2000);
+  })();
 }
 
 window.exportToExcel = function() {
-  // Create CSV content
-  let csv = '\ufeffรหัสนักศึกษา,ชื่อ-นามสกุล,ชั้นปี';
-  Object.values(categoriesLabel).forEach(label => {
-    csv += `,${label}`;
-  });
-  csv += ',คะแนนเฉลี่ย,ระดับ\n';
-  
-  filteredStudents.forEach(student => {
-    const values = Object.values(student.evaluationData).filter(v => v > 0);
-    const avg = values.length > 0 ? values.reduce((sum, val) => sum + val, 0) / values.length : 0;
-    const grade = avg >= 4.5 ? 'ดีมาก' : avg >= 4 ? 'ดี' : avg >= 3.5 ? 'ปานกลาง' : avg >= 3 ? 'พอใช้' : 'ปรับปรุง';
-    
-    csv += `${student.id},"${student.firstName} ${student.lastName}",${student.year || '-'}`;
-    Object.values(student.evaluationData).forEach(score => {
-      csv += `,${score > 0 ? score.toFixed(1) : '-'}`;
+  try {
+    const students = getExportStudents();
+    if (!students.length) {
+      Swal.fire({ icon: 'info', title: 'ไม่มีข้อมูล', text: 'ไม่มีข้อมูลสำหรับ Export ตามตัวกรองปัจจุบัน' });
+      return;
+    }
+
+    if (typeof XLSX === 'undefined') {
+      throw new Error('ไม่พบไลบรารี XLSX');
+    }
+
+    const categoryKeys = Object.keys(categoriesLabel);
+    const header = [
+      'รหัสนักศึกษา',
+      'ชื่อ',
+      'นามสกุล',
+      'ชั้นปี',
+      'จำนวนการประเมิน',
+      ...categoryKeys.map(k => categoriesLabel[k] || k),
+      'คะแนนเฉลี่ย',
+      'ระดับ'
+    ];
+
+    const rows = students.map(s => {
+      const avg = computeStudentAverage(s);
+      const grade = computeGrade(avg);
+      return [
+        s.id || '-',
+        s.firstName || '',
+        s.lastName || '',
+        s.year || '',
+        s.evaluationCount || 0,
+        ...categoryKeys.map(k => {
+          const v = (s.evaluationData || {})[k] || 0;
+          return v > 0 ? Number(v) : '';
+        }),
+        avg > 0 ? Number(avg.toFixed(2)) : '',
+        avg > 0 ? grade.text : ''
+      ];
     });
-    csv += `,${avg > 0 ? avg.toFixed(2) : '-'},${grade}\n`;
-  });
-  
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `รายงานผลการประเมิน_${new Date().toISOString().split('T')[0]}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
-  
-  closeExportModal();
-  Swal.fire({
-    icon: 'success',
-    title: 'Export Excel สำเร็จ!',
-    text: 'ไฟล์ได้ถูกดาวน์โหลดแล้ว',
-    timer: 2000
-  });
+
+    const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'รายงาน');
+
+    const dateStr = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `รายงานผลการประเมิน_${dateStr}.xlsx`);
+
+    closeExportModal();
+    Swal.fire({ icon: 'success', title: 'Export Excel สำเร็จ', timer: 1500, showConfirmButton: false });
+  } catch (error) {
+    console.error('Export Excel error:', error);
+    Swal.fire({ icon: 'error', title: 'Export Excel ไม่สำเร็จ', text: error.message || 'เกิดข้อผิดพลาด' });
+  }
 }
 
 window.exportToCSV = function() {
-  exportToExcel(); // Same as Excel
+  try {
+    const students = getExportStudents();
+    if (!students.length) {
+      Swal.fire({ icon: 'info', title: 'ไม่มีข้อมูล', text: 'ไม่มีข้อมูลสำหรับ Export ตามตัวกรองปัจจุบัน' });
+      return;
+    }
+
+    const categoryKeys = Object.keys(categoriesLabel);
+    const escapeCsv = (value) => {
+      const s = String(value ?? '');
+      if (/[\n\r",]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
+
+    const header = [
+      'รหัสนักศึกษา',
+      'ชื่อ-นามสกุล',
+      'ชั้นปี',
+      'จำนวนการประเมิน',
+      ...categoryKeys.map(k => categoriesLabel[k] || k),
+      'คะแนนเฉลี่ย',
+      'ระดับ'
+    ];
+
+    let csv = '\ufeff' + header.map(escapeCsv).join(',') + '\n';
+
+    students.forEach(s => {
+      const avg = computeStudentAverage(s);
+      const grade = computeGrade(avg);
+      const row = [
+        s.id || '-',
+        `${s.firstName || ''} ${s.lastName || ''}`.trim() || '-',
+        s.year ? `ปี ${s.year}` : '-',
+        s.evaluationCount || 0,
+        ...categoryKeys.map(k => {
+          const v = (s.evaluationData || {})[k] || 0;
+          return v > 0 ? Number(v).toFixed(2) : '';
+        }),
+        avg > 0 ? avg.toFixed(2) : '',
+        avg > 0 ? grade.text : ''
+      ];
+      csv += row.map(escapeCsv).join(',') + '\n';
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `รายงานผลการประเมิน_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    closeExportModal();
+    Swal.fire({ icon: 'success', title: 'Export CSV สำเร็จ', timer: 1500, showConfirmButton: false });
+  } catch (error) {
+    console.error('Export CSV error:', error);
+    Swal.fire({ icon: 'error', title: 'Export CSV ไม่สำเร็จ', text: error.message || 'เกิดข้อผิดพลาด' });
+  }
 }
 
 window.exportToJSON = function() {
-  const dataToExport = {
-    exportDate: new Date().toISOString(),
-    totalStudents: reportsData.students.length,
-    grandAverage: reportsData.grandAverage,
-    categoryAverages: reportsData.categoryAverages,
-    students: reportsData.students.map(student => {
-      const values = Object.values(student.evaluationData).filter(v => v > 0);
-      const avg = values.length > 0 ? values.reduce((sum, val) => sum + val, 0) / values.length : 0;
-      return {
-        ...student,
-        average: parseFloat(avg.toFixed(2))
-      };
-    })
-  };
-  
-  const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `รายงานผลการประเมิน_${new Date().toISOString().split('T')[0]}.json`;
-  link.click();
-  URL.revokeObjectURL(url);
-  
-  closeExportModal();
-  Swal.fire({
-    icon: 'success',
-    title: 'Export JSON สำเร็จ!',
-    text: 'ไฟล์ได้ถูกดาวน์โหลดแล้ว',
-    timer: 2000
-  });
+  try {
+    const students = getExportStudents();
+    if (!students.length) {
+      Swal.fire({ icon: 'info', title: 'ไม่มีข้อมูล', text: 'ไม่มีข้อมูลสำหรับ Export ตามตัวกรองปัจจุบัน' });
+      return;
+    }
+
+    const filters = getCurrentFilterState();
+    const dataToExport = {
+      exportDate: new Date().toISOString(),
+      filters,
+      totals: {
+        totalStudents: students.length,
+        totalEvaluations: reportsData?.stats?.totalEvaluations || 0,
+        grandAverage: reportsData?.grandAverage || '0.00',
+        categoryAverages: reportsData?.categoryAverages || {}
+      },
+      categoriesLabel,
+      students: students.map(s => {
+        const avg = computeStudentAverage(s);
+        const grade = computeGrade(avg);
+        return {
+          ...s,
+          average: avg > 0 ? Number(avg.toFixed(2)) : 0,
+          grade: avg > 0 ? grade.text : ''
+        };
+      })
+    };
+
+    const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `รายงานผลการประเมิน_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    closeExportModal();
+    Swal.fire({ icon: 'success', title: 'Export JSON สำเร็จ', timer: 1500, showConfirmButton: false });
+  } catch (error) {
+    console.error('Export JSON error:', error);
+    Swal.fire({ icon: 'error', title: 'Export JSON ไม่สำเร็จ', text: error.message || 'เกิดข้อผิดพลาด' });
+  }
 }
 
 // Close modal when clicking outside
