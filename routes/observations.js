@@ -62,13 +62,27 @@ router.get('/api/observations', requireAuth, async (req, res) => {
         .where('observationId', '==', doc.id)
         .get();
 
-      // คำนวณความคืบหน้า
+      // ดึงการประเมินทั้งหมดของงวดนี้ แล้วสร้าง map ของจำนวนการประเมินต่อ studentId
+      const evalSnapshot = await db.collection('evaluations')
+        .where('observationId', '==', doc.id)
+        .get();
+      const evalCounts = {};
+      evalSnapshot.forEach(evDoc => {
+        const ev = evDoc.data();
+        const sid = ev.studentId || ev.student_id || '';
+        if (!sid) return;
+        evalCounts[sid] = (evalCounts[sid] || 0) + 1;
+      });
+
+      // คำนวณความคืบหน้า โดยอ้างอิงจากจำนวนการประเมินจริง
       let completedEvaluations = 0;
       let submittedLessonPlans = 0;
 
       studentsSnapshot.forEach(studentDoc => {
         const studentData = studentDoc.data();
-        if (studentData.evaluationsCompleted >= 9) {
+        const sid = studentData.user_id || studentData.studentId || '';
+        const count = evalCounts[sid] || 0;
+        if (count >= 9) {
           completedEvaluations++;
         }
         if (studentData.lessonPlanSubmitted) {
@@ -129,6 +143,18 @@ router.get('/api/observations/:id', requireAuth, async (req, res) => {
       .where('observationId', '==', observationId)
       .get();
     
+    // ดึงการประเมินทั้งหมดของงวดนี้ (เพื่อคำนวณจำนวนการประเมินต่อ student)
+    const evalSnapshot = await db.collection('evaluations')
+      .where('observationId', '==', observationId)
+      .get();
+    const evalCounts = {};
+    evalSnapshot.forEach(evDoc => {
+      const ev = evDoc.data();
+      const sid = ev.studentId || ev.student_id || '';
+      if (!sid) return;
+      evalCounts[sid] = (evalCounts[sid] || 0) + 1;
+    });
+
     const students = [];
     for (const studentDoc of studentsSnapshot.docs) {
       const studentData = studentDoc.data();
@@ -137,6 +163,7 @@ router.get('/api/observations/:id', requireAuth, async (req, res) => {
       // ใช้ canonical id (user_id) เป็นหลัก แล้ว fallback ไปยัง studentId แบบเดิม
       const sid = studentData.user_id || studentData.studentId || '';
       let userSnapshot = { empty: true };
+      let userData = null;
       if (sid) {
         userSnapshot = await db.collection('users')
           .where('user_id', '==', sid)
@@ -148,24 +175,31 @@ router.get('/api/observations/:id', requireAuth, async (req, res) => {
             .limit(1)
             .get();
         }
-      }
-
-      let userName = null;
-      if (userSnapshot && !userSnapshot.empty) {
-        const userData = userSnapshot.docs[0].data();
-        // หากไม่มีชื่อ-นามสกุล ให้ข้ามการดึงข้อมูลเพื่อประหยัดเวลา
-        if (userData.firstName && userData.lastName) {
-          userName = `${userData.firstName} ${userData.lastName}`;
-        } else {
-          // log minimal info for debugging and skip this student
-          console.warn(`Skipping student ${sid} in observation ${observationId} - missing name`);
+        if (userSnapshot && !userSnapshot.empty) {
+          userData = userSnapshot.docs[0].data();
         }
       }
 
-      // ถ้าไม่พบชื่อ-นามสกุลของผู้ใช้ ให้ข้ามการใส่รายการนี้
+      // หากไม่มีชื่อ-นามสกุล ให้ใช้ fallback จาก observation_students fields
+      let userName = null;
+      if (userData) {
+        if (userData.firstName || userData.lastName) {
+          userName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+        }
+      }
       if (!userName) {
+        // try fallback to a name field from studentData
+        userName = studentData.name || studentData.displayName || null;
+      }
+
+      if (!userName) {
+        // still no name -> skip this entry
+        console.warn(`Skipping student ${sid} in observation ${observationId} - missing name`);
         continue;
       }
+
+      // determine yearLevel from user document when available
+      const yearLevel = (userData && (userData.yearLevel || userData.year)) || null;
 
       students.push({
         id: studentDoc.id,
@@ -174,14 +208,15 @@ router.get('/api/observations/:id', requireAuth, async (req, res) => {
         legacyStudentId: studentData.studentId || null,
         name: userName,
         status: studentData.status,
-        evaluationsCompleted: studentData.evaluationsCompleted || 0,
+        evaluationsCompleted: evalCounts[sid] || 0,
         lessonPlanSubmitted: studentData.lessonPlanSubmitted || false,
-        notes: studentData.notes || ''
+        notes: studentData.notes || '',
+        yearLevel
       });
     }
     
-    // คำนวณความคืบหน้า
-    const completedEvaluations = students.filter(s => s.evaluationsCompleted >= 9).length;
+    // คำนวณความคืบหน้า โดยอิงจากจำนวนการประเมินจริงและสถานะแผนการสอน
+    const completedEvaluations = students.filter(s => (s.evaluationsCompleted || 0) >= 9).length;
     const submittedLessonPlans = students.filter(s => s.lessonPlanSubmitted).length;
     
     res.json({

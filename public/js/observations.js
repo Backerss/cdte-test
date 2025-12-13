@@ -717,7 +717,9 @@ async function manageStudents(observationId) {
               <div style="font-size:0.85rem;color:var(--color-muted);margin:4px 0;">รหัส: ${sid}</div>
               <div style="display:flex;gap:16px;font-size:0.8rem;">
                 <span>การประเมิน: ${student.evaluationsCompleted}/9</span>
+                ${((student.yearLevel || 0) >= 2) ? `
                 <span>แผนการสอน: ${student.lessonPlanSubmitted ? '✅ ส่งแล้ว' : '❌ ยังไม่ส่ง'}</span>
+                ` : ''}
               </div>
             </div>
             <div style="display:flex;flex-direction:column;gap:8px;">
@@ -1593,18 +1595,29 @@ async function generateStudentListPDF(observation) {
   // === ตารางรายชื่อนักศึกษา ===
   doc.setTextColor(0, 0, 0);
   
-  const tableData = observation.students.map((student, index) => [
-    (index + 1).toString(),
-    student.studentId || '-',
-    student.name || '-',
-    getStatusText(student.status),
-    `${student.evaluationsCompleted || 0}/9`,
-    student.lessonPlanSubmitted ? 'ส่งแล้ว' : 'ยังไม่ส่ง'
-  ]);
+  // ตรวจสอบว่าควรแสดงคอลัมน์แผนการสอนหรือไม่ (เฉพาะนักศึกษาปี 2 ขึ้นไป)
+  const showLessonPlanColumn = observation.students && observation.students.some(s => (s.yearLevel || 0) >= 2);
+
+  const tableData = observation.students.map((student, index) => {
+    const base = [
+      (index + 1).toString(),
+      student.studentId || '-',
+      student.name || '-',
+      getStatusText(student.status),
+      `${student.evaluationsCompleted || 0}/9`
+    ];
+    if (showLessonPlanColumn) {
+      base.push(student.lessonPlanSubmitted ? 'ส่งแล้ว' : 'ยังไม่ส่ง');
+    }
+    return base;
+  });
+
+  const headRow = ['ลำดับ', 'รหัสนักศึกษา', 'ชื่อ-นามสกุล', 'สถานะ', 'การประเมิน'];
+  if (showLessonPlanColumn) headRow.push('แผนการสอน');
 
   doc.autoTable({
     startY: yPos,
-    head: [['ลำดับ', 'รหัสนักศึกษา', 'ชื่อ-นามสกุล', 'สถานะ', 'การประเมิน', 'แผนการสอน']],
+    head: [headRow],
     body: tableData,
     theme: 'grid',
     styles: {

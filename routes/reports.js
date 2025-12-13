@@ -1,0 +1,304 @@
+/**
+ * routes/reports.js
+ * API สำหรับรายงานผลการประเมิน
+ * - สรุปผลการประเมินแบบรวมและแยกตามงวด/ชั้นปี
+ * - วิเคราะห์ข้อมูลเชิงลึก
+ */
+
+const express = require('express');
+const router = express.Router();
+const { db } = require('../config/firebaseAdmin');
+
+// Middleware: ตรวจสอบการเข้าสู่ระบบ
+function requireAuth(req, res, next) {
+  if (!req.session.user) {
+    return res.status(401).json({ success: false, message: 'กรุณาเข้าสู่ระบบ' });
+  }
+  next();
+}
+
+// Middleware: ตรวจสอบว่าเป็น admin หรือ teacher
+function requireAdminOrTeacher(req, res, next) {
+  if (!req.session.user) {
+    return res.status(401).json({ success: false, message: 'กรุณาเข้าสู่ระบบ' });
+  }
+  if (req.session.user.role !== 'admin' && req.session.user.role !== 'teacher') {
+    return res.status(403).json({ success: false, message: 'ไม่มีสิทธิ์เข้าถึง' });
+  }
+  next();
+}
+
+/**
+ * GET /api/reports/evaluation-summary
+ * ดึงข้อมูลสรุปผลการประเมินพร้อมตัวเลือกกรอง
+ * Query params: observationId, yearLevel, studentId
+ */
+router.get('/api/reports/evaluation-summary', requireAdminOrTeacher, async (req, res) => {
+  try {
+    const { observationId, yearLevel, studentId } = req.query;
+
+    // Report groups based on the actual evaluation form (q1-q26)
+    const categoriesLabel = {
+      teacherVerbal: 'ครู - พฤติกรรมด้านภาษา (Verbal Behaviors)',
+      teacherNonVerbal: 'ครู - พฤติกรรมที่ไม่ใช่ภาษา (Non-Verbal Behavior)',
+      studentAcademic: 'นักเรียน - พฤติกรรมทางวิชาการของผู้เรียน',
+      studentWork: 'นักเรียน - พฤติกรรมการทำงานของผู้เรียน',
+      environment: 'สิ่งแวดล้อมทางการเรียนรู้ - สภาพทางกายภาพของห้องเรียน'
+    };
+
+    const groupQuestions = {
+      teacherVerbal: ['q1', 'q2', 'q3', 'q4'],
+      teacherNonVerbal: ['q5', 'q6', 'q7', 'q8', 'q9'],
+      studentAcademic: ['q10', 'q11', 'q12', 'q13', 'q14', 'q15'],
+      studentWork: ['q16', 'q17', 'q18'],
+      environment: ['q19', 'q20', 'q21', 'q22', 'q23', 'q24', 'q25', 'q26']
+    };
+
+    async function resolveStudentProfile(sid) {
+      if (!sid) return null;
+
+      // 1) docId lookup (common pattern)
+      try {
+        const docSnap = await db.collection('users').doc(String(sid)).get();
+        if (docSnap.exists) {
+          const u = docSnap.data() || {};
+          return {
+            id: sid,
+            firstName: u.firstName || u.firstname || '',
+            lastName: u.lastName || u.lastname || '',
+            yearLevel: u.yearLevel || u.year || null,
+            email: u.email || ''
+          };
+        }
+      } catch (e) {
+        // ignore and fallback to queries
+      }
+
+      // 2) field lookups
+      let userSnapshot = await db.collection('users').where('user_id', '==', sid).limit(1).get();
+      if (userSnapshot.empty) {
+        userSnapshot = await db.collection('users').where('studentId', '==', sid).limit(1).get();
+      }
+      if (userSnapshot.empty) {
+        userSnapshot = await db.collection('users').where('student_id', '==', sid).limit(1).get();
+      }
+
+      if (!userSnapshot.empty) {
+        const u = userSnapshot.docs[0].data() || {};
+        return {
+          id: sid,
+          firstName: u.firstName || u.firstname || '',
+          lastName: u.lastName || u.lastname || '',
+          yearLevel: u.yearLevel || u.year || null,
+          email: u.email || ''
+        };
+      }
+
+      return {
+        id: sid,
+        firstName: '',
+        lastName: '',
+        yearLevel: null,
+        email: ''
+      };
+    }
+
+    // 1. ดึงรายการ observations ทั้งหมด (สำหรับ filter dropdown)
+    const observationsSnapshot = await db.collection('observations')
+      .orderBy('createdAt', 'desc')
+      .get();
+    
+    const observations = [];
+    observationsSnapshot.forEach(doc => {
+      const data = doc.data();
+      observations.push({
+        id: doc.id,
+        name: data.name,
+        academicYear: data.academicYear,
+        yearLevel: data.yearLevel,
+        status: data.status
+      });
+    });
+
+    // 2. สร้าง query สำหรับ evaluations ตาม filters
+    let evalQuery = db.collection('evaluations');
+    
+    if (observationId) {
+      evalQuery = evalQuery.where('observationId', '==', observationId);
+    }
+    
+    const evaluationsSnapshot = await evalQuery.get();
+    
+    // 3. ดึงข้อมูลนักศึกษาและจัดกลุ่มการประเมิน
+    // NOTE: ในระบบนี้ 1 เอกสาร evaluations ต่อ 1 นักศึกษา/1 งวด และมี evaluations[n].answers (q1-q26)
+    const studentMap = new Map(); // studentId -> student data
+    const evaluationsByStudent = new Map(); // studentId -> evaluation docs[]
+    
+    for (const evalDoc of evaluationsSnapshot.docs) {
+      const evalData = evalDoc.data();
+      const sid = evalData.studentId || evalData.student_id || '';
+      
+      if (!sid) continue;
+      
+      // เก็บการประเมิน
+      if (!evaluationsByStudent.has(sid)) {
+        evaluationsByStudent.set(sid, []);
+      }
+      evaluationsByStudent.get(sid).push({
+        id: evalDoc.id,
+        ...evalData,
+        createdAt: evalData.createdAt?.toDate?.() || null
+      });
+      
+      // ดึงข้อมูลนักศึกษา (ถ้ายังไม่มี)
+      if (!studentMap.has(sid)) {
+        const profile = await resolveStudentProfile(sid);
+        // fallback year from evaluation doc
+        const yearFromEval = evalData.year || evalData.yearLevel || null;
+        studentMap.set(sid, {
+          id: sid,
+          firstName: profile?.firstName || '',
+          lastName: profile?.lastName || '',
+          yearLevel: profile?.yearLevel || yearFromEval || null,
+          email: profile?.email || ''
+        });
+      }
+    }
+
+    // 4. กรองตาม yearLevel และ studentId (ถ้ามี)
+    const students = [];
+    
+    for (const [sid, student] of studentMap.entries()) {
+      // กรองตาม yearLevel
+      if (yearLevel && student.yearLevel?.toString() !== yearLevel) {
+        continue;
+      }
+      
+      // กรองตาม studentId
+      if (studentId && sid !== studentId) {
+        continue;
+      }
+      
+      const evalDocs = evaluationsByStudent.get(sid) || [];
+
+      // Aggregate from nested evaluations[n].answers (q1-q26)
+      const evaluationData = {};
+      const groupSums = {};
+      const groupCounts = {};
+      Object.keys(categoriesLabel).forEach(key => {
+        evaluationData[key] = 0;
+        groupSums[key] = 0;
+        groupCounts[key] = 0;
+      });
+
+      let submittedEvalCount = 0;
+
+      for (const docItem of evalDocs) {
+        const evRoot = docItem || {};
+        const nested = evRoot.evaluations || {};
+        Object.values(nested).forEach(entry => {
+          if (!entry || !entry.submitted) return;
+          submittedEvalCount += 1;
+          const answers = entry.answers || {};
+
+          Object.keys(groupQuestions).forEach(groupKey => {
+            const qList = groupQuestions[groupKey] || [];
+            qList.forEach(q => {
+              const raw = answers[q];
+              const num = raw === undefined || raw === null || raw === '' ? NaN : Number(raw);
+              if (!Number.isFinite(num)) return;
+              groupSums[groupKey] += num;
+              groupCounts[groupKey] += 1;
+            });
+          });
+        });
+      }
+
+      Object.keys(categoriesLabel).forEach(key => {
+        evaluationData[key] = groupCounts[key] > 0 ? groupSums[key] / groupCounts[key] : 0;
+      });
+
+      students.push({
+        id: sid,
+        firstName: student.firstName,
+        lastName: student.lastName,
+        year: student.yearLevel !== null && student.yearLevel !== undefined && student.yearLevel !== ''
+          ? Number(student.yearLevel)
+          : null,
+        evaluationData,
+        evaluationCount: submittedEvalCount
+      });
+    }
+
+    // 5. คำนวณค่าเฉลี่ยแต่ละหมวดหมู่ (ทั้งหมด)
+    const categoryAverages = {};
+    Object.keys(categoriesLabel).forEach(key => {
+      const validScores = students
+        .map(s => s.evaluationData[key])
+        .filter(score => score > 0);
+      
+      if (validScores.length > 0) {
+        const total = validScores.reduce((sum, val) => sum + val, 0);
+        categoryAverages[key] = (total / validScores.length).toFixed(2);
+      } else {
+        categoryAverages[key] = '0.00';
+      }
+    });
+
+    // 6. คำนวณค่าเฉลี่ยรวม
+    const validAverages = Object.values(categoryAverages)
+      .map(v => parseFloat(v))
+      .filter(v => v > 0);
+    
+    const grandAverage = validAverages.length > 0
+      ? (validAverages.reduce((sum, val) => sum + val, 0) / validAverages.length).toFixed(2)
+      : '0.00';
+
+    // 7. คำนวณสถิติเพิ่มเติม
+    const allScores = students.flatMap(s => Object.values(s.evaluationData).filter(v => v > 0));
+    const totalSubmittedEvaluations = students.reduce((sum, s) => sum + (s.evaluationCount || 0), 0);
+    const stats = {
+      totalStudents: students.length,
+      totalEvaluations: totalSubmittedEvaluations,
+      grandAverage,
+      minScore: allScores.length > 0 ? Math.min(...allScores).toFixed(2) : '0.00',
+      maxScore: allScores.length > 0 ? Math.max(...allScores).toFixed(2) : '0.00',
+      excellentCount: allScores.filter(s => s >= 4.5).length,
+      needImprovementCount: allScores.filter(s => s < 3.5).length
+    };
+
+    // 8. การกระจายตามชั้นปี
+    const yearDistribution = {};
+    for (let year = 1; year <= 4; year++) {
+      yearDistribution[year] = students.filter(s => s.year === year).length;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        observations,
+        students,
+        categoriesLabel,
+        categoryAverages,
+        grandAverage,
+        stats,
+        yearDistribution,
+        filters: {
+          observationId: observationId || null,
+          yearLevel: yearLevel || null,
+          studentId: studentId || null
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error loading evaluation summary:', error);
+    res.status(500).json({
+      success: false,
+      message: 'เกิดข้อผิดพลาดในการโหลดข้อมูล',
+      error: error.message
+    });
+  }
+});
+
+module.exports = router;
