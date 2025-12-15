@@ -333,4 +333,279 @@ router.get('/api/reports/evaluation-summary', requireAdminOrTeacher, async (req,
   }
 });
 
+/**
+ * GET /api/reports/student-evaluation-detail
+ * รายงานการประเมินรายบุคคล (รายละเอียดระดับคำถาม)
+ * Query params: studentId (required), observationId (optional), evaluationNum (optional 1..9)
+ */
+router.get('/api/reports/student-evaluation-detail', requireAdminOrTeacher, async (req, res) => {
+  try {
+    const { studentId, observationId, evaluationNum } = req.query;
+
+    if (!studentId || String(studentId).trim() === '') {
+      return res.status(400).json({ success: false, message: 'ต้องระบุ studentId' });
+    }
+
+    const evaluationNumInt = evaluationNum !== undefined && evaluationNum !== null && String(evaluationNum).trim() !== ''
+      ? parseInt(String(evaluationNum), 10)
+      : null;
+
+    if (evaluationNumInt !== null && (!Number.isFinite(evaluationNumInt) || evaluationNumInt < 1 || evaluationNumInt > 9)) {
+      return res.status(400).json({ success: false, message: 'ค่า evaluationNum ต้องอยู่ระหว่าง 1 ถึง 9' });
+    }
+
+    const categoriesLabel = {
+      teacherVerbal: 'ครู - พฤติกรรมด้านภาษา (Verbal Behaviors)',
+      teacherNonVerbal: 'ครู - พฤติกรรมที่ไม่ใช่ภาษา (Non-Verbal Behavior)',
+      studentAcademic: 'นักเรียน - พฤติกรรมทางวิชาการของผู้เรียน',
+      studentWork: 'นักเรียน - พฤติกรรมการทำงานของผู้เรียน',
+      environment: 'สิ่งแวดล้อมทางการเรียนรู้ - สภาพทางกายภาพของห้องเรียน'
+    };
+
+    const groupQuestions = {
+      teacherVerbal: ['q1', 'q2', 'q3', 'q4'],
+      teacherNonVerbal: ['q5', 'q6', 'q7', 'q8', 'q9'],
+      studentAcademic: ['q10', 'q11', 'q12', 'q13', 'q14', 'q15'],
+      studentWork: ['q16', 'q17', 'q18'],
+      environment: ['q19', 'q20', 'q21', 'q22', 'q23', 'q24', 'q25', 'q26']
+    };
+
+    async function resolveStudentProfile(sid) {
+      if (!sid) return null;
+      const id = String(sid);
+
+      try {
+        const docSnap = await db.collection('users').doc(id).get();
+        if (docSnap.exists) {
+          const u = docSnap.data() || {};
+          return {
+            id,
+            firstName: u.firstName || u.firstname || '',
+            lastName: u.lastName || u.lastname || '',
+            yearLevel: u.yearLevel || u.year || null,
+            email: u.email || ''
+          };
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      let userSnapshot = await db.collection('users').where('user_id', '==', id).limit(1).get();
+      if (userSnapshot.empty) userSnapshot = await db.collection('users').where('studentId', '==', id).limit(1).get();
+      if (userSnapshot.empty) userSnapshot = await db.collection('users').where('student_id', '==', id).limit(1).get();
+
+      if (!userSnapshot.empty) {
+        const u = userSnapshot.docs[0].data() || {};
+        return {
+          id,
+          firstName: u.firstName || u.firstname || '',
+          lastName: u.lastName || u.lastname || '',
+          yearLevel: u.yearLevel || u.year || null,
+          email: u.email || ''
+        };
+      }
+
+      return { id, firstName: '', lastName: '', yearLevel: null, email: '' };
+    }
+
+    function normalizeTimestampToIso(value) {
+      if (!value) return null;
+      try {
+        if (typeof value.toDate === 'function') return value.toDate().toISOString();
+      } catch (e) {
+        // ignore
+      }
+      if (typeof value === 'string') return value;
+      return null;
+    }
+
+    function computeScoresFromAnswers(answers) {
+      const groupSums = {};
+      const groupCounts = {};
+      Object.keys(categoriesLabel).forEach(k => {
+        groupSums[k] = 0;
+        groupCounts[k] = 0;
+      });
+
+      Object.keys(groupQuestions).forEach(groupKey => {
+        (groupQuestions[groupKey] || []).forEach(q => {
+          const raw = answers ? answers[q] : undefined;
+          const num = raw === undefined || raw === null || raw === '' ? NaN : Number(raw);
+          if (!Number.isFinite(num)) return;
+          groupSums[groupKey] += num;
+          groupCounts[groupKey] += 1;
+        });
+      });
+
+      const categoryScores = {};
+      Object.keys(categoriesLabel).forEach(k => {
+        categoryScores[k] = groupCounts[k] > 0 ? Number((groupSums[k] / groupCounts[k]).toFixed(2)) : 0;
+      });
+
+      const valid = Object.values(categoryScores).filter(v => Number.isFinite(v) && v > 0);
+      const overallAverage = valid.length
+        ? Number((valid.reduce((sum, v) => sum + v, 0) / valid.length).toFixed(2))
+        : 0;
+
+      return { categoryScores, overallAverage };
+    }
+
+    // Build query
+    let evalQuery = db.collection('evaluations').where('studentId', '==', String(studentId).trim());
+    if (observationId) evalQuery = evalQuery.where('observationId', '==', observationId);
+    const snapshot = await evalQuery.get();
+
+    const profile = await resolveStudentProfile(String(studentId).trim());
+
+    if (snapshot.empty) {
+      return res.json({
+        success: true,
+        data: {
+          student: {
+            id: profile?.id || String(studentId).trim(),
+            firstName: profile?.firstName || '',
+            lastName: profile?.lastName || '',
+            year: profile?.yearLevel ? Number(profile.yearLevel) : null,
+            email: profile?.email || ''
+          },
+          filters: {
+            observationId: observationId || null,
+            evaluationNum: evaluationNumInt
+          },
+          categoriesLabel,
+          records: []
+        }
+      });
+    }
+
+    // Resolve observation names once
+    const observationNameCache = new Map();
+    async function resolveObservationName(obsId) {
+      if (!obsId) return 'ไม่ระบุชื่อ';
+      if (observationNameCache.has(obsId)) return observationNameCache.get(obsId);
+      let name = 'ไม่ระบุชื่อ';
+      try {
+        const doc = await db.collection('observations').doc(String(obsId)).get();
+        if (doc.exists) {
+          const d = doc.data() || {};
+          name = d.name || name;
+        }
+      } catch (e) {
+        // ignore
+      }
+      observationNameCache.set(obsId, name);
+      return name;
+    }
+
+    // Group by observationId
+    const byObservation = new Map();
+
+    for (const doc of snapshot.docs) {
+      const d = doc.data() || {};
+      const obsId = d.observationId || null;
+      const nested = d.evaluations || {};
+      const yearFromEval = d.year || d.yearLevel || null;
+
+      if (!byObservation.has(obsId || 'unknown')) {
+        byObservation.set(obsId || 'unknown', {
+          observationId: obsId,
+          observationName: await resolveObservationName(obsId),
+          year: yearFromEval !== null && yearFromEval !== undefined && yearFromEval !== '' ? Number(yearFromEval) : null,
+          attempts: []
+        });
+      }
+
+      const container = byObservation.get(obsId || 'unknown');
+      const keys = Object.keys(nested);
+
+      keys.forEach(k => {
+        const num = parseInt(String(k), 10);
+        if (!Number.isFinite(num)) return;
+        if (evaluationNumInt !== null && num !== evaluationNumInt) return;
+
+        const entry = nested[k];
+        if (!entry || !entry.submitted) return;
+
+        const answers = entry.answers || {};
+        const scores = computeScoresFromAnswers(answers);
+
+        container.attempts.push({
+          evaluationNum: num,
+          week: entry.week || null,
+          date: entry.date || null,
+          submittedAt: normalizeTimestampToIso(entry.submittedAt) || null,
+          answers,
+          categoryScores: scores.categoryScores,
+          overallAverage: scores.overallAverage
+        });
+      });
+    }
+
+    // Sort attempts and build records array
+    const records = Array.from(byObservation.values()).map(r => {
+      r.attempts.sort((a, b) => (a.evaluationNum || 0) - (b.evaluationNum || 0));
+      const allCategoryKeys = Object.keys(categoriesLabel);
+      const sums = {};
+      const counts = {};
+      allCategoryKeys.forEach(k => { sums[k] = 0; counts[k] = 0; });
+
+      r.attempts.forEach(at => {
+        allCategoryKeys.forEach(k => {
+          const v = at.categoryScores ? Number(at.categoryScores[k] || 0) : 0;
+          if (Number.isFinite(v) && v > 0) {
+            sums[k] += v;
+            counts[k] += 1;
+          }
+        });
+      });
+
+      const categoryAverages = {};
+      allCategoryKeys.forEach(k => {
+        categoryAverages[k] = counts[k] ? Number((sums[k] / counts[k]).toFixed(2)) : 0;
+      });
+      const valid = Object.values(categoryAverages).filter(v => Number.isFinite(v) && v > 0);
+      const overallAverage = valid.length
+        ? Number((valid.reduce((sum, v) => sum + v, 0) / valid.length).toFixed(2))
+        : 0;
+
+      return {
+        observationId: r.observationId,
+        observationName: r.observationName,
+        year: r.year,
+        attempts: r.attempts,
+        totals: {
+          attemptsSubmitted: r.attempts.length,
+          categoryAverages,
+          overallAverage
+        }
+      };
+    }).sort((a, b) => String(a.observationName || '').localeCompare(String(b.observationName || '')));
+
+    const year = profile?.yearLevel ? Number(profile.yearLevel) : (records.find(r => r.year !== null && r.year !== undefined)?.year || null);
+
+    res.json({
+      success: true,
+      data: {
+        student: {
+          id: profile?.id || String(studentId).trim(),
+          firstName: profile?.firstName || '',
+          lastName: profile?.lastName || '',
+          year: year,
+          email: profile?.email || ''
+        },
+        filters: {
+          observationId: observationId || null,
+          evaluationNum: evaluationNumInt
+        },
+        categoriesLabel,
+        groupQuestions,
+        records
+      }
+    });
+  } catch (error) {
+    console.error('Error loading student evaluation detail:', error);
+    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการโหลดข้อมูล', error: error.message });
+  }
+});
+
 module.exports = router;

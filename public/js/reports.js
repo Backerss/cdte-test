@@ -23,6 +23,70 @@ function computeStudentAverage(student) {
   return values.reduce((sum, val) => sum + val, 0) / values.length;
 }
 
+function getRatingText(score) {
+  const ratings = {
+    1: 'ปรับปรุง',
+    2: 'พอใช้',
+    3: 'ปานกลาง',
+    4: 'ดี',
+    5: 'มากที่สุด'
+  };
+  return ratings[score] || '-';
+}
+
+function getQuestionText(qName) {
+  const questions = {
+    q1: 'ครูมีการให้ข้อมูลแก่นักเรียนสม่ำเสมอตลอดการจัดการเรียนรู้',
+    q2: 'ครูมีการถามคำถามแก่นักเรียนสม่ำเสมอตลอดการจัดการเรียนรู้',
+    q3: 'ครูมีการให้คำแนะนำแก่นักเรียนสม่ำเสมอตลอดการจัดการเรียนรู้',
+    q4: 'ครูมีการว่ากล่าวตักเตือนนักเรียนสม่ำเสมอตลอดการจัดการเรียนรู้',
+    q5: 'ครูมีการแสดงท่าทาง การเคลื่อนไหว ความเงียบ',
+    q6: 'ครูมีการยิ้ม การหัวเราะ',
+    q7: 'ครูมีการมอง',
+    q8: 'ครูมีการเดิน',
+    q9: 'ครูมีการเขียนกระดาน/ เขียนบอร์ด/ เขียนบนหน้าจอ',
+    q10: 'นักเรียนเพ่งมองในสิ่งที่ครูกำลังดำเนินการสอน',
+    q11: 'นักเรียนทำงานตามที่ครูมอบหมายในชั้นเรียน',
+    q12: 'นักเรียนสนทนากันในชั้นเรียน',
+    q13: 'นักเรียนไม่เพ่งมองสิ่งที่ครูกำลังดำเนินการสอน',
+    q14: 'นักเรียนไม่ทำงานตามที่ครูมอบหมายในชั้นเรียน',
+    q15: 'นักเรียนพูดคุยกันในระหว่างครูสอน',
+    q16: 'นักเรียนตั้งใจทำงาน',
+    q17: 'นักเรียนไม่ตั้งใจทำงานและไม่รบกวนผู้อื่น',
+    q18: 'นักเรียนไม่ตั้งใจทำงานแต่รบกวนผู้อื่น',
+    q19: 'พื้นห้องเรียนมีรอยเปื้อนและสกปรก',
+    q20: 'เครื่องคอมพิวเตอร์มีอุปกรณ์ต่อพ่วงเพียงพอต่อการเรียน เช่น แป้นพิมพ์ เมาส์ เป็นต้น และใช้งานได้',
+    q21: 'ฝาผนังมีรอยเปื้อนและสะอาดเป็นบางส่วน',
+    q22: 'มีเครื่องคอมพิวเตอร์ใช้งานอย่างเพียงพอ 1 เครื่องต่อนักเรียน 1 คน',
+    q23: 'เครื่องคอมพิวเตอร์สามารถใช้งานได้ทุกเครื่อง',
+    q24: 'ในห้องเรียนคอมพิวเตอร์มีอุปกรณ์ในการสอน เช่น ทีวี เครื่องและจอฉาย เครื่องขยายเสียง เป็นต้น',
+    q25: 'ห้องเรียนคอมพิวเตอร์มีแสงสว่างมากจนเกินไป',
+    q26: 'ห้องเรียนคอมพิวเตอร์มีแสงสว่างไม่เพียงพอ'
+  };
+  return questions[qName] || qName;
+}
+
+function getQuestionSectionTitle(qName) {
+  const num = parseInt(String(qName).replace(/^q/, ''), 10);
+  if (num >= 1 && num <= 4) return 'ครู - พฤติกรรมด้านภาษา (Verbal Behaviors)';
+  if (num >= 5 && num <= 9) return 'ครู - พฤติกรรมที่ไม่ใช่ภาษา (Non-Verbal Behavior)';
+  if (num >= 10 && num <= 15) return 'นักเรียน - พฤติกรรมทางวิชาการของผู้เรียน';
+  if (num >= 16 && num <= 18) return 'นักเรียน - พฤติกรรมการทำงานของผู้เรียน';
+  if (num >= 19 && num <= 26) return 'สิ่งแวดล้อมทางการเรียนรู้ - สภาพทางกายภาพของห้องเรียน';
+  return '';
+}
+
+function formatThaiDate(isoOrNull) {
+  if (!isoOrNull) return '-';
+  const d = new Date(isoOrNull);
+  if (Number.isNaN(d.getTime())) return String(isoOrNull);
+  return d.toLocaleString('th-TH');
+}
+
+function getAttemptDate(attempt) {
+  return attempt?.submittedAt || attempt?.date || null;
+}
+
 function computeGrade(avg) {
   if (avg >= 4.5) return { text: 'ดีมาก', key: 'excellent' };
   if (avg >= 4.0) return { text: 'ดี', key: 'verygood' };
@@ -370,7 +434,7 @@ function renderTable() {
   const startIndex = (currentTablePage - 1) * tablePageSize;
   const endIndex = Math.min(startIndex + tablePageSize, filteredStudents.length);
   const pageStudents = filteredStudents.slice(startIndex, endIndex);
-  const colCount = 4 + Object.keys(categoriesLabel).length + 2;
+  const colCount = 4 + Object.keys(categoriesLabel).length + 3;
   
   // Render body
   if (pageStudents.length === 0) {
@@ -411,6 +475,9 @@ function renderTable() {
           ${studentAvg > 0 ? studentAvg.toFixed(2) : '-'}
         </td>
         <td style="text-align:center;"><span class="grade-badge ${gradeClass}">${gradeText}</span></td>
+        <td style="text-align:center;">
+          <button type="button" class="btn btn--secondary" style="padding:6px 10px;font-size:0.85rem;" onclick="openStudentReport('${student.id}')">รายงาน</button>
+        </td>
       </tr>
     `;
     }).join('');
@@ -428,10 +495,304 @@ function renderTable() {
       ${avgCells}
       <td style="text-align:center;background:#1e40af;">${reportsData.grandAverage || '0.00'}</td>
       <td></td>
+      <td></td>
     </tr>
   `;
 
   updateTablePaginationUI();
+}
+
+async function fetchStudentReportDetail(studentId) {
+  const filters = getCurrentFilterState();
+  const params = new URLSearchParams();
+  params.append('studentId', studentId);
+  if (filters.observationId) params.append('observationId', filters.observationId);
+  if (filters.evaluationNum) params.append('evaluationNum', filters.evaluationNum);
+
+  const resp = await fetch(`/api/reports/student-evaluation-detail?${params.toString()}`);
+  const json = await resp.json();
+  if (!json.success) throw new Error(json.message || 'ไม่สามารถโหลดรายงานรายบุคคลได้');
+  return json.data;
+}
+
+function buildQuestionRowsFromAttempt(attempt) {
+  const answers = attempt?.answers || {};
+  const questionKeys = Object.keys(answers)
+    .filter(k => /^q\d+$/.test(k))
+    .sort((a, b) => parseInt(a.slice(1), 10) - parseInt(b.slice(1), 10));
+
+  return questionKeys.map((qKey, idx) => {
+    const raw = answers[qKey];
+    const scoreNum = raw === undefined || raw === null || raw === '' ? null : Number(raw);
+    const score = Number.isFinite(scoreNum) ? scoreNum : null;
+    return {
+      no: idx + 1,
+      section: getQuestionSectionTitle(qKey),
+      questionKey: qKey,
+      question: getQuestionText(qKey),
+      score,
+      rating: score ? getRatingText(score) : '-'
+    };
+  });
+}
+
+window.openStudentReport = function(studentId) {
+  (async () => {
+    try {
+      Swal.fire({
+        title: 'กำลังโหลดรายงานรายบุคคล...',
+        html: 'กรุณารอสักครู่',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading()
+      });
+
+      const detail = await fetchStudentReportDetail(studentId);
+      const studentName = `${detail.student?.firstName || ''} ${detail.student?.lastName || ''}`.trim() || studentId;
+
+      Swal.close();
+
+      const result = await Swal.fire({
+        icon: 'question',
+        title: `Export รายงาน: ${studentName}`,
+        html: 'เลือกรูปแบบเอกสารที่ต้องการ',
+        showCancelButton: true,
+        cancelButtonText: 'ยกเลิก',
+        showDenyButton: true,
+        confirmButtonText: 'PDF',
+        denyButtonText: 'Excel',
+        footer: '<button type="button" class="swal2-confirm swal2-styled" style="background:#2563eb;" id="btnExportJson">JSON</button>'
+      });
+
+      // JSON button handler
+      const jsonBtn = document.getElementById('btnExportJson');
+      if (jsonBtn) {
+        jsonBtn.onclick = () => {
+          try {
+            exportStudentToJSON(detail);
+            Swal.close();
+          } catch (e) {
+            Swal.fire({ icon: 'error', title: 'Export JSON ไม่สำเร็จ', text: e.message || 'เกิดข้อผิดพลาด' });
+          }
+        };
+      }
+
+      if (result.isConfirmed) {
+        await exportStudentToPDF(detail);
+      } else if (result.isDenied) {
+        exportStudentToExcel(detail);
+      }
+    } catch (error) {
+      console.error('openStudentReport error:', error);
+      Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: error.message || 'ไม่สามารถสร้างรายงานได้' });
+    }
+  })();
+}
+
+async function exportStudentToPDF(detail) {
+  const { jsPDF } = window.jspdf || {};
+  if (!jsPDF) throw new Error('ไม่พบ jsPDF');
+
+  Swal.fire({
+    title: 'กำลังสร้าง PDF รายบุคคล...',
+    html: 'กรุณารอสักครู่',
+    allowOutsideClick: false,
+    didOpen: () => Swal.showLoading()
+  });
+
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+    putOnlyUsedFonts: true,
+    compress: true
+  });
+  const thaiOk = await ensureThaiFont(doc);
+  if (thaiOk) doc.setFont('THSarabunNew', 'normal');
+  else doc.setFont('helvetica', 'normal');
+  if (typeof doc.autoTable !== 'function') throw new Error('ไม่พบปลั๊กอินตาราง PDF (autoTable)');
+
+  const student = detail.student || {};
+  const studentName = `${student.firstName || ''} ${student.lastName || ''}`.trim();
+  const sid = student.id || '-';
+  const yearText = student.year ? `ปี ${student.year}` : '-';
+  const emailText = student.email || '-';
+  const filters = detail.filters || {};
+  const filterText = [
+    filters.observationId ? `งวด: ${filters.observationId}` : 'งวด: ทุกงวด',
+    filters.evaluationNum ? `ครั้งที่: ${filters.evaluationNum}` : 'ครั้งที่: 1-9'
+  ].join(' | ');
+
+  const dateStr = new Date().toISOString().split('T')[0];
+  doc.setFontSize(18);
+  doc.text('รายงานผลการประเมินรายบุคคล', 14, 14);
+  doc.setFontSize(12);
+  doc.text(`วันที่ออกรายงาน: ${dateStr}`, 14, 22);
+  doc.text(`รหัสนักศึกษา: ${sid}`, 14, 29);
+  doc.text(`ชื่อ-นามสกุล: ${studentName || '-'}`, 14, 36);
+  doc.text(`ชั้นปี: ${yearText}`, 14, 43);
+  doc.text(`อีเมล: ${emailText}`, 14, 50);
+  doc.text(filterText, 14, 57);
+
+  let cursorY = 65;
+  const records = Array.isArray(detail.records) ? detail.records : [];
+  if (!records.length) {
+    doc.setFontSize(12);
+    doc.text('ไม่พบข้อมูลการประเมินสำหรับนักศึกษารายนี้ ตามตัวกรองที่เลือก', 14, cursorY);
+    doc.save(`รายงานรายบุคคล_${sid}_${dateStr}.pdf`);
+    Swal.close();
+    Swal.fire({ icon: 'success', title: 'Export PDF สำเร็จ', timer: 1200, showConfirmButton: false });
+    return;
+  }
+
+  for (const rec of records) {
+    const obsName = rec.observationName || 'ไม่ระบุชื่อ';
+    const totals = rec.totals || {};
+
+    doc.setFontSize(14);
+    doc.text(`งวดการสังเกต: ${obsName}`, 14, cursorY);
+    cursorY += 6;
+    doc.setFontSize(11);
+    doc.text(`จำนวนครั้งที่ส่งแล้ว: ${totals.attemptsSubmitted || 0}`, 14, cursorY);
+    doc.text(`คะแนนเฉลี่ยรวม (หมวด): ${totals.overallAverage || 0}`, 90, cursorY);
+    cursorY += 6;
+
+    const attempts = Array.isArray(rec.attempts) ? rec.attempts : [];
+    for (const at of attempts) {
+      const atDate = formatThaiDate(getAttemptDate(at));
+      const header = `ครั้งที่ ${at.evaluationNum || '-'} | สัปดาห์ ${at.week || '-'} | วันที่ ${atDate} | เฉลี่ย ${at.overallAverage || 0}`;
+
+      doc.setFontSize(12);
+      doc.text(header, 14, cursorY);
+      cursorY += 3;
+
+      const rows = buildQuestionRowsFromAttempt(at);
+      const body = rows.map(r => [
+        String(r.no),
+        r.section || '-',
+        r.question,
+        r.score !== null && r.score !== undefined ? String(r.score) : '-',
+        r.rating
+      ]);
+
+      doc.autoTable({
+        head: [[ '#', 'หมวด', 'หัวข้อคำถาม', 'คะแนน', 'ระดับ' ]],
+        body,
+        startY: cursorY + 2,
+        theme: 'grid',
+        styles: {
+          font: thaiOk ? 'THSarabunNew' : 'helvetica',
+          fontSize: thaiOk ? 11 : 9,
+          cellPadding: 2,
+          overflow: 'linebreak'
+        },
+        headStyles: {
+          fillColor: [46, 48, 148],
+          textColor: 255,
+          font: thaiOk ? 'THSarabunNew' : 'helvetica',
+          fontStyle: 'normal'
+        },
+        columnStyles: {
+          0: { cellWidth: 8 },
+          1: { cellWidth: 35 },
+          2: { cellWidth: 105 },
+          3: { cellWidth: 12, halign: 'center' },
+          4: { cellWidth: 20 }
+        },
+        margin: { left: 14, right: 14 },
+        didDrawPage: () => {
+          // no-op
+        }
+      });
+
+      cursorY = doc.lastAutoTable ? (doc.lastAutoTable.finalY + 8) : (cursorY + 10);
+      if (cursorY > 260) {
+        doc.addPage();
+        cursorY = 14;
+      }
+    }
+
+    cursorY += 2;
+    if (cursorY > 260) {
+      doc.addPage();
+      cursorY = 14;
+    }
+  }
+
+  doc.save(`รายงานรายบุคคล_${sid}_${dateStr}.pdf`);
+  Swal.close();
+  Swal.fire({ icon: 'success', title: 'Export PDF สำเร็จ', timer: 1200, showConfirmButton: false });
+}
+
+function exportStudentToExcel(detail) {
+  if (typeof XLSX === 'undefined') {
+    Swal.fire({ icon: 'error', title: 'Export Excel ไม่สำเร็จ', text: 'ไม่พบไลบรารี XLSX' });
+    return;
+  }
+
+  const student = detail.student || {};
+  const sid = student.id || 'unknown';
+  const dateStr = new Date().toISOString().split('T')[0];
+
+  const header = [
+    'รหัสนักศึกษา',
+    'ชื่อ-นามสกุล',
+    'ชั้นปี',
+    'งวดการสังเกต',
+    'ครั้งที่ประเมิน',
+    'สัปดาห์',
+    'วันที่ส่ง',
+    'หมวด',
+    'ข้อ',
+    'หัวข้อคำถาม',
+    'คะแนน',
+    'ระดับ'
+  ];
+
+  const rows = [];
+  const records = Array.isArray(detail.records) ? detail.records : [];
+  records.forEach(rec => {
+    const obsName = rec.observationName || 'ไม่ระบุชื่อ';
+    const attempts = Array.isArray(rec.attempts) ? rec.attempts : [];
+    attempts.forEach(at => {
+      const atDate = getAttemptDate(at);
+      const qRows = buildQuestionRowsFromAttempt(at);
+      qRows.forEach(q => {
+        rows.push([
+          sid,
+          `${student.firstName || ''} ${student.lastName || ''}`.trim(),
+          student.year || '',
+          obsName,
+          at.evaluationNum || '',
+          at.week || '',
+          atDate || '',
+          q.section || '',
+          q.questionKey,
+          q.question,
+          q.score !== null && q.score !== undefined ? q.score : '',
+          q.rating
+        ]);
+      });
+    });
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'รายงานรายบุคคล');
+  XLSX.writeFile(wb, `รายงานรายบุคคล_${sid}_${dateStr}.xlsx`);
+  Swal.fire({ icon: 'success', title: 'Export Excel สำเร็จ', timer: 1200, showConfirmButton: false });
+}
+
+function exportStudentToJSON(detail) {
+  const student = detail.student || {};
+  const sid = student.id || 'unknown';
+  const dateStr = new Date().toISOString().split('T')[0];
+  const blob = new Blob([JSON.stringify(detail, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `รายงานรายบุคคล_${sid}_${dateStr}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 /**
