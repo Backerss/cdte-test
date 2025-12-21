@@ -507,13 +507,13 @@ async function checkYearConflict() {
 }
 
 /**
- * คำนวณวันสิ้นสุด (เพิ่ม 15 วัน)
+ * คำนวณวันสิ้นสุด (เพิ่ม 10 วัน)
  */
 function calculateEndDate() {
   const startDate = document.getElementById('startDate').value;
   if (startDate) {
     const start = new Date(startDate + 'T00:00:00'); // ป้องกัน timezone issue
-    const end = new Date(start.getTime() + (14 * 24 * 60 * 60 * 1000)); // 15 วัน (14*24h)
+    const end = new Date(start.getTime() + (10 * 24 * 60 * 60 * 1000)); // 10 วัน
     const year = end.getFullYear();
     const month = String(end.getMonth() + 1).padStart(2, '0');
     const day = String(end.getDate()).padStart(2, '0');
@@ -815,13 +815,14 @@ async function openAddStudentModal(observationId, startDate) {
   const start = new Date(startDate);
   const daysPassed = Math.floor((now - start) / (1000 * 60 * 60 * 24));
   
-  // ตรวจสอบเงื่อนไขเวลา
-  if (daysPassed > 5) {
+  // ตรวจสอบเงื่อนไขเวลา: อนุญาตให้เพิ่มเฉพาะภายใน 10 วัน (วันที่ 0..10)
+  // หากเลยวันที่ 10 (daysPassed > 10) จะไม่อนุญาตสำหรับผู้ใช้ทั่วไป แต่ผู้ดูแลระบบ (role === 'admin') ยังคงสามารถเพิ่มได้
+  if (daysPassed > 10 && !(window.currentUser && window.currentUser.role === 'admin')) {
     Swal.fire({
       icon: 'error',
       title: 'ไม่สามารถเพิ่มนักศึกษาได้',
       html: `<p>การฝึกประสบการณ์วิชาชีพครูนี้เริ่มต้นมาแล้ว <strong>${daysPassed} วัน</strong></p>
-             <p>ระบบอนุญาตให้เพิ่มนักศึกษาได้เฉพาะภายใน <strong>5 วัน</strong> เท่านั้น</p>`,
+             <p>ระบบอนุญาตให้เพิ่มนักศึกษาได้เฉพาะภายใน <strong>10 วัน</strong> เท่านั้น (หลังวันที่ 10 สามารถเพิ่มได้เฉพาะผู้ดูแลระบบ)</p>`,
       confirmButtonText: 'รับทราบ'
     });
     return;
