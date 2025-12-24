@@ -10,6 +10,7 @@ const systemRoutes = require('./routes/system');
 const studentRoutes = require('./routes/student');
 const schoolInfoRoutes = require('./routes/school-info');
 const mentorInfoRoutes = require('./routes/mentor-info');
+const feedbackRoutes = require('./routes/feedback');
 const { requireAuth, requireGuest, addUserToLocals, checkSessionSecurity } = require('./middleware/auth');
 
 const app = express();
@@ -63,6 +64,7 @@ app.use('/', systemRoutes);
 app.use('/', studentRoutes);
 app.use('/', schoolInfoRoutes);
 app.use('/', mentorInfoRoutes);
+app.use('/feedback', feedbackRoutes);
 
 // Evaluation routes
 const evaluationRoutes = require('./routes/evaluation');

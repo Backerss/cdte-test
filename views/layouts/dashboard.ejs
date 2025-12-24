@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><%= title || 'Dashboard' %> - CDTE</title>
   <link rel="stylesheet" href="/css/style.css">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- SweetAlert2 CDN (if needed) -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js"></script>
@@ -38,6 +40,46 @@
     </footer>
   </main>
 
+  <!-- Website Evaluation Floating Button -->
+  <div id="feedback-container" style="display: none;">
+    <div class="feedback-alert">
+      <span>คุณยังไม่ได้ทำแบบประเมินการใช้งานเว็บไซต์</span>
+      <div class="feedback-alert-arrow"></div>
+    </div>
+    <button id="feedback-btn" class="feedback-btn">
+      <i class="fas fa-clipboard-check"></i>
+    </button>
+  </div>
+
+  <!-- Website Evaluation Modal -->
+  <div id="feedback-modal" class="modal">
+    <div class="modal-content feedback-modal-content">
+      <div class="modal-header">
+        <h2>แบบประเมินความพึงพอใจการใช้งานเว็บไซต์</h2>
+        <span class="close-modal">&times;</span>
+      </div>
+      <div class="modal-body">
+        <p class="feedback-intro">ขอความร่วมมือตอบแบบสอบถามเพื่อนำไปพัฒนาและปรับปรุงระบบต่อไป</p>
+        <form id="feedback-form">
+          <div id="feedback-questions">
+            <!-- Questions will be injected here -->
+          </div>
+          
+          <div class="form-group">
+            <label for="feedback-suggestions">ข้อเสนอแนะเพิ่มเติม</label>
+            <textarea id="feedback-suggestions" name="suggestions" rows="4" placeholder="ข้อเสนอแนะเพื่อการปรับปรุง..."></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary close-modal-btn">ยกเลิก</button>
+            <button type="submit" class="btn btn-primary">ส่งแบบประเมิน</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <script src="/js/main.js"></script>
+  <script src="/js/feedback.js"></script>
 </body>
 </html>
