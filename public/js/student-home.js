@@ -208,7 +208,7 @@ function renderGreeting(user) {
 
 /**
  * Render Active Observation Card
- * แสดงข้อมูลงวดการสังเกตที่กำลังดำเนินการ พร้อมข้อมูลโรงเรียน ครูพี่เลี้ยง และสถานะต่างๆ
+ * แสดงข้อมูลรอบการสังเกตที่กำลังดำเนินการ พร้อมข้อมูลโรงเรียน ครูพี่เลี้ยง และสถานะต่างๆ
  */
 function renderActiveObservation(obs) {
   const container = document.getElementById('activeObservationSection');
@@ -1487,7 +1487,7 @@ async function renderLessonPlans(canUpload) {
  * ===============================================
  * แสดงสถิติสรุป (STATS SUMMARY)
  * ===============================================
- * แสดงข้อมูลสถิติภาพรวมของนักศึกษา เช่น จำนวนงวดทั้งหมด การประเมิน แผนการสอน
+ * แสดงข้อมูลสถิติภาพรวมของนักศึกษา เช่น จำนวนรอบทั้งหมด การประเมิน แผนการสอน
  * @param {Object} stats - ข้อมูลสถิติจาก API
  */
 function renderStats(stats) {

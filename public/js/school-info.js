@@ -20,7 +20,7 @@ async function checkEligibility() {
       Swal.fire({
         icon: 'warning',
         title: 'ไม่สามารถกรอกข้อมูลได้',
-        html: data.message || 'คุณไม่อยู่ในงวดการสังเกตที่สามารถกรอกข้อมูลได้<br>หรือเกิน 15 วันแล้ว',
+        html: data.message || 'คุณไม่อยู่ในรอบการสังเกตที่สามารถกรอกข้อมูลได้<br>หรือเกิน 15 วันแล้ว',
         confirmButtonText: 'รับทราบ'
       });
       
@@ -32,12 +32,12 @@ async function checkEligibility() {
       return false;
     }
     
-    // แสดงข้อมูลงวด
+    // แสดงข้อมูลรอบ
     if (data.observation) {
       const banner = document.createElement('div');
       banner.style.cssText = 'background:#d1ecf1;border-left:4px solid#17a2b8;padding:12px;border-radius:8px;margin-bottom:16px;color:#0c5460';
       banner.innerHTML = `
-        ℹ️ <strong>งวดการสังเกต:</strong> ${data.observation.name}<br>
+        ℹ️ <strong>รอบการสังเกต:</strong> ${data.observation.name}<br>
         <small>เริ่มเมื่อ: ${new Date(data.observation.startDate).toLocaleDateString('th-TH')} 
         (ผ่านไป ${data.observation.daysPassed} วัน, เหลืออีก ${data.observation.daysRemaining} วัน)</small>
       `;

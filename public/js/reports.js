@@ -338,14 +338,14 @@ window.nextTablePage = function() {
 };
 
 /**
- * เติม dropdown สำหรับงวดการสังเกต
+ * เติม dropdown สำหรับรอบการสังเกต
  */
 function populateObservationFilter() {
   const select = document.getElementById('filterObservation');
   if (!select || !reportsData.observations) return;
   
   // Clear existing options except first
-  select.innerHTML = '<option value="">ทุกงวด (ภาพรวม)</option>';
+  select.innerHTML = '<option value="">ทุกรอบ (ภาพรวม)</option>';
   
   // Add observations
   reportsData.observations.forEach(obs => {
@@ -618,7 +618,7 @@ async function exportStudentToPDF(detail) {
   const emailText = student.email || '-';
   const filters = detail.filters || {};
   const filterText = [
-    filters.observationId ? `งวด: ${filters.observationId}` : 'งวด: ทุกงวด',
+    filters.observationId ? `รอบ: ${filters.observationId}` : 'รอบ: ทุกรอบ',
     filters.evaluationNum ? `ครั้งที่: ${filters.evaluationNum}` : 'ครั้งที่: 1-9'
   ].join(' | ');
 
@@ -649,7 +649,7 @@ async function exportStudentToPDF(detail) {
     const totals = rec.totals || {};
 
     doc.setFontSize(14);
-    doc.text(`งวดการสังเกต: ${obsName}`, 14, cursorY);
+    doc.text(`รอบการสังเกต: ${obsName}`, 14, cursorY);
     cursorY += 6;
     doc.setFontSize(11);
     doc.text(`จำนวนครั้งที่ส่งแล้ว: ${totals.attemptsSubmitted || 0}`, 14, cursorY);
@@ -737,7 +737,7 @@ function exportStudentToExcel(detail) {
     'รหัสนักศึกษา',
     'ชื่อ-นามสกุล',
     'ชั้นปี',
-    'งวดการสังเกต',
+    'รอบการสังเกต',
     'ครั้งที่ประเมิน',
     'สัปดาห์',
     'วันที่ส่ง',
@@ -1292,7 +1292,7 @@ window.exportToPDF = function() {
       doc.setFontSize(11);
       const infoLines = [
         `วันที่ออกรายงาน: ${dateStr}`,
-        `งวดการสังเกต: ${filters.observationText || 'ทุกงวด (ภาพรวม)'}`,
+        `รอบการสังเกต: ${filters.observationText || 'ทุกรอบ (ภาพรวม)'}`,
         `ชั้นปี: ${filters.yearText || 'ทุกชั้นปี'}`,
         `ค้นหา: ${filters.searchText || '-'}`,
         `ช่วงคะแนน: ${filters.scoreFilterText || 'ทุกระดับ'}`,

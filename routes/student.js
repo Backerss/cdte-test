@@ -257,7 +257,7 @@ router.get('/api/student/dashboard', requireStudent, async (req, res) => {
       totalObservations: observationIds.length,
       completedObservations: practiceHistory.length,
       totalEvaluations: evaluationData ? evaluationData.length : 0,
-      completedEvaluations: completedEvaluations, // การประเมินที่เสร็จในงวดปัจจุบัน
+      completedEvaluations: completedEvaluations, // การประเมินที่เสร็จในรอบปัจจุบัน
       totalLessonPlans: lessonPlans.length
     };
 

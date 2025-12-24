@@ -1271,7 +1271,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   
   updateTeachingDisplay();
   
-  // โหลดข้อมูลงวดการสังเกตจาก API
+  // โหลดข้อมูลรอบการสังเกตจาก API
   try {
     await ObservationUtils.loadObservations();
     await ObservationUtils.populateObservationSelector('mentorPeriodSelector', currentMentorPeriodId, { 
@@ -1286,7 +1286,7 @@ document.addEventListener('DOMContentLoaded', async function() {
       if (banner) banner.style.display = 'none';
     }
     
-    // โหลดข้อมูลของงวดที่เลือก
+    // โหลดข้อมูลของรอบที่เลือก
     if (!isPureAdminClient) {
       changeMentorPeriod();
     }

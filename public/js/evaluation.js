@@ -519,7 +519,7 @@ async function startEvaluation(evalNum) {
 
   // Guard: ensure period data exists
   if (!currentEvalPeriod) {
-    Swal.fire({ icon: 'error', title: 'ข้อมูลช่วงการประเมินไม่พร้อม', text: 'ไม่พบข้อมูลงวดการสังเกต โปรดรีเฟรชหน้า' });
+    Swal.fire({ icon: 'error', title: 'ข้อมูลช่วงการประเมินไม่พร้อม', text: 'ไม่พบข้อมูลรอบการสังเกต โปรดรีเฟรชหน้า' });
     return;
   }
 

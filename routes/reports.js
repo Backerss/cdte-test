@@ -1,7 +1,7 @@
 /**
  * routes/reports.js
  * API สำหรับรายงานผลการประเมิน
- * - สรุปผลการประเมินแบบรวมและแยกตามงวด/ชั้นปี
+ * - สรุปผลการประเมินแบบรวมและแยกตามรอบ/ชั้นปี
  * - วิเคราะห์ข้อมูลเชิงลึก
  */
 
@@ -142,7 +142,7 @@ router.get('/api/reports/evaluation-summary', requireAdminOrTeacher, async (req,
     const evaluationsSnapshot = await evalQuery.get();
     
     // 3. ดึงข้อมูลนักศึกษาและจัดกลุ่มการประเมิน
-    // NOTE: ในระบบนี้ 1 เอกสาร evaluations ต่อ 1 นักศึกษา/1 งวด และมี evaluations[n].answers (q1-q26)
+    // NOTE: ในระบบนี้ 1 เอกสาร evaluations ต่อ 1 นักศึกษา/1 รอบ และมี evaluations[n].answers (q1-q26)
     const studentMap = new Map(); // studentId -> student data
     const evaluationsByStudent = new Map(); // studentId -> evaluation docs[]
     

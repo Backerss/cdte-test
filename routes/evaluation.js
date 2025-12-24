@@ -79,7 +79,7 @@ function requireStudent(req, res, next) {
 
 /**
  * GET /api/evaluation/my-data
- * ดึงข้อมูลการประเมินทั้งหมดของนักศึกษาในงวดที่เลือก
+ * ดึงข้อมูลการประเมินทั้งหมดของนักศึกษาในรอบที่เลือก
  */
 router.get('/api/evaluation/my-data', requireStudent, async (req, res) => {
   try {
@@ -90,7 +90,7 @@ router.get('/api/evaluation/my-data', requireStudent, async (req, res) => {
         return res.status(400).json({ success: false, message: 'ต้องระบุ observationId' });
       }
 
-    // ดึงข้อมูลการประเมินของนักศึกษาในงวดนี้
+    // ดึงข้อมูลการประเมินของนักศึกษาในรอบนี้
       const evaluationSnapshot = await db.collection('evaluations')
       .where('studentId', '==', studentId)
       .where('observationId', '==', observationId)
@@ -506,7 +506,7 @@ router.get('/api/evaluation/lesson-plan-stats', requireStudent, async (req, res)
     const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
     const userYear = req.session.user.year || 3;
 
-    // ดึงข้อมูลทุกงวดการสังเกตของนักศึกษา
+    // ดึงข้อมูลทุกรอบการสังเกตของนักศึกษา
     const evaluationsSnapshot = await db.collection('evaluations')
       .where('studentId', '==', studentId)
       .get();
@@ -528,7 +528,7 @@ router.get('/api/evaluation/lesson-plan-stats', requireStudent, async (req, res)
     let submitted = 0;
     const byObservation = [];
 
-    // วนลูปดึงข้อมูลแต่ละงวด
+    // วนลูปดึงข้อมูลแต่ละรอบ
     for (const doc of evaluationsSnapshot.docs) {
       const data = doc.data();
       
@@ -609,13 +609,13 @@ router.get('/api/student/evaluation-summary', requireStudent, async (req, res) =
     let evaluationsSnapshot;
     
     if (observationId) {
-      // ดึงข้อมูลเฉพาะงวดที่เลือก
+      // ดึงข้อมูลเฉพาะรอบที่เลือก
       evaluationsSnapshot = await db.collection('evaluations')
         .where('studentId', '==', studentId)
         .where('observationId', '==', observationId)
         .get();
     } else {
-      // ดึงข้อมูลทุกงวด
+      // ดึงข้อมูลทุกรอบ
       evaluationsSnapshot = await db.collection('evaluations')
         .where('studentId', '==', studentId)
         .get();

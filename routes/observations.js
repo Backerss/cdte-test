@@ -62,7 +62,7 @@ router.get('/api/observations', requireAuth, async (req, res) => {
         .where('observationId', '==', doc.id)
         .get();
 
-      // ดึงการประเมินทั้งหมดของงวดนี้ แล้วสร้าง map ของจำนวนการประเมินต่อ studentId
+      // ดึงการประเมินทั้งหมดของรอบนี้ แล้วสร้าง map ของจำนวนการประเมินต่อ studentId
       const evalSnapshot = await db.collection('evaluations')
         .where('observationId', '==', doc.id)
         .get();
@@ -143,7 +143,7 @@ router.get('/api/observations/:id', requireAuth, async (req, res) => {
       .where('observationId', '==', observationId)
       .get();
     
-    // ดึงการประเมินทั้งหมดของงวดนี้ (เพื่อคำนวณจำนวนการประเมินต่อ student)
+    // ดึงการประเมินทั้งหมดของรอบนี้ (เพื่อคำนวณจำนวนการประเมินต่อ student)
     const evalSnapshot = await db.collection('evaluations')
       .where('observationId', '==', observationId)
       .get();
@@ -761,7 +761,7 @@ router.post('/api/observations/:id/add-students', requireAdminOrTeacher, async (
 
 /**
  * GET /api/observations/:id/schools-summary
- * ดึงสรุปข้อมูลโรงเรียนทั้งหมดที่นักศึกษาในงวดสังเกตนี้เข้าไปสังเกต
+ * ดึงสรุปข้อมูลโรงเรียนทั้งหมดที่นักศึกษาในรอบสังเกตนี้เข้าไปสังเกต
  * พร้อมรายละเอียดครูพี่เลี้ยงและข้อมูลโรงเรียน
  */
 router.get('/api/observations/:id/schools-summary', requireAuth, async (req, res) => {
@@ -777,7 +777,7 @@ router.get('/api/observations/:id/schools-summary', requireAuth, async (req, res
     
     const observationData = observationDoc.data();
     
-    // ดึงรายชื่อนักศึกษาในงวดนี้
+    // ดึงรายชื่อนักศึกษาในรอบนี้
     const studentsSnapshot = await db.collection('observation_students')
       .where('observationId', '==', observationId)
       .get();

@@ -203,7 +203,7 @@ router.post('/api/mentor-info/save', requireStudent, async (req, res) => {
     
     const now = admin.firestore.FieldValue.serverTimestamp();
     
-    // ตรวจสอบว่านักศึกษาคนนี้เคยกรอกข้อมูลครูพี่เลี้ยงในงวดนี้แล้วหรือไม่
+    // ตรวจสอบว่านักศึกษาคนนี้เคยกรอกข้อมูลครูพี่เลี้ยงในรอบนี้แล้วหรือไม่
     const myMentorSnapshot = await db.collection('mentors')
       .where('studentId', '==', studentId)
       .where('observationId', '==', eligibilityCheck.observationId)
@@ -214,7 +214,7 @@ router.post('/api/mentor-info/save', requireStudent, async (req, res) => {
     let isNewMentor = myMentorSnapshot.empty;
     
     if (isNewMentor) {
-      // ตรวจสอบว่าครูพี่เลี้ยงชื่อนี้มีนักศึกษาในงวดนี้แล้วหรือยัง (1 ครู : 1 นักศึกษา ต่องวด)
+      // ตรวจสอบว่าครูพี่เลี้ยงชื่อนี้มีนักศึกษาในรอบนี้แล้วหรือยัง (1 ครู : 1 นักศึกษา ต่อรอบ)
       const mentorInCurrentObservation = await db.collection('mentors')
         .where('schoolName', '==', eligibilityCheck.schoolName)
         .where('firstName', '==', mentorData.firstName.trim())
@@ -311,7 +311,7 @@ router.get('/api/mentor-info/my-submission', requireStudent, async (req, res) =>
       return res.json({ success: true, hasSubmission: false });
     }
     
-    // หาครูพี่เลี้ยงที่นักศึกษาคนนี้กรอกในงวดนี้
+    // หาครูพี่เลี้ยงที่นักศึกษาคนนี้กรอกในรอบนี้
     const mentorSnapshot = await db.collection('mentors')
       .where('studentId', '==', studentId)
       .where('observationId', '==', eligibilityCheck.observationId)
@@ -401,7 +401,7 @@ async function checkEligibility(studentId) {
   
   return {
     eligible: false,
-    message: 'ไม่พบงวดการสังเกตที่สามารถกรอกข้อมูลได้'
+    message: 'ไม่พบรอบการสังเกตที่สามารถกรอกข้อมูลได้'
   };
 }
 

@@ -913,7 +913,7 @@ function showAddStudentDialog(observationId, students) {
   }).join('');
   
   Swal.fire({
-    title: '➕ เพิ่มนักศึกษาเข้างวดสังเกต',
+    title: '➕ เพิ่มนักศึกษาเข้ารอบสังเกต',
     html: `
       <div style="text-align:left;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
@@ -1061,7 +1061,7 @@ function showAddStudentDialog(observationId, students) {
 }
 
 /**
- * เพิ่มนักศึกษาเข้างวดสังเกต
+ * เพิ่มนักศึกษาเข้ารอบสังเกต
  */
 async function addStudentsToObservation(observationId, studentIds) {
   Swal.fire({
@@ -1184,7 +1184,7 @@ function displayProgressModal(data) {
     tableHTML = `
       <div class="empty-state">
         <div class="empty-state-icon">🏫</div>
-        <p>ยังไม่มีข้อมูลโรงเรียนในงวดสังเกตนี้</p>
+        <p>ยังไม่มีข้อมูลโรงเรียนในรอบสังเกตนี้</p>
         <p style="font-size:0.9rem;margin-top:8px;">นักศึกษายังไม่ได้กรอกข้อมูลโรงเรียนที่เข้าสังเกต</p>
       </div>
     `;
@@ -1554,16 +1554,16 @@ async function generateStudentListPDF(observation) {
   doc.setFontSize(fontLoaded ? 18 : 16);
   doc.setFont(fontLoaded ? 'THSarabunNew' : 'helvetica', 'normal');
   doc.setTextColor(0, 0, 0);
-  doc.text('รายชื่อนักศึกษาในงวดการสังเกตการสอน', pageWidth / 2, yPos, { align: 'center' });
+  doc.text('รายชื่อนักศึกษาในรอบการสังเกตการสอน', pageWidth / 2, yPos, { align: 'center' });
   yPos += 15;
 
-  // === รายละเอียดงวดการสังเกต ===
+  // === รายละเอียดรอบการสังเกต ===
   doc.setFontSize(fontLoaded ? 14 : 11);
   doc.setFont(fontLoaded ? 'THSarabunNew' : 'helvetica', 'normal');
   doc.setTextColor(0, 0, 0);
   
   const obsDetails = [
-    `ชื่องวด: ${observation.name}`,
+    `ชื่อรอบ: ${observation.name}`,
     `ปีการศึกษา: ${observation.academicYear}`,
     `ชั้นปี: ปีที่ ${observation.yearLevel}`,
     `ระยะเวลา: ${formatThaiDate(observation.startDate)} - ${formatThaiDate(observation.endDate)}`,
@@ -1571,7 +1571,7 @@ async function generateStudentListPDF(observation) {
     `สถานะ: ${getStatusText(observation.status)}`
   ];
 
-  // กรอบข้อมูลงวดแบบเรียบ
+  // กรอบข้อมูลรอบแบบเรียบ
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.5);
   doc.rect(margin, yPos - 3, pageWidth - 2 * margin, (obsDetails.length * 6) + 8);

@@ -365,7 +365,7 @@ router.get('/api/school-info/my-submission', requireStudent, async (req, res) =>
       return res.json({ success: true, hasSubmission: false });
     }
     
-    // หาโรงเรียนที่นักศึกษาคนนี้กรอกในงวดนี้ (ค้นหาจาก studentIds array)
+    // หาโรงเรียนที่นักศึกษาคนนี้กรอกในรอบนี้ (ค้นหาจาก studentIds array)
     const schoolSnapshot = await db.collection('schools')
       .where('studentIds', 'array-contains', studentId)
       .where('observationId', '==', eligibilityCheck.observationId)
@@ -451,7 +451,7 @@ async function checkEligibility(studentId) {
 }
 
 /**
- * ตรวจสอบว่านักศึกษามีการประเมินใดๆ ในงวดนี้หรือไม่
+ * ตรวจสอบว่านักศึกษามีการประเมินใดๆ ในรอบนี้หรือไม่
  */
 async function checkStudentEvaluations(studentId, observationId) {
   try {
@@ -478,7 +478,7 @@ async function checkStudentEvaluations(studentId, observationId) {
 }
 
 /**
- * ลบข้อมูลการประเมินทั้งหมดของนักศึกษาในงวดนี้
+ * ลบข้อมูลการประเมินทั้งหมดของนักศึกษาในรอบนี้
  */
 async function deleteStudentEvaluations(studentId, observationId) {
   try {

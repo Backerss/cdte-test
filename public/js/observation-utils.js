@@ -1,6 +1,6 @@
 /**
  * observation-utils.js
- * Utility functions สำหรับจัดการ observations (งวดฝึกประสบการณ์)
+ * Utility functions สำหรับจัดการ observations (รอบฝึกประสบการณ์)
  * - ดึงรายการ observations จาก API
  * - Populate dropdown selector
  * - แสดงสถานะและข้อมูล
@@ -26,7 +26,7 @@ async function loadObservations() {
     const result = await response.json();
 
     if (!result.success) {
-      throw new Error(result.message || 'ไม่สามารถโหลดข้อมูลงวดฝึกได้');
+      throw new Error(result.message || 'ไม่สามารถโหลดข้อมูลรอบฝึกได้');
     }
 
     observationsData = {
@@ -79,7 +79,7 @@ async function populateObservationSelector(selectId, selectedObsId = null, optio
     if (observationsData.all.length === 0) {
       const emptyOption = document.createElement('option');
       emptyOption.value = '';
-      emptyOption.textContent = 'ยังไม่มีงวดการฝึกประสบการณ์';
+      emptyOption.textContent = 'ยังไม่มีรอบการฝึกประสบการณ์';
       emptyOption.disabled = true;
       emptyOption.selected = true;
       selector.appendChild(emptyOption);
