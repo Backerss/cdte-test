@@ -228,11 +228,50 @@ async function updateStudentStatus(observationId, studentDocId, updateData) {
       body: JSON.stringify(updateData)
     });
     
+
+  /**
+   * ลบนักศึกษาแบบเดี่ยว
+   */
     const data = await response.json();
     return data;
   } catch (error) {
     console.error('Error updating student status:', error);
     return { success: false, message: 'เกิดข้อผิดพลาดในการอัปเดต' };
+  }
+}
+
+/**
+ * ลบนักศึกษาออกจากรอบสังเกต
+ */
+async function removeStudentFromObservation(observationId, studentDocId) {
+  try {
+    const response = await fetch(`/api/observations/${observationId}/students/${studentDocId}`, {
+      method: 'DELETE'
+    });
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error removing student:', error);
+    return { success: false, message: 'เกิดข้อผิดพลาดในการลบนักศึกษา' };
+  }
+}
+
+/**
+ * ลบนักศึกษาแบบกลุ่ม
+ */
+async function removeStudentsBulk(observationId, studentDocIds) {
+  try {
+    const response = await fetch(`/api/observations/${observationId}/students`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ studentDocIds })
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error bulk removing students:', error);
+    return { success: false, message: 'เกิดข้อผิดพลาดในการลบนักศึกษาแบบกลุ่ม' };
   }
 }
 
@@ -685,60 +724,107 @@ async function manageStudents(observationId) {
       Swal.showLoading();
     }
   });
-  
+
   const result = await loadObservationDetail(observationId);
   Swal.close();
-  
+
   if (!result.success) {
     Swal.fire('ข้อผิดพลาด', result.message, 'error');
     return;
   }
-  
+
   const observation = result.observation;
-  
-  document.getElementById('managementModalTitle').textContent = `จัดการนักศึกษา - ${observation.name}`;
-  
+  const totalStudents = observation.students.length;
+  const activeCount = observation.students.filter(s => s.status === 'active').length;
+  const terminatedCount = observation.students.filter(s => s.status === 'terminated').length;
+  const lessonPlanCount = observation.students.filter(s => s.lessonPlanSubmitted).length;
+
   const content = `
     <div class="students-management">
-      <div style="display:flex;gap:12px;margin-bottom:16px;align-items:center;">
-        <input type="text" class="form-input" placeholder="ค้นหานักศึกษา..." onkeyup="searchManagedStudents(this.value)" style="flex:1;">
+      <div style="display:flex;gap:12px;margin-bottom:16px;align-items:center;flex-wrap:wrap;">
+        <input type="text" class="form-input" placeholder="ค้นหานักศึกษา..." onkeyup="searchManagedStudents(this.value)" style="flex:1;min-width:220px;">
         <button class="btn btn--primary" onclick="openAddStudentModal('${observationId}', '${observation.startDate}')">
           <span>➕</span> เพิ่มนักศึกษา
         </button>
       </div>
+
+      <div style="display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">
+        <select id="managedStatusFilter" class="form-input" style="width:180px;" onchange="filterManagedStudents()">
+          <option value="">สถานะทั้งหมด</option>
+          <option value="active">กำลังฝึก</option>
+          <option value="terminated">ยุติแล้ว</option>
+        </select>
+        <select id="managedLessonFilter" class="form-input" style="width:200px;" onchange="filterManagedStudents()">
+          <option value="">แผนการสอนทั้งหมด</option>
+          <option value="submitted">ส่งแผนการสอนแล้ว</option>
+          <option value="not-submitted">ยังไม่ส่งแผนการสอน</option>
+        </select>
+        <button class="btn btn--secondary btn--sm" onclick="selectAllManaged(true)">เลือกที่แสดง</button>
+        <button class="btn btn--secondary btn--sm" onclick="selectAllManaged(false)">ยกเลิกเลือก</button>
+        <button class="btn btn--danger btn--sm" onclick="bulkRemoveStudents('${observationId}')">นำออกที่เลือก</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px;">
+        <div style="border:1px solid var(--color-border);border-radius:10px;padding:12px;background:var(--color-bg);">
+          <div style="font-size:0.85rem;color:var(--color-muted);">จำนวนนักศึกษาทั้งหมด</div>
+          <div style="font-size:1.6rem;font-weight:700;color:var(--color-primary);">${totalStudents}</div>
+        </div>
+        <div style="border:1px solid var(--color-border);border-radius:10px;padding:12px;background:var(--color-bg);">
+          <div style="font-size:0.85rem;color:var(--color-muted);">กำลังฝึก</div>
+          <div style="font-size:1.6rem;font-weight:700;color:#16a34a;">${activeCount}</div>
+        </div>
+        <div style="border:1px solid var(--color-border);border-radius:10px;padding:12px;background:var(--color-bg);">
+          <div style="font-size:0.85rem;color:var(--color-muted);">ยุติแล้ว</div>
+          <div style="font-size:1.6rem;font-weight:700;color:#d97706;">${terminatedCount}</div>
+        </div>
+        <div style="border:1px solid var(--color-border);border-radius:10px;padding:12px;background:var(--color-bg);">
+          <div style="font-size:0.85rem;color:var(--color-muted);">ส่งแผนการสอน</div>
+          <div style="font-size:1.6rem;font-weight:700;color:#2563eb;">${lessonPlanCount}</div>
+        </div>
+      </div>
       
-      <div class="managed-students-list">
-        ${observation.students.map(student => {
-          const sid = (student.user_id || student.studentId || '');
-          return `
-          <div class="managed-student-item" data-student-search="${student.name} ${sid}">
-            <div style="flex:1;">
-              <div style="font-weight:500;color:var(--color-text);">${escapeHtml(student.name)}</div>
-              <div style="font-size:0.85rem;color:var(--color-muted);margin:4px 0;">รหัส: ${sid}</div>
-              <div style="display:flex;gap:16px;font-size:0.8rem;">
-                <span>การประเมิน: ${student.evaluationsCompleted}/9</span>
-                ${((student.yearLevel || 0) >= 2) ? `
-                <span>แผนการสอน: ${student.lessonPlanSubmitted ? '✅ ส่งแล้ว' : '❌ ยังไม่ส่ง'}</span>
-                ` : ''}
+      ${observation.students.length === 0 ? `
+        <div style="border:1px dashed var(--color-border);padding:24px;border-radius:8px;text-align:center;color:var(--color-muted);">
+          ยังไม่มีนักศึกษาในรอบการสังเกตนี้
+        </div>
+      ` : `
+        <div class="managed-students-list" style="display:flex;flex-direction:column;gap:12px;">
+          <div style="display:grid;grid-template-columns:40px 2fr 1.2fr 1fr 1fr auto;gap:12px;padding:10px 12px;border:1px solid var(--color-border);border-radius:8px;background:var(--color-bg);font-weight:600;font-size:0.9rem;color:var(--color-muted);">
+            <div><input type="checkbox" id="managedSelectAll" onchange="toggleManagedSelectAll(this)"></div>
+            <div>นักศึกษา</div>
+            <div>สถานะ</div>
+            <div>การประเมิน</div>
+            <div>แผนการสอน</div>
+            <div style="text-align:right;">การจัดการ</div>
+          </div>
+          ${observation.students.map(student => {
+            const sid = (student.user_id || student.studentId || '');
+            return `
+            <div class="managed-student-item" data-student-search="${student.name} ${sid}" data-status="${student.status}" data-lesson="${student.lessonPlanSubmitted ? 'submitted' : 'not-submitted'}" style="display:grid;grid-template-columns:40px 2fr 1.2fr 1fr 1fr auto;gap:12px;padding:12px;border:1px solid var(--color-border);border-radius:10px;align-items:center;background:white;">
+              <div style="text-align:center;"><input type="checkbox" class="managed-select" value="${student.id}"></div>
+              <div>
+                <div style="font-weight:600;color:var(--color-text);">${escapeHtml(student.name)}</div>
+                <div style="font-size:0.85rem;color:var(--color-muted);">รหัส: ${sid || '-'}</div>
+              </div>
+              <div>
+                <span class="status-badge ${student.status}" style="text-align:center;display:inline-block;">
+                  ${student.status === 'active' ? 'กำลังฝึก' : 'ยุติแล้ว'}
+                </span>
+              </div>
+              <div style="font-size:0.9rem;">${student.evaluationsCompleted || 0}/9</div>
+              <div style="font-size:0.9rem;">${((student.yearLevel || 0) >= 2) ? (student.lessonPlanSubmitted ? '✅ ส่งแล้ว' : '❌ ยังไม่ส่ง') : '-'}</div>
+              <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+                <button class="btn btn--danger btn--sm" style="background:#fef2f2;color:#b91c1c;border:1px solid #fecdd3;" onclick="removeStudent('${observationId}', '${student.id}')">นำออก</button>
+                ${student.status === 'active' ? `
+                  <button class="btn btn--warning btn--sm" onclick="terminateStudent('${observationId}', '${student.id}')">ยุติการฝึก</button>
+                ` : `
+                  <button class="btn btn--secondary btn--sm" onclick="reactivateStudent('${observationId}', '${student.id}')">เปิดใหม่</button>
+                `}
               </div>
             </div>
-            <div style="display:flex;flex-direction:column;gap:8px;">
-              <span class="status-badge ${student.status}" style="text-align:center;">
-                ${student.status === 'active' ? 'กำลังฝึก' : 'ยุติแล้ว'}
-              </span>
-              ${student.status === 'active' ? `
-                <button class="btn btn--danger btn--sm" onclick="terminateStudent('${observationId}', '${student.id}')">
-                  ยุติการฝึก
-                </button>
-              ` : `
-                <button class="btn btn--secondary btn--sm" onclick="reactivateStudent('${observationId}', '${student.id}')">
-                  เปิดใหม่
-                </button>
-              `}
-            </div>
-          </div>
-        `}).join('')}
-      </div>
+          `}).join('')}
+        </div>
+      `}
     </div>
   `;
 
@@ -794,16 +880,115 @@ async function reactivateStudent(observationId, studentDocId) {
 }
 
 /**
+ * ลบนักศึกษาออกจากรอบสังเกต (ใช้เมื่อเพิ่มผิดคน)
+ */
+async function removeStudent(observationId, studentDocId) {
+  const result = await Swal.fire({
+    icon: 'warning',
+    title: 'ยืนยันการนำออก',
+    html: '<p style="margin:0;">ต้องการนำออกนักศึกษาคนนี้จากรอบสังเกตหรือไม่?</p><p style="margin-top:8px;color:#6b7280;font-size:0.9rem;">ข้อมูลการประเมินที่ผูกกับนักศึกษาคนนี้จะไม่แสดงในรอบนี้</p>',
+    showCancelButton: true,
+    confirmButtonText: 'นำออก',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#d33'
+  });
+
+  if (!result.isConfirmed) return;
+
+  const deleteResult = await removeStudentFromObservation(observationId, studentDocId);
+
+  if (deleteResult.success) {
+    Swal.fire('สำเร็จ', 'นำออกนักศึกษาแล้ว', 'success');
+    manageStudents(observationId); // Refresh modal data
+  } else {
+    Swal.fire('ข้อผิดพลาด', deleteResult.message || 'ลบนักศึกษาไม่สำเร็จ', 'error');
+  }
+}
+
+/**
  * ค้นหานักศึกษาในโมดัลจัดการ
  */
 function searchManagedStudents(query) {
+  const searchInput = document.querySelector('input[placeholder="ค้นหานักศึกษา..."]');
+  if (searchInput) searchInput.value = query;
+  filterManagedStudents();
+}
+
+/**
+ * กรองนักศึกษาตามสถานะ/แผนการสอนและซ่อน/แสดงตาม search ปัจจุบัน
+ */
+function filterManagedStudents() {
+  const statusFilter = document.getElementById('managedStatusFilter')?.value || '';
+  const lessonFilter = document.getElementById('managedLessonFilter')?.value || '';
+  const searchValue = document.querySelector('input[placeholder="ค้นหานักศึกษา..."]')?.value || '';
+
   const items = document.querySelectorAll('.managed-student-item');
-  const searchLower = query.toLowerCase();
-  
   items.forEach(item => {
-    const searchText = item.getAttribute('data-student-search').toLowerCase();
-    item.style.display = searchText.includes(searchLower) ? 'flex' : 'none';
+    const status = item.getAttribute('data-status') || '';
+    const lesson = item.getAttribute('data-lesson') || '';
+    const searchText = item.getAttribute('data-student-search')?.toLowerCase() || '';
+
+    let show = true;
+    if (statusFilter && status !== statusFilter) show = false;
+    if (lessonFilter && lesson !== lessonFilter) show = false;
+    if (searchValue && !searchText.includes(searchValue.toLowerCase())) show = false;
+
+    item.style.display = show ? 'grid' : 'none';
   });
+}
+
+/**
+ * เลือก/ยกเลิกเลือกทั้งหมดของแถวที่แสดง
+ */
+function selectAllManaged(selectVisible) {
+  const items = document.querySelectorAll('.managed-student-item');
+  items.forEach(item => {
+    if (item.style.display === 'none') return;
+    const cb = item.querySelector('.managed-select');
+    if (cb) cb.checked = !!selectVisible;
+  });
+}
+
+function toggleManagedSelectAll(master) {
+  const checked = master.checked;
+  const items = document.querySelectorAll('.managed-student-item');
+  items.forEach(item => {
+    const cb = item.querySelector('.managed-select');
+    if (cb) cb.checked = checked;
+  });
+}
+
+/**
+ * ลบหลายคนที่ถูกเลือก
+ */
+async function bulkRemoveStudents(observationId) {
+  const selected = Array.from(document.querySelectorAll('.managed-select:checked')).map(cb => cb.value);
+  if (selected.length === 0) {
+    Swal.fire('แจ้งเตือน', 'กรุณาเลือกนักศึกษาที่ต้องการนำออก', 'info');
+    return;
+  }
+
+  const result = await Swal.fire({
+    icon: 'warning',
+    title: 'ยืนยันการนำออก',
+    html: `<p style="margin:0;">นำออกนักศึกษาที่เลือกทั้งหมด (${selected.length} คน) จากรอบนี้หรือไม่?</p>` +
+          `<p style="margin-top:8px;color:#6b7280;font-size:0.9rem;">การประเมินที่ผูกกับนักศึกษาจะไม่แสดงในรอบนี้</p>`,
+    showCancelButton: true,
+    confirmButtonText: 'นำออก',
+    cancelButtonText: 'ยกเลิก',
+    confirmButtonColor: '#d33'
+  });
+
+  if (!result.isConfirmed) return;
+
+  const deleteResult = await removeStudentsBulk(observationId, selected);
+
+  if (deleteResult.success) {
+    Swal.fire('สำเร็จ', `นำออก ${deleteResult.removed?.length || selected.length} คนแล้ว`, 'success');
+    manageStudents(observationId);
+  } else {
+    Swal.fire('ข้อผิดพลาด', deleteResult.message || 'ลบไม่สำเร็จ', 'error');
+  }
 }
 
 /**

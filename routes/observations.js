@@ -410,6 +410,156 @@ router.patch('/api/observations/:observationId/students/:studentDocId', requireA
 });
 
 /**
+ * DELETE /api/observations/:observationId/students/:studentDocId
+ * เอานักศึกษาออกจากการสังเกต (ลบความสัมพันธ์ + sync ข้อมูลสรุป)
+ */
+router.delete('/api/observations/:observationId/students/:studentDocId', requireAdminOrTeacher, async (req, res) => {
+  try {
+    const { observationId, studentDocId } = req.params;
+
+    const studentRef = db.collection('observation_students').doc(studentDocId);
+    const studentDoc = await studentRef.get();
+
+    if (!studentDoc.exists) {
+      return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลนักศึกษาในรอบนี้' });
+    }
+
+    const studentData = studentDoc.data();
+
+    // ตรวจสอบว่า studentDoc เป็นของ observation ที่ร้องขอหรือไม่
+    if (studentData.observationId !== observationId) {
+      return res.status(400).json({ success: false, message: 'ข้อมูลไม่ตรงกับรอบการสังเกต' });
+    }
+
+    // ใช้ canonical id สำหรับ sync ข้อมูล
+    const canonicalId = String(studentData.user_id || studentData.studentId || '').trim();
+
+    // ลบเอกสารความสัมพันธ์ observation_students
+    await studentRef.delete();
+
+    // อัปเดต summary ใน observations.students (ถ้ามี) ให้ตรงกัน
+    const obsRef = db.collection('observations').doc(observationId);
+    const obsDoc = await obsRef.get();
+
+    if (obsDoc.exists) {
+      const obsData = obsDoc.data();
+      if (Array.isArray(obsData.students)) {
+        const filtered = obsData.students.filter(entry => {
+          const eid = typeof entry === 'string'
+            ? entry
+            : (entry.user_id || entry.studentId || entry.id || '');
+          return String(eid || '').trim() !== canonicalId;
+        });
+
+        await obsRef.update({
+          students: filtered,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+      } else {
+        await obsRef.update({
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'ลบนักศึกษาออกจากรอบสังเกตแล้ว',
+      removedStudentId: canonicalId || null
+    });
+  } catch (error) {
+    console.error('Error removing student from observation:', error);
+    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการลบนักศึกษา' });
+  }
+});
+
+/**
+ * DELETE /api/observations/:observationId/students
+ * ลบนักศึกษาหลายคนออกจากการสังเกต
+ * Body: { studentDocIds: ['docId1', 'docId2', ...] }
+ */
+router.delete('/api/observations/:observationId/students', requireAdminOrTeacher, async (req, res) => {
+  try {
+    const { observationId } = req.params;
+    const { studentDocIds } = req.body || {};
+
+    if (!Array.isArray(studentDocIds) || studentDocIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'กรุณาระบุรายชื่อนักศึกษาที่ต้องการลบ' });
+    }
+
+    // ดึงเอกสารนักศึกษาที่ระบุ
+    const docs = await Promise.all(
+      studentDocIds.map(id => db.collection('observation_students').doc(id).get())
+    );
+
+    const validDocs = [];
+    const canonicalIdsToRemove = new Set();
+    const notFound = [];
+    const mismatched = [];
+
+    docs.forEach((docSnap, idx) => {
+      if (!docSnap.exists) {
+        notFound.push(studentDocIds[idx]);
+        return;
+      }
+      const data = docSnap.data();
+      if (data.observationId !== observationId) {
+        mismatched.push(studentDocIds[idx]);
+        return;
+      }
+      validDocs.push({ id: studentDocIds[idx], data });
+      const cid = String(data.user_id || data.studentId || '').trim();
+      if (cid) canonicalIdsToRemove.add(cid);
+    });
+
+    if (validDocs.length === 0) {
+      return res.status(400).json({ success: false, message: 'ไม่พบข้อมูลที่ตรงกับรอบนี้', notFound, mismatched });
+    }
+
+    const batch = db.batch();
+    validDocs.forEach(({ id }) => {
+      batch.delete(db.collection('observation_students').doc(id));
+    });
+
+    // sync observations.students
+    const obsRef = db.collection('observations').doc(observationId);
+    const obsDoc = await obsRef.get();
+    if (obsDoc.exists) {
+      const obsData = obsDoc.data();
+      if (Array.isArray(obsData.students) && canonicalIdsToRemove.size > 0) {
+        const filtered = obsData.students.filter(entry => {
+          const eid = typeof entry === 'string'
+            ? entry
+            : (entry.user_id || entry.studentId || entry.id || '');
+          return !canonicalIdsToRemove.has(String(eid || '').trim());
+        });
+        batch.update(obsRef, {
+          students: filtered,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+      } else {
+        batch.update(obsRef, {
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+      }
+    }
+
+    await batch.commit();
+
+    res.json({
+      success: true,
+      message: `ลบนักศึกษา ${validDocs.length} คนเรียบร้อย`,
+      removed: validDocs.map(d => d.id),
+      notFound,
+      mismatched
+    });
+  } catch (error) {
+    console.error('Error bulk removing students:', error);
+    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการลบนักศึกษาแบบกลุ่ม' });
+  }
+});
+
+/**
  * GET /api/students
  * ดึงรายชื่อนักศึกษาทั้งหมด (สำหรับเลือกเวลาสร้าง observation)
  */

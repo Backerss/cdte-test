@@ -7,11 +7,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const feedbackForm = document.getElementById('feedback-form');
     const questionsContainer = document.getElementById('feedback-questions');
 
-    // JSON Data for Questions
+    // JSON Data for Questions (Updated survey: acceptance of the observation assessment platform)
     const questions = [
         {
             id: 1,
-            text: "ความสะดวกในการใช้งานระบบ (User Friendly)",
+            text: "Q1. ฉันสามารถใช้แพลตฟอร์มการประเมินการสังเกตการสอนได้อย่างคล่องแคล่ว",
             type: "rating",
             options: [
                 { value: 5, label: "มากที่สุด" },
@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         {
             id: 2,
-            text: "ความรวดเร็วในการประมวลผลของระบบ",
+            text: "Q2. ฉันต้องการความช่วยเหลือจากผู้เชี่ยวชาญในการใช้แพลตฟอร์มการประเมินการสังเกตการสอน",
             type: "rating",
             options: [
                 { value: 5, label: "มากที่สุด" },
@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         {
             id: 3,
-            text: "ความถูกต้องของข้อมูลที่แสดงผล",
+            text: "Q3. ฉันสามารถใช้แพลตฟอร์มการประเมินการสังเกตการสอนได้ด้วยตนเองถึงแม้จะพบเจอปัญหา",
             type: "rating",
             options: [
                 { value: 5, label: "มากที่สุด" },
@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         {
             id: 4,
-            text: "การออกแบบและความสวยงามของหน้าเว็บไซต์",
+            text: "Q4. ความคิดเห็นของเพื่อนมีอิทธิพลต่อการตั้งใจ/ ตัดสินใจใช้แพลตฟอร์มการประเมินการสังเกตการสอน",
             type: "rating",
             options: [
                 { value: 5, label: "มากที่สุด" },
@@ -59,7 +59,79 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         {
             id: 5,
-            text: "ความพึงพอใจโดยรวมต่อการใช้งานระบบ",
+            text: "Q5. ฉันอยากลองใช้แพลตฟอร์มการประเมินการสังเกตการสอนเพราะเป็นเทรนด์เทคโนโลยี",
+            type: "rating",
+            options: [
+                { value: 5, label: "มากที่สุด" },
+                { value: 4, label: "มาก" },
+                { value: 3, label: "ปานกลาง" },
+                { value: 2, label: "น้อย" },
+                { value: 1, label: "น้อยที่สุด" }
+            ]
+        },
+        {
+            id: 6,
+            text: "Q6. ฉันติดตามข่าวสารเกี่ยวกับแพลตฟอร์มการประเมินการสังเกตการสอนความอยากรู้",
+            type: "rating",
+            options: [
+                { value: 5, label: "มากที่สุด" },
+                { value: 4, label: "มาก" },
+                { value: 3, label: "ปานกลาง" },
+                { value: 2, label: "น้อย" },
+                { value: 1, label: "น้อยที่สุด" }
+            ]
+        },
+        {
+            id: 7,
+            text: "Q7. ฉันรอไม่ไหวที่จะลองใช้แพลตฟอร์มการประเมินการสังเกตการสอน",
+            type: "rating",
+            options: [
+                { value: 5, label: "มากที่สุด" },
+                { value: 4, label: "มาก" },
+                { value: 3, label: "ปานกลาง" },
+                { value: 2, label: "น้อย" },
+                { value: 1, label: "น้อยที่สุด" }
+            ]
+        },
+        {
+            id: 8,
+            text: "Q8. ฉันสามารถนำแพลตฟอร์มการประเมินการสังเกตการอนไปใช้เพื่อเป็นประโยชน์ในรายวิชาการฝึกประสบการณ์วิชาชีพครู 1 (Prac. 1) ได้",
+            type: "rating",
+            options: [
+                { value: 5, label: "มากที่สุด" },
+                { value: 4, label: "มาก" },
+                { value: 3, label: "ปานกลาง" },
+                { value: 2, label: "น้อย" },
+                { value: 1, label: "น้อยที่สุด" }
+            ]
+        },
+        {
+            id: 9,
+            text: "Q9. การใช้แพลตฟอร์มการประเมินการสังเกตการสอนขึ้นอยู่กับการใช้อุปกรณ์คอมพิวเตอร์ โทรศัพท์มือถือ/ อินเทอร์เน็ต",
+            type: "rating",
+            options: [
+                { value: 5, label: "มากที่สุด" },
+                { value: 4, label: "มาก" },
+                { value: 3, label: "ปานกลาง" },
+                { value: 2, label: "น้อย" },
+                { value: 1, label: "น้อยที่สุด" }
+            ]
+        },
+        {
+            id: 10,
+            text: "Q10. ฉันตั้งใจจะใช้แพลตฟอร์มการประเมินการสังเกตการสอนในอนาคต (รายวิชา Prac. 2 และ Prac. 3)",
+            type: "rating",
+            options: [
+                { value: 5, label: "มากที่สุด" },
+                { value: 4, label: "มาก" },
+                { value: 3, label: "ปานกลาง" },
+                { value: 2, label: "น้อย" },
+                { value: 1, label: "น้อยที่สุด" }
+            ]
+        },
+        {
+            id: 11,
+            text: "Q11. การใช้แพลตฟอร์มการประเมินการสังเกตการสอนเป็นแนวคิดคิดที่ดีแตกต่างจากสาขาวิชาอื่น ",
             type: "rating",
             options: [
                 { value: 5, label: "มากที่สุด" },
