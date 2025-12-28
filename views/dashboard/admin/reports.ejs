@@ -189,6 +189,11 @@
   <h3 class="section-title">
     <span>📊</span> กราฟวิเคราะห์ข้อมูล
   </h3>
+
+  <div class="chart-toggle-row">
+    <div style="color:var(--color-muted);font-size:0.9rem;">เลือกเปิด/ปิดกราฟที่ไม่จำเป็น เพื่อลดการประมวลผลบนมือถือ</div>
+    <button type="button" class="btn btn--secondary" id="advancedChartsToggle" onclick="toggleAdvancedCharts()">กำลังตั้งค่า...</button>
+  </div>
   
   <!-- Overall Average Bar Chart -->
   <div class="card chart-card">
@@ -209,9 +214,9 @@
     
     <div class="card chart-card">
       <h4 class="chart-title">
-        <span>🕸️</span> เปรียบเทียบทักษะทั้งหมด (Radar)
+        <span>🍩</span> สัดส่วนผลการประเมิน
       </h4>
-      <canvas id="skillsRadarChart"></canvas>
+      <canvas id="performanceDoughnutChart"></canvas>
     </div>
   </div>
 
@@ -222,20 +227,24 @@
       </h4>
       <canvas id="yearComparisonChart"></canvas>
     </div>
-    
-    <div class="card chart-card">
-      <h4 class="chart-title">
-        <span>🍩</span> สัดส่วนผลการประเมิน
-      </h4>
-      <canvas id="performanceDoughnutChart"></canvas>
-    </div>
   </div>
 
-  <div class="card chart-card">
-    <h4 class="chart-title">
-      <span>🔵</span> การกระจายคะแนนนักศึกษา (Scatter Plot)
-    </h4>
-    <canvas id="studentScatterChart"></canvas>
+  <div id="advancedChartsSection">
+    <div class="charts-grid">
+      <div class="card chart-card">
+        <h4 class="chart-title">
+          <span>🕸️</span> เปรียบเทียบทักษะทั้งหมด (Radar)
+        </h4>
+        <canvas id="skillsRadarChart"></canvas>
+      </div>
+      
+      <div class="card chart-card">
+        <h4 class="chart-title">
+          <span>🔵</span> การกระจายคะแนนนักศึกษา (Scatter Plot)
+        </h4>
+        <canvas id="studentScatterChart"></canvas>
+      </div>
+    </div>
   </div>
 </div>
 

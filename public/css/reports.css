@@ -119,6 +119,11 @@
   padding: 24px;
 }
 
+.chart-card canvas {
+  width: 100%;
+  max-height: 340px;
+}
+
 .chart-title {
   margin: 0 0 20px 0;
   color: var(--color-text);
@@ -135,6 +140,15 @@
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 24px;
   margin-bottom: 24px;
+}
+
+.chart-toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
 }
 
 .table-section {
@@ -434,7 +448,11 @@
   }
   
   .chart-card {
-    padding: 12px;
+    padding: 16px;
+  }
+  
+  .chart-card canvas {
+    max-height: 240px;
   }
   
   .category-analysis-grid {

@@ -28,6 +28,49 @@ function requireAdminOrTeacher(req, res, next) {
   next();
 }
 
+// GET /api/reports/observations
+// Lightweight list for dropdowns (ไม่ดึง evaluations ทำให้โหลดเร็ว)
+router.get('/api/reports/observations', requireAdminOrTeacher, async (_req, res) => {
+  try {
+    const snapshot = await db.collection('observations')
+      .orderBy('createdAt', 'desc')
+      .get();
+
+    const observations = snapshot.docs.map(doc => {
+      const data = doc.data() || {};
+      return {
+        id: doc.id,
+        name: data.name || 'ไม่ระบุชื่อ',
+        academicYear: data.academicYear || '',
+        yearLevel: data.yearLevel || '',
+        status: data.status || '',
+        createdAt: data.createdAt?.toDate?.()?.toISOString?.() || null
+      };
+    });
+
+    res.json({ success: true, data: observations });
+  } catch (error) {
+    console.error('Error loading observations list:', error);
+    res.status(500).json({ success: false, message: 'โหลดรายการรอบการสังเกตไม่สำเร็จ', error: error.message });
+  }
+});
+
+function normalizeObservationId(val) {
+  if (!val) return '';
+  if (typeof val === 'string') return val.trim();
+  if (typeof val.id === 'string') return val.id.trim();
+  if (val.path) return String(val.path.split('/').pop() || '').trim();
+  return String(val).trim();
+}
+
+function normalizeStudentId(val) {
+  if (!val) return '';
+  if (typeof val === 'string') return val.trim();
+  if (typeof val.id === 'string') return val.id.trim();
+  if (val.path) return String(val.path.split('/').pop() || '').trim();
+  return String(val).trim();
+}
+
 /**
  * GET /api/reports/evaluation-summary
  * ดึงข้อมูลสรุปผลการประเมินพร้อมตัวเลือกกรอง
@@ -36,6 +79,35 @@ function requireAdminOrTeacher(req, res, next) {
 router.get('/api/reports/evaluation-summary', requireAdminOrTeacher, async (req, res) => {
   try {
     const { observationId, yearLevel, studentId, evaluationNum } = req.query;
+    const observationFilter = (() => {
+      const norm = normalizeObservationId(observationId);
+      if (!norm || norm === '__all__') return null;
+      return norm;
+    })();
+
+    async function loadObservationStudentIds(obsId) {
+      const set = new Set();
+      const obsRef = db.collection('observations').doc(obsId);
+      const queries = [
+        db.collection('observation_students').where('observationId', '==', obsId),
+        db.collection('observation_students').where('observationId', '==', obsRef),
+        db.collection('observation_students').where('observation_id', '==', obsId),
+        db.collection('observation_students').where('observation_id', '==', obsRef)
+      ];
+      for (const q of queries) {
+        try {
+          const snap = await q.get();
+          snap.docs.forEach(d => {
+            const data = d.data() || {};
+            const sid = normalizeStudentId(data.studentId || data.student_id || data.userId || data.user_id);
+            if (sid) set.add(sid);
+          });
+        } catch (_) {
+          // ignore individual query errors
+        }
+      }
+      return set;
+    }
 
     // Optional: filter/aggregate by a specific evaluation attempt (1..9)
     const evaluationNumInt = evaluationNum !== undefined && evaluationNum !== null && String(evaluationNum).trim() !== ''
@@ -132,23 +204,59 @@ router.get('/api/reports/evaluation-summary', requireAdminOrTeacher, async (req,
       });
     });
 
-    // 2. สร้าง query สำหรับ evaluations ตาม filters
-    let evalQuery = db.collection('evaluations');
-    
-    if (observationId) {
-      evalQuery = evalQuery.where('observationId', '==', observationId);
+    // 2. ดึง studentIds จาก observation_students (ถ้ามี observationFilter)
+    let allowedStudentIds = null;
+    if (observationFilter) {
+      allowedStudentIds = await loadObservationStudentIds(observationFilter);
     }
-    
-    const evaluationsSnapshot = await evalQuery.get();
+
+    // 3. สร้าง query สำหรับ evaluations ตาม filters (รองรับทั้ง string และ DocumentReference)
+    let evaluationDocs = [];
+
+    if (observationFilter) {
+      const obsRef = db.collection('observations').doc(observationFilter);
+      const queries = [
+        db.collection('evaluations').where('observationId', '==', observationFilter),
+        db.collection('evaluations').where('observationId', '==', obsRef),
+        db.collection('evaluations').where('observation_id', '==', observationFilter),
+        db.collection('evaluations').where('observation_id', '==', obsRef)
+      ];
+
+      const docMap = new Map();
+      for (const q of queries) {
+        try {
+          const snap = await q.get();
+          snap.docs.forEach(d => docMap.set(d.id, d));
+        } catch (e) {
+          // ignore per query
+        }
+      }
+      evaluationDocs = Array.from(docMap.values());
+    } else {
+      const snap = await db.collection('evaluations').get();
+      evaluationDocs = snap.docs;
+    }
     
     // 3. ดึงข้อมูลนักศึกษาและจัดกลุ่มการประเมิน
     // NOTE: ในระบบนี้ 1 เอกสาร evaluations ต่อ 1 นักศึกษา/1 รอบ และมี evaluations[n].answers (q1-q26)
     const studentMap = new Map(); // studentId -> student data
     const evaluationsByStudent = new Map(); // studentId -> evaluation docs[]
     
-    for (const evalDoc of evaluationsSnapshot.docs) {
+    for (const evalDoc of evaluationDocs) {
       const evalData = evalDoc.data();
-      const sid = evalData.studentId || evalData.student_id || '';
+      const evalObsId = normalizeObservationId(evalData.observationId || evalData.observation_id || null);
+
+      // Manual filter สำหรับข้อมูลเก่าหรือประเภท reference
+      if (observationFilter && evalObsId !== observationFilter) {
+        continue;
+      }
+      const sidRaw = evalData.studentId || evalData.student_id || '';
+      const sid = normalizeStudentId(sidRaw);
+
+      // หากมีรายการ studentIds จาก observation_students ให้กรองตามนั้นด้วย
+      if (observationFilter && allowedStudentIds && allowedStudentIds.size > 0 && !allowedStudentIds.has(sid)) {
+        continue;
+      }
       
       if (!sid) continue;
       
@@ -315,7 +423,7 @@ router.get('/api/reports/evaluation-summary', requireAdminOrTeacher, async (req,
         stats,
         yearDistribution,
         filters: {
-          observationId: observationId || null,
+          observationId: observationFilter || null,
           yearLevel: yearLevel || null,
           studentId: studentId || null,
           evaluationNum: evaluationNumInt

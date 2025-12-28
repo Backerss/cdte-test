@@ -8,6 +8,9 @@
 let reportsData = null;
 let filteredStudents = [];
 let allCharts = {};
+let observationsCache = [];
+let showAdvancedCharts = !window.matchMedia('(max-width: 900px)').matches;
+let observationsLoaded = false;
 
 // Table pagination
 const tablePageSize = 10;
@@ -234,8 +237,46 @@ const categoriesLabel = window.categoriesLabel || {};
 // Initialization
 // ========================================
 document.addEventListener('DOMContentLoaded', async function() {
+  const toggleBtn = document.getElementById('advancedChartsToggle');
+  if (toggleBtn) {
+    toggleBtn.textContent = showAdvancedCharts ? 'ซ่อนกราฟเพิ่มเติม' : 'แสดงกราฟเพิ่มเติม';
+  }
   await loadReportsData();
 });
+
+// ========================================
+// Observations helper
+// ========================================
+
+async function fetchObservationsList() {
+  try {
+    const resp = await fetch('/api/reports/observations');
+    const json = await resp.json();
+    if (!json.success) throw new Error(json.message || 'ไม่สามารถโหลดรายการรอบการสังเกตได้');
+    observationsCache = Array.isArray(json.data) ? json.data : [];
+    observationsLoaded = true;
+  } catch (e) {
+    console.warn('โหลดรายการรอบการสังเกตไม่สำเร็จ:', e);
+  }
+}
+
+function getSavedObservationId() {
+  try {
+    return localStorage.getItem('reports:lastObservationId') || '';
+  } catch (_) {
+    return '';
+  }
+}
+
+function setSavedObservationId(value) {
+  try {
+    if (value && value !== '__all__') {
+      localStorage.setItem('reports:lastObservationId', value);
+    }
+  } catch (_) {
+    // ignore
+  }
+}
 
 // ========================================
 // Data Loading
@@ -247,9 +288,21 @@ document.addEventListener('DOMContentLoaded', async function() {
 async function loadReportsData() {
   try {
     showLoading();
+    if (!observationsLoaded) {
+      await fetchObservationsList();
+      populateObservationFilter();
+    }
     
     // Get current filters
-    const observationId = document.getElementById('filterObservation')?.value || '';
+    const observationSelect = document.getElementById('filterObservation');
+    let observationId = observationSelect?.value || '';
+    if (!observationId && observationsCache.length > 0) {
+      const remembered = getSavedObservationId();
+      const matchRemembered = observationsCache.find(o => o.id === remembered);
+      observationId = (matchRemembered ? remembered : observationsCache[0].id) || '';
+      if (observationSelect) observationSelect.value = observationId;
+    }
+    setSavedObservationId(observationId);
     const yearLevel = document.getElementById('filterYear')?.value || '';
     const evaluationNum = document.getElementById('filterAttempt')?.value || '';
     
@@ -268,6 +321,11 @@ async function loadReportsData() {
     }
     
     reportsData = data.data;
+    if (!observationsLoaded && Array.isArray(reportsData.observations)) {
+      observationsCache = reportsData.observations;
+      observationsLoaded = true;
+      populateObservationFilter();
+    }
     filteredStudents = [...reportsData.students];
     currentTablePage = 1;
     
@@ -276,9 +334,6 @@ async function loadReportsData() {
       showEmpty();
       return;
     }
-    
-    // Populate filters
-    populateObservationFilter();
     
     // Render everything
     renderStats();
@@ -342,18 +397,25 @@ window.nextTablePage = function() {
  */
 function populateObservationFilter() {
   const select = document.getElementById('filterObservation');
-  if (!select || !reportsData.observations) return;
-  
-  // Clear existing options except first
-  select.innerHTML = '<option value="">ทุกรอบ (ภาพรวม)</option>';
-  
-  // Add observations
-  reportsData.observations.forEach(obs => {
+  if (!select) return;
+  const list = observationsCache.length ? observationsCache : (reportsData?.observations || []);
+  if (!list.length) return;
+  const current = select.value;
+
+  select.innerHTML = '<option value="__all__">ทุกรอบ (อาจโหลดช้า)</option>';
+  list.forEach(obs => {
     const option = document.createElement('option');
     option.value = obs.id;
-    option.textContent = `${obs.name} (${obs.academicYear} - ปี ${obs.yearLevel})`;
+    option.textContent = `${obs.name || 'ไม่ระบุชื่อ'} (${obs.academicYear || '-'} - ปี ${obs.yearLevel || '-'})`;
     select.appendChild(option);
   });
+
+  // Keep last selected if still exists
+  const remembered = getSavedObservationId();
+  const prefer = current || remembered;
+  if (prefer && list.find(o => o.id === prefer)) {
+    select.value = prefer;
+  }
 }
 
 // ========================================
@@ -869,13 +931,30 @@ function renderCharts() {
     Chart.defaults.color = '#0F1724';
   }
   
+  const advancedSection = document.getElementById('advancedChartsSection');
+  if (advancedSection) {
+    advancedSection.style.display = showAdvancedCharts ? 'block' : 'none';
+  }
+
   renderOverallBarChart();
   renderDistributionPieChart();
-  renderSkillsRadarChart();
   renderYearComparisonChart();
   renderPerformanceDoughnutChart();
-  renderStudentScatterChart();
+
+  if (showAdvancedCharts) {
+    renderSkillsRadarChart();
+    renderStudentScatterChart();
+  }
 }
+
+window.toggleAdvancedCharts = function() {
+  showAdvancedCharts = !showAdvancedCharts;
+  const btn = document.getElementById('advancedChartsToggle');
+  if (btn) {
+    btn.textContent = showAdvancedCharts ? 'ซ่อนกราฟเพิ่มเติม' : 'แสดงกราฟเพิ่มเติม';
+  }
+  renderCharts();
+};
 
 /**
  * กราฟแท่ง: คะแนนเฉลี่ยแต่ละด้าน
