@@ -1,31 +1,16 @@
 const express = require('express');
 const router = express.Router();
-const { db } = require('../config/firebaseAdmin');
+const { db, storage } = require('../config/firebaseAdmin');
 const bcrypt = require('bcryptjs');
 const { requireAuth } = require('../middleware/auth');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const { v4: uuidv4 } = require('uuid');
 
-// Ensure upload directory exists
-const uploadDir = path.join(__dirname, '..', 'public', 'img', 'profile_img');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Multer storage config
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const safeBase = `${req.session.userId}-${Date.now()}`;
-    cb(null, safeBase + ext);
-  }
-});
+// Multer memory storage config for Firebase Storage
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   fileFilter: (req, file, cb) => {
     if (!file.mimetype.startsWith('image/')) return cb(new Error('Only image files are allowed'));
     cb(null, true);
@@ -166,23 +151,104 @@ router.put('/profile', requireAuth, async (req, res) => {
   }
 });
 
-// POST /profile/avatar - อัพโหลดรูปโปรไฟล์ (บันทึกไฟล์ลง public/img/profile_img)
+// Helper: extract object path (including folder) from Firebase Storage URL
+function extractObjectPathFromUrl(url) {
+  if (!url || !url.includes('storage.googleapis.com')) return null;
+  try {
+    const u = new URL(url);
+    // Path looks like: /<bucket>/<folder>/<file>
+    const parts = u.pathname.split('/').filter(Boolean);
+    if (parts.length < 2) return null; // need at least bucket + object
+    parts.shift(); // drop bucket name
+    return decodeURIComponent(parts.join('/'));
+  } catch (e) {
+    return null;
+  }
+}
+
+// Helper function to delete old avatar from Firebase Storage
+async function deleteOldAvatar(oldAvatarUrl) {
+  if (!oldAvatarUrl || !oldAvatarUrl.includes('storage.googleapis.com')) return;
+  
+  try {
+    const objectPath = extractObjectPathFromUrl(oldAvatarUrl);
+    if (objectPath) {
+      const bucket = storage.bucket();
+      const file = bucket.file(objectPath);
+      await file.delete();
+      console.log(`Deleted old avatar: ${objectPath}`);
+    }
+  } catch (error) {
+    console.error('Error deleting old avatar:', error);
+    // Don't throw error - continue with upload even if deletion fails
+  }
+}
+
+// POST /profile/avatar - อัพโหลดรูปโปรไฟล์ไปยัง Firebase Storage
 router.post('/profile/avatar', requireAuth, upload.single('avatar'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'ไม่พบไฟล์' });
     }
 
-    const publicPath = `/img/profile_img/${req.file.filename}`;
+    const userId = req.session.userId;
+    
+    // Get current user data to check for existing avatar
+    const userRef = db.collection('users').doc(userId);
+    const userSnap = await userRef.get();
+    const userData = userSnap.exists ? userSnap.data() : {};
+    const oldAvatarUrl = userData.avatar;
 
-    // Update user document avatar field
-    const userRef = db.collection('users').doc(req.session.userId);
-    await userRef.update({ avatar: publicPath, updatedAt: new Date().toISOString() });
+    // Delete old avatar if exists
+    if (oldAvatarUrl) {
+      await deleteOldAvatar(oldAvatarUrl);
+    }
 
-    // Update session
-    req.session.user = { ...(req.session.user || {}), avatar: publicPath };
+    const bucket = storage.bucket();
+    const fileExtension = path.extname(req.file.originalname).toLowerCase();
+    const fileName = `profile_images/${userId}-${uuidv4()}${fileExtension}`;
+    
+    const file = bucket.file(fileName);
+    const stream = file.createWriteStream({
+      metadata: {
+        contentType: req.file.mimetype,
+        metadata: {
+          userId: userId,
+          uploadedAt: new Date().toISOString()
+        }
+      },
+      resumable: false
+    });
 
-    res.json({ success: true, message: 'อัพโหลดรูปภาพสำเร็จ', avatarUrl: publicPath });
+    stream.on('error', (err) => {
+      console.error('Firebase Storage upload error:', err);
+      return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการอัพโหลดรูปภาพ' });
+    });
+
+    stream.on('finish', async () => {
+      try {
+        // Make the file publicly accessible
+        await file.makePublic();
+        
+        // Get public URL
+        const publicUrl = `https://storage.googleapis.com/prac-cdte.firebasestorage.app/${fileName}`;
+        
+        // Update user document avatar field
+        await userRef.update({ avatar: publicUrl, updatedAt: new Date().toISOString() });
+
+        // Update session
+        req.session.user = { ...(req.session.user || {}), avatar: publicUrl };
+
+        res.json({ success: true, message: 'อัพโหลดรูปภาพสำเร็จ', avatarUrl: publicUrl });
+      } catch (updateError) {
+        console.error('Database update error:', updateError);
+        res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการบันทึกข้อมูล' });
+      }
+    });
+
+    // Write the buffer to Firebase Storage
+    stream.end(req.file.buffer);
+
   } catch (error) {
     console.error('Upload avatar error:', error);
     res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการอัพโหลดรูปภาพ' });

@@ -300,6 +300,30 @@
   </div>
 </div>
 
+  <!-- Website Feedback Responses -->
+  <div class="table-section">
+    <h3 class="section-title">
+      <span>🗳️</span> ผลตอบรับแบบสอบถามการใช้งานเว็บไซต์
+    </h3>
+
+    <div class="feedback-meta">
+      <div id="feedbackSummary" style="color:var(--color-muted);">กำลังโหลดผลตอบกลับ...</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button type="button" class="btn btn--secondary" onclick="loadFeedbackResponses()">รีเฟรช</button>
+        <button type="button" class="btn btn--primary" onclick="exportFeedbackExcel()">Export Excel</button>
+      </div>
+    </div>
+
+    <div class="table-responsive feedback-table-wrapper">
+      <table class="data-table feedback-table" id="feedbackTable">
+        <thead id="feedbackTableHead"></thead>
+        <tbody id="feedbackTableBody">
+          <tr><td style="padding:12px;text-align:center;">กำลังโหลด...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
 </div><!-- End reportContent -->
 
 </div>

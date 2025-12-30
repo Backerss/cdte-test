@@ -25,11 +25,13 @@ if (!admin.apps.length) {
   if (serviceAccount) {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
-      storageBucket: `${serviceAccount.project_id}.appspot.com`
+      storageBucket: 'prac-cdte.firebasestorage.app'
     });
   } else {
     // Use application default credentials (e.g., GOOGLE_APPLICATION_CREDENTIALS env var or GCP environment)
-    admin.initializeApp();
+    admin.initializeApp({
+      storageBucket: 'prac-cdte.firebasestorage.app'
+    });
   }
 }
 

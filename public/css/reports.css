@@ -151,6 +151,31 @@
   margin-bottom: 12px;
 }
 
+.feedback-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.feedback-table-wrapper {
+  overflow-x: visible;
+}
+
+.feedback-table {
+  table-layout: auto;
+  font-size: 0.9rem;
+}
+
+.feedback-table th,
+.feedback-table td {
+  white-space: normal;
+  word-break: break-word;
+  padding: 10px 6px;
+}
+
 .table-section {
   margin-bottom: 32px;
 }

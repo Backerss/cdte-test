@@ -11,6 +11,8 @@ let allCharts = {};
 let observationsCache = [];
 let showAdvancedCharts = !window.matchMedia('(max-width: 900px)').matches;
 let observationsLoaded = false;
+let feedbackResponses = [];
+let feedbackQuestions = [];
 
 // Table pagination
 const tablePageSize = 10;
@@ -96,6 +98,14 @@ function computeGrade(avg) {
   if (avg >= 3.5) return { text: 'ปานกลาง', key: 'good' };
   if (avg >= 3.0) return { text: 'พอใช้', key: 'fair' };
   return { text: 'ปรับปรุง', key: 'poor' };
+}
+
+function escapeHtml(value) {
+  if (value === undefined || value === null) return '';
+  return String(value).replace(/[&<>"']/g, (ch) => {
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+    return map[ch] || ch;
+  });
 }
 
 function getCurrentFilterState() {
@@ -242,6 +252,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     toggleBtn.textContent = showAdvancedCharts ? 'ซ่อนกราฟเพิ่มเติม' : 'แสดงกราฟเพิ่มเติม';
   }
   await loadReportsData();
+  await loadFeedbackResponses();
 });
 
 // ========================================
@@ -910,6 +921,94 @@ function renderCategoryAnalysis() {
 }
 
 // ========================================
+// Feedback Responses (website_evaluations)
+// ========================================
+
+async function loadFeedbackResponses() {
+  const tbody = document.getElementById('feedbackTableBody');
+  if (tbody) {
+    tbody.innerHTML = '<tr><td style="padding:12px;text-align:center;">กำลังโหลด...</td></tr>';
+  }
+
+  try {
+    const resp = await fetch('/feedback/admin/responses');
+    const json = await resp.json();
+    if (!json.success) {
+      throw new Error(json.message || 'ไม่สามารถโหลดผลตอบกลับได้');
+    }
+
+    feedbackQuestions = Array.isArray(json.data?.questions) ? json.data.questions : [];
+    feedbackResponses = Array.isArray(json.data?.responses) ? json.data.responses : [];
+
+    renderFeedbackTable();
+    updateFeedbackSummary();
+  } catch (error) {
+    console.error('loadFeedbackResponses error:', error);
+    const colCount = (feedbackQuestions?.length || 0) + 5;
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center;color:var(--color-danger);padding:12px;">${escapeHtml(error.message || 'เกิดข้อผิดพลาด')}</td></tr>`;
+    }
+    const head = document.getElementById('feedbackTableHead');
+    if (head) head.innerHTML = '';
+    updateFeedbackSummary('ไม่สามารถโหลดผลตอบกลับ');
+  }
+}
+
+function updateFeedbackSummary(message) {
+  const el = document.getElementById('feedbackSummary');
+  if (!el) return;
+  if (message) {
+    el.textContent = message;
+    return;
+  }
+
+  const total = feedbackResponses.length;
+  const last = feedbackResponses[0]?.submittedAt ? formatThaiDate(feedbackResponses[0].submittedAt) : '-';
+  el.textContent = `ทั้งหมด ${total} แบบตอบกลับ | อัปเดตล่าสุด: ${last}`;
+}
+
+function renderFeedbackTable() {
+  const head = document.getElementById('feedbackTableHead');
+  const body = document.getElementById('feedbackTableBody');
+  if (!head || !body) return;
+
+  const questionColumns = (feedbackQuestions || []).map((q) => ({
+    key: String(q.id),
+    label: `ข้อ ${q.id}`
+  }));
+
+  const columns = [
+    { key: '__idx', label: 'ลำดับ' },
+    { key: 'userId', label: 'รหัส' },
+    { key: 'submittedAt', label: 'เวลาในการทำ' },
+    { key: 'status', label: 'สถานะ' },
+    ...questionColumns,
+    { key: 'suggestions', label: 'ข้อเสนอแนะเพิ่มเติม' }
+  ];
+
+  head.innerHTML = `<tr>${columns.map((c) => `<th>${escapeHtml(c.label)}</th>`).join('')}</tr>`;
+
+  if (!feedbackResponses.length) {
+    body.innerHTML = `<tr><td colspan="${columns.length}" style="text-align:center;color:var(--color-muted);padding:12px;">ยังไม่มีการส่งแบบสอบถาม</td></tr>`;
+    return;
+  }
+
+  body.innerHTML = feedbackResponses.map((resp, idx) => {
+    const cells = columns.map((col) => {
+      if (col.key === '__idx') return `<td style="text-align:center;">${idx + 1}</td>`;
+      if (col.key === 'userId') return `<td><strong>${escapeHtml(resp.userId || resp.id || '-')}</strong></td>`;
+      if (col.key === 'submittedAt') return `<td>${escapeHtml(formatThaiDate(resp.submittedAt))}</td>`;
+      if (col.key === 'status') return `<td style="text-align:center;">${escapeHtml(resp.status || 'ส่งแล้ว')}</td>`;
+      if (col.key === 'suggestions') return `<td>${escapeHtml(resp.suggestions || '-')}</td>`;
+
+      const answerVal = resp.answers ? resp.answers[col.key] : '';
+      return `<td style="text-align:center;">${answerVal === undefined || answerVal === null || answerVal === '' ? '-' : escapeHtml(answerVal)}</td>`;
+    }).join('');
+    return `<tr>${cells}</tr>`;
+  }).join('');
+}
+
+// ========================================
 // Charts Rendering
 // ========================================
 
@@ -1325,6 +1424,53 @@ window.openExportModal = function() {
 
 window.closeExportModal = function() {
   document.getElementById('exportModal').style.display = 'none';
+}
+
+window.exportFeedbackExcel = function() {
+  try {
+    if (!feedbackResponses.length) {
+      Swal.fire({ icon: 'info', title: 'ไม่มีข้อมูล', text: 'ยังไม่มีผลตอบรับสำหรับ Export' });
+      return;
+    }
+
+    if (typeof XLSX === 'undefined') {
+      throw new Error('ไม่พบไลบรารี XLSX');
+    }
+
+    const header = [
+      'ลำดับ',
+      'รหัส',
+      'เวลาในการทำ',
+      'สถานะ',
+      ...feedbackQuestions.map((q) => q.text || `Q${q.id}`),
+      'ข้อเสนอแนะเพิ่มเติม'
+    ];
+
+    const rows = feedbackResponses.map((resp, idx) => [
+      idx + 1,
+      resp.userId || resp.id || '-',
+      formatThaiDate(resp.submittedAt),
+      resp.status || 'ส่งแล้ว',
+      ...feedbackQuestions.map((q) => {
+        const key = String(q.id);
+        const val = resp.answers ? resp.answers[key] : '';
+        return val === undefined || val === null ? '' : val;
+      }),
+      resp.suggestions || ''
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Feedback');
+
+    const dateStr = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `website_feedback_${dateStr}.xlsx`);
+
+    Swal.fire({ icon: 'success', title: 'Export Excel สำเร็จ', timer: 1500, showConfirmButton: false });
+  } catch (error) {
+    console.error('Export feedback Excel error:', error);
+    Swal.fire({ icon: 'error', title: 'Export Excel ไม่สำเร็จ', text: error.message || 'เกิดข้อผิดพลาด' });
+  }
 }
 
 window.exportToPDF = function() {
