@@ -2,6 +2,21 @@ const express = require('express');
 const router = express.Router();
 const { db, admin } = require('../config/firebaseAdmin');
 
+// Academic year collections (snapshots are additive, do not alter existing data)
+const ACADEMIC_YEAR_COLLECTION = 'academic_year_snapshots';
+
+function getAcademicYearInfo(now = new Date()) {
+  const thaiYear = now.getFullYear() + 543;
+  const month = now.getMonth() + 1; // 1-12
+  // ปีการศึกษาเริ่ม 1 พ.ค. (เดือน 5) จบ 31 มี.ค. ปีถัดไป
+  const academicYear = month < 5 ? thaiYear - 1 : thaiYear;
+  const gregYearStart = academicYear - 543;
+  const gregYearEnd = gregYearStart + 1;
+  const startDate = new Date(Date.UTC(gregYearStart, 4, 1)); // May = 4
+  const endDate = new Date(Date.UTC(gregYearEnd, 2, 31, 23, 59, 59, 999)); // March = 2
+  return { academicYear, startDate, endDate };
+}
+
 // Middleware: ตรวจสอบว่าผู้ใช้ต้องเข้าสู่ระบบ
 function requireAuth(req, res, next) {
   if (!req.session.user) {
@@ -53,6 +68,246 @@ router.get('/api/system/status', requireAdmin, async (req, res) => {
   } catch (error) {
     console.error('Error fetching system status:', error);
     res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการดึงข้อมูล' });
+  }
+});
+
+/**
+ * GET /api/system/academic-years
+ * คืนปีการศึกษาปัจจุบัน (คำนวณอัตโนมัติ: พ.ค.-มี.ค.) และ snapshots ที่บันทึกไว้
+ */
+router.get('/api/system/academic-years', requireAdmin, async (req, res) => {
+  try {
+    const { academicYear, startDate, endDate } = getAcademicYearInfo();
+
+    const snapshot = await db.collection(ACADEMIC_YEAR_COLLECTION)
+      .orderBy('academicYear', 'desc')
+      .get();
+
+    const years = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      years.push({ id: doc.id, ...data });
+    });
+
+    res.json({
+      success: true,
+      current: {
+        academicYear,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString()
+      },
+      snapshots: years
+    });
+  } catch (error) {
+    console.error('Error fetching academic years:', error);
+    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการดึงปีการศึกษา' });
+  }
+});
+
+async function fetchCollectionData(collectionName, startDate, endDate, timestampFields = ['createdAt', 'timestamp', 'created_at']) {
+  const docs = [];
+  const snap = await db.collection(collectionName).get();
+  const startMs = startDate.getTime();
+  const endMs = endDate.getTime();
+  snap.forEach(d => {
+    const data = d.data();
+    let tsValue = null;
+    for (const f of timestampFields) {
+      if (data[f]) { tsValue = data[f]; break; }
+    }
+    let tsMs = null;
+    if (tsValue) {
+      if (typeof tsValue === 'string') tsMs = Date.parse(tsValue);
+      else if (tsValue.toDate) tsMs = tsValue.toDate().getTime();
+      else if (tsValue instanceof Date) tsMs = tsValue.getTime();
+    }
+    if (tsMs === null || (tsMs >= startMs && tsMs <= endMs)) {
+      docs.push({ id: d.id, ...data });
+    }
+  });
+  return docs;
+}
+
+/**
+ * POST /api/system/academic-years/snapshot
+ * สร้าง snapshot ปีการศึกษาปัจจุบัน (พ.ค.-มี.ค.) โดยไม่แตะต้องข้อมูลเดิม
+ */
+router.post('/api/system/academic-years/snapshot', requireAdmin, async (req, res) => {
+  try {
+    const { academicYear, startDate, endDate } = getAcademicYearInfo();
+
+    // ดึงข้อมูลแต่ละ collection ภายในช่วงปีการศึกษา
+    const usersSnapshot = await db.collection('users').get();
+    const students = [];
+    usersSnapshot.forEach(d => {
+      const u = d.data();
+      if (u.role === 'student') {
+        let tsMs = null;
+        if (u.createdAt) {
+          if (typeof u.createdAt === 'string') tsMs = Date.parse(u.createdAt);
+          else if (u.createdAt.toDate) tsMs = u.createdAt.toDate().getTime();
+          else if (u.createdAt instanceof Date) tsMs = u.createdAt.getTime();
+        }
+        if (tsMs === null || (tsMs >= startDate.getTime() && tsMs <= endDate.getTime())) {
+          students.push({
+            id: d.id,
+            firstName: u.firstName || '',
+            lastName: u.lastName || '',
+            year: u.year || null,
+            major: u.major || '',
+            room: u.room || '',
+            status: u.status || '',
+            createdAt: u.createdAt || null
+          });
+        }
+      }
+    });
+
+    const evaluations = await fetchCollectionData('evaluations', startDate, endDate);
+    const observations = await fetchCollectionData('observations', startDate, endDate);
+    const observationStudents = await fetchCollectionData('observation_students', startDate, endDate);
+    const schools = await fetchCollectionData('schools', startDate, endDate);
+    const mentors = await fetchCollectionData('mentors', startDate, endDate);
+    const systemLogs = await fetchCollectionData('system_logs', startDate, endDate, ['timestamp', 'createdAt']);
+    const systemActivities = await fetchCollectionData('system_activities', startDate, endDate, ['timestamp', 'createdAt']);
+
+    const payload = {
+      academicYear,
+      startDate: startDate.toISOString(),
+      endDate: endDate.toISOString(),
+      studentCount: students.length,
+      students,
+      evaluations,
+      observations,
+      observationStudents,
+      schools,
+      mentors,
+      systemLogs,
+      systemActivities,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdBy: req.session.user.email
+    };
+
+    const docRef = db.collection(ACADEMIC_YEAR_COLLECTION).doc(String(academicYear));
+    await docRef.set(payload, { merge: true });
+
+    await logActivity(
+      'system',
+      'บันทึก Snapshot ปีการศึกษา',
+      `บันทึกปีการศึกษา ${academicYear} (นักศึกษา ${students.length} คน)`,
+      req.session.user.email,
+      `${req.session.user.firstName} ${req.session.user.lastName}`,
+      {
+        academicYear,
+        studentCount: students.length,
+        evaluations: evaluations.length,
+        observations: observations.length,
+        observationStudents: observationStudents.length,
+        schools: schools.length,
+        mentors: mentors.length,
+        systemLogs: systemLogs.length,
+        systemActivities: systemActivities.length
+      }
+    );
+
+    res.json({ success: true, message: 'สร้าง snapshot ปีการศึกษาปัจจุบันแล้ว', studentCount: students.length });
+  } catch (error) {
+    console.error('Error saving academic year snapshot:', error);
+    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการสร้าง snapshot' });
+  }
+});
+
+/**
+ * GET /api/system/academic-years/:year/export
+ * ดึง snapshot ปีการศึกษา ถ้าไม่มี snapshot จะคำนวณสดจากช่วงวันที่อัตโนมัติ (พ.ค.-มี.ค.)
+ * query: format=json|csv
+ */
+router.get('/api/system/academic-years/:year/export', requireAdmin, async (req, res) => {
+  try {
+    const { year } = req.params;
+    const { format = 'json' } = req.query;
+
+    // ลองใช้ snapshot ก่อน
+    let data;
+    const docRef = db.collection(ACADEMIC_YEAR_COLLECTION).doc(String(year));
+    const doc = await docRef.get();
+    if (doc.exists) {
+      data = doc.data();
+    } else {
+      // คำนวณช่วงตามปีการศึกษา (พ.ค.-มี.ค.) และดึงข้อมูลสด
+      const academicYear = parseInt(year, 10);
+      if (isNaN(academicYear)) {
+        return res.status(400).json({ success: false, message: 'ปีการศึกษาไม่ถูกต้อง' });
+      }
+      const startDate = new Date(Date.UTC(academicYear - 543, 4, 1));
+      const endDate = new Date(Date.UTC(academicYear - 543 + 1, 2, 31, 23, 59, 59, 999));
+      const usersSnapshot = await db.collection('users')
+        .where('createdAt', '>=', startDate.toISOString())
+        .where('createdAt', '<=', endDate.toISOString())
+        .get();
+      const students = [];
+      usersSnapshot.forEach(d => {
+        const u = d.data();
+        if (u.role === 'student') {
+          students.push({
+            id: d.id,
+            firstName: u.firstName || '',
+            lastName: u.lastName || '',
+            year: u.year || null,
+            major: u.major || '',
+            room: u.room || '',
+            status: u.status || '',
+            createdAt: u.createdAt || null
+          });
+        }
+      });
+      data = {
+        academicYear,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        studentCount: students.length,
+        students
+      };
+    }
+
+    const students = data.students || [];
+    const evaluations = data.evaluations || [];
+    const observations = data.observations || [];
+    const observationStudents = data.observationStudents || [];
+    const schools = data.schools || [];
+    const mentors = data.mentors || [];
+    const systemLogs = data.systemLogs || [];
+    const systemActivities = data.systemActivities || [];
+    const exportPayload = {
+      academicYear: data.academicYear,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      studentCount: students.length,
+      students,
+      evaluations,
+      observations,
+      observationStudents,
+      schools,
+      mentors,
+      systemLogs,
+      systemActivities
+    };
+
+    if (format === 'csv' || format === 'excel') {
+      const headers = ['id', 'firstName', 'lastName', 'year', 'major', 'room', 'status', 'createdAt'];
+      const csvLines = ['\uFEFF' + headers.join(',')].concat(
+        students.map(s => headers.map(h => (s[h] !== undefined && s[h] !== null) ? String(s[h]).replace(/"/g, '""') : '').join(','))
+      );
+      const csv = csvLines.join('\n');
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="academic-year-${year}.csv"`);
+      return res.send(csv);
+    }
+
+    res.json({ success: true, data: exportPayload });
+  } catch (error) {
+    console.error('Error exporting academic year:', error);
+    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการส่งออกข้อมูลปีการศึกษา' });
   }
 });
 

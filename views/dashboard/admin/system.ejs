@@ -55,6 +55,26 @@
       </div>
     </div>
 
+    <!-- Academic Year Management -->
+    <div class="system-section">
+      <h3 class="section-title">
+        <span>📅</span> ปีการศึกษา (เริ่ม พ.ค. - สิ้นสุด มี.ค.)
+      </h3>
+
+      <div class="current-academic-box">
+        <div id="currentAcademicLabel">ปีการศึกษาปัจจุบัน: -</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn--primary" onclick="createSnapshotForCurrentYear()"><span>💾</span> บันทึก Snapshot ปีนี้</button>
+          <button class="btn btn--secondary" onclick="exportAcademicYear(getCurrentAcademicYear(), 'json')"><span>📥</span> ส่งออก JSON ปีนี้</button>
+          <button class="btn btn--secondary" onclick="exportAcademicYear(getCurrentAcademicYear(), 'csv')"><span>📊</span> ส่งออก Excel ปีนี้</button>
+        </div>
+      </div>
+
+      <div class="academic-year-list" id="academicYearList">
+        <div class="empty-row">กำลังโหลดปีการศึกษา...</div>
+      </div>
+    </div>
+
     <!-- System Logs Viewer -->
     <div class="system-section">
       <h3 class="section-title">

@@ -13,6 +13,67 @@
   border-bottom: 2px solid var(--color-border);
 }
 
+.academic-year-list {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.current-academic-box {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+  color: var(--color-text);
+}
+
+.academic-year-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+
+.academic-year-title {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.academic-year-dates {
+  color: var(--color-text);
+  font-size: 0.9rem;
+}
+
+.academic-year-note {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
+.academic-year-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.empty-row {
+  text-align: center;
+  padding: 16px;
+  color: var(--color-muted);
+}
+
 .system-section:last-child {
   border-bottom: none;
   padding-bottom: 0;

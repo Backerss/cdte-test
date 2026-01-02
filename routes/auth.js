@@ -41,17 +41,9 @@ router.post('/register', async (req, res) => {
             });
         }
 
-        // แยกปีการศึกษาจากรหัสนักศึกษา (2 หลักแรก -> ชั้นปี)
-        // เช่น 66xxxxxxxxx = ปี 1 (พ.ศ. 2566 = ค.ศ. 2023)
-        const currentYear = new Date().getFullYear() + 543; // แปลงเป็น พ.ศ.
-        const studentYearPrefix = parseInt(studentId.substring(0, 2));
-        const studentAdmissionYear = 2500 + studentYearPrefix; // 66 -> 2566
-        const yearsSinceAdmission = currentYear - studentAdmissionYear;
-        
-        // คำนวณชั้นปี (1-4)
-        let studentYear = yearsSinceAdmission + 1;
-        if (studentYear < 1) studentYear = 1;
-        if (studentYear > 4) studentYear = 4;
+        // คำนวณชั้นปีตามปีการศึกษา (พ.ศ.) โดยปีการศึกษาเริ่มใหม่หลังสิ้นสุดเดือนมีนาคม
+        // ตัวอย่าง: ปีการศึกษา 2568 = 1 เม.ย. 2568 - 31 มี.ค. 2569 (เลื่อนชั้นหลัง 31 มี.ค.)
+        const studentYear = computeStudentYearFromId(studentId);
 
         // ตรวจสอบว่ามีรหัสนักศึกษานี้ในระบบแล้วหรือไม่
         const userRef = db.collection('users').doc(studentId);
@@ -271,6 +263,31 @@ function detectRoleFromUserId(userId) {
     return 'student';
 }
 
+// คืนค่าปีการศึกษาปัจจุบัน (พ.ศ.) โดยปีการศึกษาเริ่มหลังสิ้นสุดเดือนมีนาคม
+// ช่วง 1 เม.ย.-31 มี.ค. => ปีการศึกษาเดียวกัน (เลื่อนชั้นหลัง 31 มี.ค.)
+function getCurrentAcademicYear(now = new Date()) {
+    const thaiYear = now.getFullYear() + 543;
+    const month = now.getMonth() + 1; // 1-12
+    // หากยังไม่พ้นเดือนมีนาคม ให้ถือว่ายังอยู่ปีการศึกษาก่อนหน้า
+    return month < 4 ? thaiYear - 1 : thaiYear;
+}
+
+// คำนวณชั้นปีจากรหัสนักศึกษา 2 หลักแรก (พ.ศ.เข้าเรียน) โดยอิงปีการศึกษาแบบ เม.ย.-มี.ค.
+function computeStudentYearFromId(studentId, referenceDate = new Date()) {
+    if (!/^\d{11}$/.test(studentId)) return null;
+
+    const studentYearPrefix = parseInt(studentId.substring(0, 2), 10);
+    const studentAdmissionYear = 2500 + studentYearPrefix; // 66 -> 2566
+    const academicYear = getCurrentAcademicYear(referenceDate);
+    const yearsSinceAdmission = academicYear - studentAdmissionYear;
+
+    let computedYear = yearsSinceAdmission + 1;
+    if (computedYear < 1) computedYear = 1;
+    if (computedYear > 4) computedYear = 4;
+
+    return computedYear;
+}
+
 /**
  * Normalize user data based on role
  * Ensures required fields exist and user_id field is consistent
@@ -279,9 +296,6 @@ async function normalizeUserDataByRole(userId, userData) {
     const role = userData.role || detectRoleFromUserId(userId);
     const updates = {};
     let needsUpdate = false;
-
-    // Get current Thai Buddhist year
-    const currentYear = new Date().getFullYear() + 543;
 
     // Ensure user_id field matches document ID
     if (!userData.user_id || userData.user_id !== userId) {
@@ -307,14 +321,8 @@ async function normalizeUserDataByRole(userId, userData) {
 
         // Compute year from user_id (doc ID)
         if (userId.length >= 2 && /^\d{11}$/.test(userId)) {
-            const studentYearPrefix = parseInt(userId.substring(0, 2));
-            const studentAdmissionYear = 2500 + studentYearPrefix;
-            const yearsSinceAdmission = currentYear - studentAdmissionYear;
-            let computedYear = yearsSinceAdmission + 1;
-            if (computedYear < 1) computedYear = 1;
-            if (computedYear > 4) computedYear = 4;
-            
-            if (userData.year !== computedYear) {
+            const computedYear = computeStudentYearFromId(userId);
+            if (computedYear && userData.year !== computedYear) {
                 updates.year = computedYear;
                 needsUpdate = true;
             }

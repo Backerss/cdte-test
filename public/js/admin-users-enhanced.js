@@ -151,6 +151,45 @@
     if (container) container.innerHTML = html;
   }
 
+  // Academic-year helper: academic year starts in April (Thai year)
+  function getCurrentAcademicYear(now = new Date()) {
+    const thaiYear = now.getFullYear() + 543;
+    const month = now.getMonth() + 1;
+    return month < 4 ? thaiYear - 1 : thaiYear;
+  }
+
+  function computeStudentYearFromId(studentId, referenceDate = new Date()) {
+    if (!/^\d{11}$/.test(studentId)) return null;
+    const yearPrefix = parseInt(studentId.substring(0, 2), 10);
+    const admissionYear = 2500 + yearPrefix;
+    const academicYear = getCurrentAcademicYear(referenceDate);
+    let year = academicYear - admissionYear + 1;
+    if (year < 1) year = 1;
+    if (year > 4) year = 4;
+    return year;
+  }
+
+  function updateEditYearHint(user) {
+    const hintEl = document.getElementById('editYearLevelHint');
+    if (!hintEl) return;
+    if (!user || user.role !== 'student') {
+      hintEl.textContent = '';
+      return;
+    }
+
+    const academicYear = getCurrentAcademicYear();
+    const studentId = user.user_id || user.studentId || '';
+    const expectedYear = computeStudentYearFromId(studentId);
+    const selectedYear = document.getElementById('editUserYearLevel')?.value;
+
+    if (!expectedYear) {
+      hintEl.textContent = 'กรุณาตรวจสอบรหัสนักศึกษา (11 หลัก) เพื่อคำนวณชั้นปีอัตโนมัติ';
+      return;
+    }
+
+    hintEl.textContent = `ปีการศึกษาปัจจุบัน ${academicYear} | จากรหัสนี้ควรอยู่ปี ${expectedYear}${selectedYear ? ` (ที่เลือก: ปี ${selectedYear})` : ''}`;
+  }
+
   // Change page
   window.changePage = function(page) {
     if (page < 1 || page > totalPages) return;
@@ -278,6 +317,7 @@
     }
 
     window.toggleEditStudentFields && window.toggleEditStudentFields();
+    updateEditYearHint(user);
     const modal = document.getElementById('editUserModal'); if (modal) modal.style.display = 'flex';
   };
 
@@ -319,6 +359,13 @@
 
   // Submit edit form
   document.addEventListener('DOMContentLoaded', function() {
+    const yearLevelSelect = document.getElementById('editUserYearLevel');
+    if (yearLevelSelect) {
+      yearLevelSelect.addEventListener('change', function() {
+        updateEditYearHint(currentUserForEdit);
+      });
+    }
+
     const editForm = document.getElementById('editUserForm');
     if (editForm) {
       editForm.addEventListener('submit', async function(e) {
@@ -337,7 +384,9 @@
 
         // Add role-specific fields
         if (role === 'student') {
-          // Include student-specific fields: major, room (server will compute year from user_id)
+          // Include student-specific fields: yearLevel, major, room
+          const yearEl = document.getElementById('editUserYearLevel');
+          if (yearEl && yearEl.value) formData.yearLevel = parseInt(yearEl.value, 10);
           const majorEl = document.getElementById('editUserMajor'); if (majorEl) formData.major = majorEl.value;
           const roomEl = document.getElementById('editUserRoom'); if (roomEl) formData.room = roomEl.value;
         } else if (role === 'teacher') {

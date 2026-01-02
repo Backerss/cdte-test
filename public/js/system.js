@@ -4,12 +4,15 @@ let autoRefreshInterval = null;
 let currentLogs = [];
 let filteredLogs = [];
 let currentActivities = [];
+let academicSnapshots = [];
+let currentAcademic = null;
 
 // Initialize page
 document.addEventListener('DOMContentLoaded', function () {
     initializeSystemData();
     loadLogs();
     loadActivities();
+    loadAcademicYears();
     // updateSystemHealth(); // คอมเมนต์ไว้เพราะยังไม่ได้สร้างฟังก์ชัน
 
     // Start auto-refresh
@@ -22,6 +25,119 @@ document.addEventListener('DOMContentLoaded', function () {
     // Setup reset input prevention
     setupResetInputPrevention();
 });
+
+async function loadAcademicYears() {
+    try {
+        const response = await fetch('/api/system/academic-years');
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || 'ไม่สามารถดึงปีการศึกษา');
+        }
+        currentAcademic = result.current;
+        academicSnapshots = result.snapshots || [];
+        renderAcademicYears();
+    } catch (error) {
+        console.error('Error loading academic years:', error);
+        academicSnapshots = [];
+        renderAcademicYears(true);
+    }
+}
+
+function renderAcademicYears(hasError = false) {
+    const listEl = document.getElementById('academicYearList');
+    const currentEl = document.getElementById('currentAcademicLabel');
+    if (currentEl && currentAcademic) {
+        const start = new Date(currentAcademic.startDate).toLocaleDateString('th-TH');
+        const end = new Date(currentAcademic.endDate).toLocaleDateString('th-TH');
+        currentEl.textContent = `ปีการศึกษาปัจจุบัน: ${currentAcademic.academicYear} (${start} - ${end})`;
+    }
+
+    if (!listEl) return;
+
+    if (hasError) {
+        listEl.innerHTML = '<div class="empty-row">ไม่สามารถดึงข้อมูลปีการศึกษา</div>';
+        return;
+    }
+
+    if (!academicSnapshots.length) {
+        listEl.innerHTML = '<div class="empty-row">ยังไม่มี snapshot ปีการศึกษา</div>';
+        return;
+    }
+
+    listEl.innerHTML = academicSnapshots.map(y => {
+        const start = new Date(y.startDate).toLocaleDateString('th-TH');
+        const end = new Date(y.endDate).toLocaleDateString('th-TH');
+        return `
+          <div class="academic-year-item">
+            <div>
+              <div class="academic-year-title">ปีการศึกษา ${y.academicYear}</div>
+              <div class="academic-year-dates">${start} - ${end}</div>
+              <div class="academic-year-note">นักศึกษา ${y.studentCount || 0} คน</div>
+            </div>
+            <div class="academic-year-actions">
+              <button class="btn btn--primary btn--sm" onclick="exportAcademicYear('${y.academicYear}', 'json')">JSON</button>
+              <button class="btn btn--primary btn--sm" onclick="exportAcademicYear('${y.academicYear}', 'csv')">Excel/CSV</button>
+            </div>
+          </div>
+        `;
+    }).join('');
+}
+
+// Academic year helper: ปีการศึกษาเริ่ม พ.ค. - มี.ค.
+function getCurrentAcademicYear(now = new Date()) {
+    const thaiYear = now.getFullYear() + 543;
+    const month = now.getMonth() + 1;
+    return month < 5 ? thaiYear - 1 : thaiYear;
+}
+
+async function createSnapshotForCurrentYear() {
+    try {
+        Swal.fire({ title: 'กำลังบันทึก snapshot...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        const resp = await fetch('/api/system/academic-years/snapshot', { method: 'POST' });
+        const data = await resp.json();
+        if (!resp.ok || !data.success) {
+            throw new Error(data.message || 'สร้าง snapshot ไม่สำเร็จ');
+        }
+        Swal.fire({ icon: 'success', title: 'บันทึก snapshot สำเร็จ', text: `นักศึกษา ${data.studentCount || 0} คน`, timer: 1500, showConfirmButton: false });
+        await loadAcademicYears();
+    } catch (error) {
+        console.error('Snapshot error:', error);
+        Swal.fire({ icon: 'error', title: 'สร้าง snapshot ไม่สำเร็จ', text: error.message });
+    }
+}
+
+async function exportAcademicYear(year, format = 'json') {
+    try {
+        const resp = await fetch(`/api/system/academic-years/${year}/export?format=${format}`);
+        if (format === 'json') {
+            const data = await resp.json();
+            if (!resp.ok || !data.success) throw new Error(data.message || 'ส่งออกไม่สำเร็จ');
+            const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `academic-year-${year}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } else {
+            if (!resp.ok) {
+                const errData = await resp.json();
+                throw new Error(errData.message || 'ส่งออกไม่สำเร็จ');
+            }
+            const blob = await resp.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `academic-year-${year}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        Swal.fire({ icon: 'success', title: 'ส่งออกสำเร็จ', timer: 1200, showConfirmButton: false });
+    } catch (error) {
+        console.error('Export error:', error);
+        Swal.fire({ icon: 'error', title: 'ส่งออกไม่สำเร็จ', text: error.message });
+    }
+}
 
 async function initializeSystemData() {
     try {
