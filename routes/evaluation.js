@@ -1,34 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { db, admin } = require('../config/firebaseAdmin');
+const { db, admin, storage } = require('../config/firebaseAdmin');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
 
-// สร้างโฟลเดอร์สำหรับเก็บแผนการสอน
-const lessonPlanDir = path.join(__dirname, '../public/แผนการสอน');
-if (!fs.existsSync(lessonPlanDir)) {
-  fs.mkdirSync(lessonPlanDir, { recursive: true });
-}
-
-// ตั้งค่า multer สำหรับอัพโหลดไฟล์
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, lessonPlanDir);
-  },
-  filename: function (req, file, cb) {
-    // รูปแบบชื่อไฟล์: user_id_วันที่_observationId.นามสกุล
-    const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
-    const observationId = req.body.observationId || 'unknown';
-    const date = new Date().toISOString().split('T')[0].replace(/-/g, '');
-    const ext = path.extname(file.originalname);
-    const filename = `${studentId}_${date}_${observationId}${ext}`;
-    cb(null, filename);
-  }
-});
-
+// ตั้งค่า multer สำหรับอัพโหลดไฟล์ (เก็บในหน่วยความจำเพื่อส่งต่อขึ้น Firebase Storage)
 const upload = multer({
-  storage: storage,
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: 20 * 1024 * 1024 // 20MB
   },
@@ -271,6 +249,7 @@ router.post('/api/evaluation/submit-lesson-plan', requireStudent, upload.single(
     }
 
     const now = admin.firestore.FieldValue.serverTimestamp();
+    const submittedAtIso = new Date().toISOString();
 
     // ตรวจสอบว่ามีข้อมูลการประเมินอยู่แล้วหรือยัง
     const evaluationSnapshot = await db.collection('evaluations')
@@ -283,8 +262,6 @@ router.post('/api/evaluation/submit-lesson-plan', requireStudent, upload.single(
     if (!evaluationSnapshot.empty) {
       const currentData = evaluationSnapshot.docs[0].data();
       if (currentData.lessonPlan && currentData.lessonPlan.uploaded) {
-        // ลบไฟล์ที่อัพโหลดมาใหม่ทิ้ง (เพราะส่งไปแล้ว)
-        fs.unlinkSync(req.file.path);
         return res.status(400).json({
           success: false,
           message: 'คุณส่งแผนการจัดการเรียนรู้ไปแล้ว ไม่สามารถแก้ไขได้',
@@ -293,15 +270,43 @@ router.post('/api/evaluation/submit-lesson-plan', requireStudent, upload.single(
       }
     }
 
+    // อัปโหลดไฟล์ขึ้น Firebase Storage
+    const bucket = storage.bucket();
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    const timestamp = new Date();
+    const stamp = `${timestamp.getFullYear()}${String(timestamp.getMonth() + 1).padStart(2, '0')}${String(timestamp.getDate()).padStart(2, '0')}_${String(timestamp.getHours()).padStart(2, '0')}${String(timestamp.getMinutes()).padStart(2, '0')}${String(timestamp.getSeconds()).padStart(2, '0')}`;
+    const objectName = `lesson_plans/แผนการจัดการเรียนการสอน_${studentId}_${stamp}${ext}`;
+
+    const file = bucket.file(objectName);
+    await new Promise((resolve, reject) => {
+      const stream = file.createWriteStream({
+        metadata: {
+          contentType: req.file.mimetype,
+          metadata: {
+            studentId,
+            observationId,
+            uploadedAt: submittedAtIso
+          }
+        },
+        resumable: false
+      });
+
+      stream.on('error', reject);
+      stream.on('finish', resolve);
+      stream.end(req.file.buffer);
+    });
+
+    await file.makePublic();
+    const publicUrl = `https://storage.googleapis.com/prac-cdte.firebasestorage.app/${objectName}`;
+
     const lessonPlanData = {
       uploaded: true,
       fileName: req.file.originalname,
-      savedFileName: req.file.filename,
-      fileUrl: `/แผนการสอน/${req.file.filename}`,
-      filePath: req.file.path,
+      storagePath: objectName,
+      fileUrl: publicUrl,
       fileSize: req.file.size,
       mimeType: req.file.mimetype,
-      submittedDate: new Date().toISOString().split('T')[0],
+      submittedDate: submittedAtIso,
       uploadedAt: now
     };
 
@@ -326,21 +331,36 @@ router.post('/api/evaluation/submit-lesson-plan', requireStudent, upload.single(
       });
     }
 
+    // บันทึก log
+    try {
+      await db.collection('system_logs').add({
+        level: 'info',
+        category: 'lesson_plan_upload',
+        message: `Lesson plan uploaded by ${studentId}`,
+        userId: studentId,
+        observationId,
+        fileName: req.file.originalname,
+        storagePath: objectName,
+        fileUrl: publicUrl,
+        timestamp: admin.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (logErr) {
+      console.warn('Failed to log lesson plan upload', logErr);
+    }
+
     res.json({
       success: true,
       message: 'บันทึกแผนการจัดการเรียนรู้สำเร็จ',
       data: {
         fileName: req.file.originalname,
-        fileUrl: lessonPlanData.fileUrl
+        fileUrl: publicUrl,
+        submittedDate: submittedAtIso,
+        storagePath: objectName
       }
     });
 
   } catch (error) {
     console.error('Error submitting lesson plan:', error);
-    // ลบไฟล์ถ้ามีข้อผิดพลาด
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
-    }
     res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด: ' + error.message });
   }
 });

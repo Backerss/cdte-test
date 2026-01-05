@@ -319,10 +319,11 @@ async function normalizeUserDataByRole(userId, userData) {
             needsUpdate = true;
         }
 
-        // Compute year from user_id (doc ID)
-        if (userId.length >= 2 && /^\d{11}$/.test(userId)) {
+        // Set year only if missing (initial registration). Do not overwrite stored year.
+        const hasStoredYear = userData.year !== undefined && userData.year !== null && String(userData.year).trim() !== '';
+        if (!hasStoredYear && userId.length >= 2 && /^\d{11}$/.test(userId)) {
             const computedYear = computeStudentYearFromId(userId);
-            if (computedYear && userData.year !== computedYear) {
+            if (computedYear) {
                 updates.year = computedYear;
                 needsUpdate = true;
             }

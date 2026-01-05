@@ -34,32 +34,13 @@ router.get('/profile', requireAuth, async (req, res) => {
 
     const userData = userSnap.data() || {};
 
-    // Compute academic year from studentId (first two digits => Buddhist year 25xx)
-    function computeStudentYear(studentId) {
-      try {
-        if (!studentId || studentId.length < 2) return 1;
-        const prefix = studentId.slice(0,2);
-        const yy = parseInt(prefix, 10);
-        if (Number.isNaN(yy)) return 1;
-        const enrollmentBuddhist = 2500 + yy; // e.g., '65' -> 2565
-        const currentBuddhist = new Date().getFullYear() + 543;
-        let year = (currentBuddhist - enrollmentBuddhist) + 1;
-        if (year < 1) year = 1;
-        if (year > 4) year = 4;
-        return year;
-      } catch (e) {
-        return 1;
-      }
-    }
-
     // don't send password back
     if (userData.password) delete userData.password;
 
-    // compute derived fields; prefer stored year from DB, fallback to computed
-    const storedYear = userData.year;
-    const derivedYear = (storedYear !== undefined && storedYear !== null && String(storedYear).trim() !== '')
-      ? storedYear
-      : computeStudentYear(userData.studentId || req.session.userId);
+    // compute derived fields; rely on stored year from DB only
+    const derivedYear = (userData.year !== undefined && userData.year !== null && String(userData.year).trim() !== '')
+      ? userData.year
+      : null;
 
     const derived = {
       year: derivedYear,

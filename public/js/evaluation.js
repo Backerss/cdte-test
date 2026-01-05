@@ -62,6 +62,15 @@ function formatThaiDate(dateStr) {
   return `${d.getDate()} ${thaiMonths[d.getMonth()]} ${d.getFullYear() + 543}`;
 }
 
+function formatThaiDateTime(dateStr) {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  const thaiMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${d.getDate()} ${thaiMonths[d.getMonth()]} ${d.getFullYear() + 543} เวลา ${hh}:${mm}`;
+}
+
 // Update form availability based on current period and server flags
 function updateFormAvailability() {
   if (isPureAdminClient) {
@@ -205,7 +214,7 @@ function displayEvalHistory() {
             <div style="flex:1">
               <div style="font-weight:600;color:var(--color-text);margin-bottom:4px">${currentEvalPeriod.lessonPlan.fileName}</div>
               <div style="font-size:0.85rem;color:var(--color-muted)">
-                วันที่ส่ง: ${formatThaiDate(currentEvalPeriod.lessonPlan.submittedDate)}
+                วันที่ส่ง: ${formatThaiDateTime(currentEvalPeriod.lessonPlan.submittedDate)}
               </div>
               <div style="margin-top:8px">
                 <span style="background:#d4edda;color:#155724;padding:4px 12px;border-radius:12px;font-size:0.8rem;font-weight:500">
@@ -776,11 +785,17 @@ function loadLessonPlanStatus() {
     statusDiv.style.display = 'block';
     statusDiv.style.background = '#d4edda';
     statusDiv.style.color = '#155724';
-    statusText.textContent = `สถานะ: ส่งแผนการจัดการเรียนรู้เรียบร้อยแล้ว (${formatThaiDate(currentEvalPeriod.lessonPlan.submittedDate)})`;
+    statusText.textContent = `สถานะ: ส่งแผนการจัดการเรียนรู้เรียบร้อยแล้ว (${formatThaiDateTime(currentEvalPeriod.lessonPlan.submittedDate)})`;
     
     if (fileNameEl) {
-      fileNameEl.textContent = currentEvalPeriod.lessonPlan.fileName;
-      fileNameEl.style.color = 'var(--color-success)';
+      const displayName = currentEvalPeriod.lessonPlan.fileName || 'ดูไฟล์แผนการจัดการเรียนรู้';
+      const url = currentEvalPeriod.lessonPlan.fileUrl;
+      if (url) {
+        fileNameEl.innerHTML = `<a href="${url}" target="_blank" rel="noopener" style="color:var(--color-success);text-decoration:underline">${displayName}</a>`;
+      } else {
+        fileNameEl.textContent = displayName;
+        fileNameEl.style.color = 'var(--color-success)';
+      }
     }
     if (submitBtn) {
       submitBtn.textContent = '✅ ส่งแล้ว';
@@ -1067,9 +1082,9 @@ async function submitLessonPlan() {
       // อัปเดต local state
       currentEvalPeriod.lessonPlan = {
         uploaded: true,
-        fileName: mainLessonPlanFile.name,
+        fileName: data.data?.fileName || mainLessonPlanFile.name,
         fileUrl: data.data?.fileUrl,
-        submittedDate: new Date().toISOString().split('T')[0]
+        submittedDate: data.data?.submittedDate || new Date().toISOString()
       };
       
       loadLessonPlanStatus();
