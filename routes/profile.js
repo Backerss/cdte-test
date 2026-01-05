@@ -55,9 +55,14 @@ router.get('/profile', requireAuth, async (req, res) => {
     // don't send password back
     if (userData.password) delete userData.password;
 
-    // compute derived fields
+    // compute derived fields; prefer stored year from DB, fallback to computed
+    const storedYear = userData.year;
+    const derivedYear = (storedYear !== undefined && storedYear !== null && String(storedYear).trim() !== '')
+      ? storedYear
+      : computeStudentYear(userData.studentId || req.session.userId);
+
     const derived = {
-      year: computeStudentYear(userData.studentId || req.session.userId),
+      year: derivedYear,
       room: userData.room || null,
       emailLocked: !!(userData.email && userData.email.trim() !== ''),
       roomLocked: !!(userData.room && String(userData.room).trim() !== '')
