@@ -798,25 +798,16 @@ function loadLessonPlanStatus() {
       }
     }
     if (submitBtn) {
-      submitBtn.textContent = '✅ ส่งแล้ว';
-      submitBtn.disabled = true;
+      submitBtn.textContent = '📤 ส่งแผนการจัดการเรียนรู้ (แทนไฟล์เดิม)';
+      submitBtn.disabled = !mainLessonPlanFile;
     }
     if (uploadBtn) {
-      uploadBtn.disabled = true;
-      uploadBtn.style.opacity = '0.5';
-      uploadBtn.style.cursor = 'not-allowed';
+      uploadBtn.disabled = false;
+      uploadBtn.style.opacity = '1';
+      uploadBtn.style.cursor = 'pointer';
     }
     if (previewDiv) {
-      previewDiv.style.display = 'none';
-    }
-    
-    // แสดงข้อความเตือนว่าไม่สามารถแก้ไขได้
-    const warningDiv = document.createElement('div');
-    warningDiv.id = 'lessonPlanWarning';
-    warningDiv.style.cssText = 'margin-top:12px;padding:12px;background:#fff3cd;color:#856404;border-radius:8px;font-size:0.9rem';
-    warningDiv.innerHTML = '<strong>⚠️ หมายเหตุ:</strong> ไฟล์ที่ส่งแล้วไม่สามารถลบหรือแก้ไขได้';
-    if (!document.getElementById('lessonPlanWarning')) {
-      statusDiv.parentElement.appendChild(warningDiv);
+      previewDiv.style.display = mainLessonPlanFile ? 'block' : 'none';
     }
   } else {
     // ยังไม่ส่ง - ปกติ
@@ -1069,6 +1060,9 @@ async function submitLessonPlan() {
     const formData = new FormData();
     formData.append('lessonPlanFile', mainLessonPlanFile);
     formData.append('observationId', currentEvalPeriod.id);
+    if (currentEvalPeriod.lessonPlan && currentEvalPeriod.lessonPlan.storagePath) {
+      formData.append('existingStoragePath', currentEvalPeriod.lessonPlan.storagePath);
+    }
     
     const response = await fetch('/api/evaluation/submit-lesson-plan', {
       method: 'POST',
@@ -1084,6 +1078,7 @@ async function submitLessonPlan() {
         uploaded: true,
         fileName: data.data?.fileName || mainLessonPlanFile.name,
         fileUrl: data.data?.fileUrl,
+        storagePath: data.data?.storagePath,
         submittedDate: data.data?.submittedDate || new Date().toISOString()
       };
       

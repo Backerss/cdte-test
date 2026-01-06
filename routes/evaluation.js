@@ -258,21 +258,25 @@ router.post('/api/evaluation/submit-lesson-plan', requireStudent, upload.single(
       .limit(1)
       .get();
 
-    // ตรวจสอบว่าเคยส่งแผนการสอนแล้วหรือยัง
-    if (!evaluationSnapshot.empty) {
-      const currentData = evaluationSnapshot.docs[0].data();
-      if (currentData.lessonPlan && currentData.lessonPlan.uploaded) {
-        return res.status(400).json({
-          success: false,
-          message: 'คุณส่งแผนการจัดการเรียนรู้ไปแล้ว ไม่สามารถแก้ไขได้',
-          alreadySubmitted: true
-        });
-      }
-    }
+    const existingDoc = evaluationSnapshot.empty ? null : evaluationSnapshot.docs[0];
+    const existingData = existingDoc ? existingDoc.data() : null;
+    const existingLessonPlan = existingData?.lessonPlan;
 
     // อัปโหลดไฟล์ขึ้น Firebase Storage
+    // Normalize filename to keep Thai characters readable; detect mojibake and fix only when needed
+    function normalizeFilename(name) {
+      if (!name) return 'lesson-plan';
+      const decoded = Buffer.from(name, 'binary').toString('utf8');
+      const thaiRegex = /[\u0E00-\u0E7F]/;
+      if (thaiRegex.test(decoded)) return decoded;
+      if (thaiRegex.test(name)) return name;
+      return decoded;
+    }
+
+    const originalNameUtf8 = normalizeFilename(req.file.originalname);
+
     const bucket = storage.bucket();
-    const ext = path.extname(req.file.originalname).toLowerCase();
+    const ext = path.extname(originalNameUtf8).toLowerCase();
     const timestamp = new Date();
     const stamp = `${timestamp.getFullYear()}${String(timestamp.getMonth() + 1).padStart(2, '0')}${String(timestamp.getDate()).padStart(2, '0')}_${String(timestamp.getHours()).padStart(2, '0')}${String(timestamp.getMinutes()).padStart(2, '0')}${String(timestamp.getSeconds()).padStart(2, '0')}`;
     const objectName = `lesson_plans/แผนการจัดการเรียนการสอน_${studentId}_${stamp}${ext}`;
@@ -297,11 +301,11 @@ router.post('/api/evaluation/submit-lesson-plan', requireStudent, upload.single(
     });
 
     await file.makePublic();
-    const publicUrl = `https://storage.googleapis.com/prac-cdte.firebasestorage.app/${objectName}`;
+    const publicUrl = `https://storage.googleapis.com/${bucket.name}/${encodeURI(objectName)}`;
 
     const lessonPlanData = {
       uploaded: true,
-      fileName: req.file.originalname,
+      fileName: originalNameUtf8,
       storagePath: objectName,
       fileUrl: publicUrl,
       fileSize: req.file.size,
@@ -324,11 +328,20 @@ router.post('/api/evaluation/submit-lesson-plan', requireStudent, upload.single(
       });
     } else {
       // อัปเดตเอกสารที่มีอยู่
-      const evalDocId = evaluationSnapshot.docs[0].id;
+      const evalDocId = existingDoc.id;
       await db.collection('evaluations').doc(evalDocId).update({
         lessonPlan: lessonPlanData,
         lastUpdatedAt: now
       });
+
+      // ลบไฟล์เก่าถ้ามี
+      if (existingLessonPlan?.storagePath) {
+        try {
+          await bucket.file(existingLessonPlan.storagePath).delete();
+        } catch (delErr) {
+          console.warn('Failed to delete old lesson plan file', existingLessonPlan.storagePath, delErr);
+        }
+      }
     }
 
     // บันทึก log
@@ -342,6 +355,8 @@ router.post('/api/evaluation/submit-lesson-plan', requireStudent, upload.single(
         fileName: req.file.originalname,
         storagePath: objectName,
         fileUrl: publicUrl,
+        replacedOld: !!existingLessonPlan,
+        oldStoragePath: existingLessonPlan?.storagePath || null,
         timestamp: admin.firestore.FieldValue.serverTimestamp()
       });
     } catch (logErr) {
