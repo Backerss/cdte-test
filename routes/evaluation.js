@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const { db, admin, storage } = require('../config/firebaseAdmin');
 const multer = require('multer');
-const path = require('path');
 
 // ตั้งค่า multer สำหรับอัพโหลดไฟล์ (เก็บในหน่วยความจำเพื่อส่งต่อขึ้น Firebase Storage)
 const upload = multer({
@@ -12,16 +11,12 @@ const upload = multer({
   },
   fileFilter: function (req, file, cb) {
     const allowedMimes = [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-powerpoint',
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+      'application/pdf'
     ];
     if (allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('ไฟล์ต้องเป็น PDF, Word หรือ PowerPoint เท่านั้น'));
+      cb(new Error('ไฟล์ต้องเป็น PDF เท่านั้น'));
     }
   }
 });
@@ -248,6 +243,14 @@ router.post('/api/evaluation/submit-lesson-plan', requireStudent, upload.single(
       });
     }
 
+    // double-check mimetype to enforce PDF-only uploads
+    if (req.file.mimetype !== 'application/pdf') {
+      return res.status(400).json({
+        success: false,
+        message: 'อนุญาตให้ส่งเฉพาะไฟล์ PDF เท่านั้น'
+      });
+    }
+
     const now = admin.firestore.FieldValue.serverTimestamp();
     const submittedAtIso = new Date().toISOString();
 
@@ -276,16 +279,17 @@ router.post('/api/evaluation/submit-lesson-plan', requireStudent, upload.single(
     const originalNameUtf8 = normalizeFilename(req.file.originalname);
 
     const bucket = storage.bucket();
-    const ext = path.extname(originalNameUtf8).toLowerCase();
     const timestamp = new Date();
-    const stamp = `${timestamp.getFullYear()}${String(timestamp.getMonth() + 1).padStart(2, '0')}${String(timestamp.getDate()).padStart(2, '0')}_${String(timestamp.getHours()).padStart(2, '0')}${String(timestamp.getMinutes()).padStart(2, '0')}${String(timestamp.getSeconds()).padStart(2, '0')}`;
-    const objectName = `lesson_plans/แผนการจัดการเรียนการสอน_${studentId}_${stamp}${ext}`;
+    // Use filename composed only from studentId and observationId (no timestamp)
+    const safeStudentId = String(studentId || '').replace(/[^a-zA-Z0-9_-]/g, '');
+    const safeObservationId = String(observationId || '').replace(/[^a-zA-Z0-9_-]/g, '');
+    const objectName = `lesson_plans/${safeObservationId || 'unknown'}/lesson_plan_${safeStudentId || 'unknown'}_${safeObservationId || 'unknown'}.pdf`;
 
     const file = bucket.file(objectName);
     await new Promise((resolve, reject) => {
       const stream = file.createWriteStream({
         metadata: {
-          contentType: req.file.mimetype,
+          contentType: 'application/pdf',
           metadata: {
             studentId,
             observationId,
@@ -306,10 +310,13 @@ router.post('/api/evaluation/submit-lesson-plan', requireStudent, upload.single(
     const lessonPlanData = {
       uploaded: true,
       fileName: originalNameUtf8,
+      storedFileName: objectName.split('/').pop() || null,
       storagePath: objectName,
       fileUrl: publicUrl,
       fileSize: req.file.size,
-      mimeType: req.file.mimetype,
+      mimeType: 'application/pdf',
+      observationId,
+      studentId,
       submittedDate: submittedAtIso,
       uploadedAt: now
     };
@@ -353,6 +360,7 @@ router.post('/api/evaluation/submit-lesson-plan', requireStudent, upload.single(
         userId: studentId,
         observationId,
         fileName: req.file.originalname,
+        storedFileName: lessonPlanData.storedFileName,
         storagePath: objectName,
         fileUrl: publicUrl,
         replacedOld: !!existingLessonPlan,

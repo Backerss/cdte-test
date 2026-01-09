@@ -7,7 +7,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { db } = require('../config/firebaseAdmin');
+const { db, storage, admin } = require('../config/firebaseAdmin');
 
 // Middleware: ตรวจสอบการเข้าสู่ระบบ
 function requireAuth(req, res, next) {
@@ -237,10 +237,30 @@ router.get('/api/reports/evaluation-summary', requireAdminOrTeacher, async (req,
       evaluationDocs = snap.docs;
     }
     
+    // signed URL cache for lesson plan files
+    const lessonPlanSignedUrlCache = new Map();
+    async function getLessonPlanSignedUrl(storagePath) {
+      if (!storagePath) return null;
+      if (lessonPlanSignedUrlCache.has(storagePath)) return lessonPlanSignedUrlCache.get(storagePath);
+      try {
+        const [url] = await storage.bucket().file(storagePath).getSignedUrl({
+          action: 'read',
+          expires: Date.now() + 60 * 60 * 1000 // 1 hour
+        });
+        lessonPlanSignedUrlCache.set(storagePath, url);
+        return url;
+      } catch (e) {
+        console.warn('Failed to create signed URL for lesson plan', storagePath, e.message);
+        lessonPlanSignedUrlCache.set(storagePath, null);
+        return null;
+      }
+    }
+
     // 3. ดึงข้อมูลนักศึกษาและจัดกลุ่มการประเมิน
     // NOTE: ในระบบนี้ 1 เอกสาร evaluations ต่อ 1 นักศึกษา/1 รอบ และมี evaluations[n].answers (q1-q26)
     const studentMap = new Map(); // studentId -> student data
     const evaluationsByStudent = new Map(); // studentId -> evaluation docs[]
+    const lessonPlanByStudent = new Map(); // studentId -> latest lesson plan (per filter)
     
     for (const evalDoc of evaluationDocs) {
       const evalData = evalDoc.data();
@@ -282,6 +302,46 @@ router.get('/api/reports/evaluation-summary', requireAdminOrTeacher, async (req,
           yearLevel: profile?.yearLevel || yearFromEval || null,
           email: profile?.email || ''
         });
+      }
+
+      // Track lesson plan by student (prefer the one that matches the observation filter, then the latest)
+      const lessonPlan = evalData.lessonPlan;
+      const hasLessonPlan = lessonPlan && lessonPlan.uploaded === true && lessonPlan.fileUrl;
+      const planObservationId = evalObsId || null;
+
+      if (hasLessonPlan && (!observationFilter || planObservationId === observationFilter)) {
+        const submittedAtTs = (() => {
+          if (lessonPlan.submittedDate) {
+            const d = new Date(lessonPlan.submittedDate);
+            if (!Number.isNaN(d.getTime())) return d.getTime();
+          }
+          if (lessonPlan.uploadedAt && typeof lessonPlan.uploadedAt.toDate === 'function') {
+            const d = lessonPlan.uploadedAt.toDate();
+            if (!Number.isNaN(d.getTime())) return d.getTime();
+          }
+          return 0;
+        })();
+
+        const existingPlan = lessonPlanByStudent.get(sid);
+        const shouldReplace = !existingPlan
+          || (observationFilter && existingPlan.observationId !== observationFilter)
+          || submittedAtTs > (existingPlan._submittedAt || 0);
+
+        if (shouldReplace) {
+          const signedUrl = lessonPlan.storagePath ? await getLessonPlanSignedUrl(lessonPlan.storagePath) : null;
+          lessonPlanByStudent.set(sid, {
+            fileName: lessonPlan.fileName || null,
+            storedFileName: lessonPlan.storedFileName || (lessonPlan.storagePath || '').split('/').pop() || null,
+            storagePath: lessonPlan.storagePath || null,
+            fileUrl: signedUrl || lessonPlan.fileUrl || null,
+            originalFileUrl: lessonPlan.fileUrl || null,
+            signedUrl,
+            observationId: planObservationId,
+            submittedDate: lessonPlan.submittedDate || null,
+            uploadedAt: lessonPlan.uploadedAt || null,
+            _submittedAt: submittedAtTs
+          });
+        }
       }
     }
 
@@ -360,6 +420,12 @@ router.get('/api/reports/evaluation-summary', requireAdminOrTeacher, async (req,
           ? Number(student.yearLevel)
           : null,
         evaluationData,
+        lessonPlan: (() => {
+          const lp = lessonPlanByStudent.get(sid);
+          if (!lp) return null;
+          const { _submittedAt, ...rest } = lp;
+          return rest;
+        })(),
         // evaluationCount: number of submitted attempts INCLUDED in this report
         // - when evaluationNumInt is set: 0/1 per student (per doc)
         // - when not set: total submitted attempts
@@ -713,6 +779,79 @@ router.get('/api/reports/student-evaluation-detail', requireAdminOrTeacher, asyn
   } catch (error) {
     console.error('Error loading student evaluation detail:', error);
     res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการโหลดข้อมูล', error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/reports/lesson-plan
+ * Query: studentId (required), observationId (required)
+ * ลบไฟล์แผนการสอน และล้างข้อมูล lessonPlan ออกจากเอกสาร evaluation
+ */
+router.delete('/api/reports/lesson-plan', requireAdminOrTeacher, async (req, res) => {
+  try {
+    const { studentId, observationId } = req.query;
+
+    if (!studentId || !observationId) {
+      return res.status(400).json({ success: false, message: 'ต้องระบุ studentId และ observationId' });
+    }
+
+    // หาเอกสาร evaluation ของนักศึกษารอบนี้ (รองรับฟิลด์ observationId และ observation_id)
+    const queries = [
+      db.collection('evaluations').where('studentId', '==', String(studentId).trim()).where('observationId', '==', observationId),
+      db.collection('evaluations').where('studentId', '==', String(studentId).trim()).where('observation_id', '==', observationId)
+    ];
+
+    let targetDoc = null;
+    for (const q of queries) {
+      const snap = await q.limit(1).get();
+      if (!snap.empty) {
+        targetDoc = snap.docs[0];
+        break;
+      }
+    }
+
+    if (!targetDoc) {
+      return res.status(404).json({ success: false, message: 'ไม่พบข้อมูลการส่งแผนการสอนของนักศึกษารอบนี้' });
+    }
+
+    const data = targetDoc.data() || {};
+    const lessonPlan = data.lessonPlan || null;
+
+    // ลบไฟล์ใน Storage ถ้ามี
+    if (lessonPlan?.storagePath) {
+      try {
+        await storage.bucket().file(lessonPlan.storagePath).delete();
+      } catch (err) {
+        console.warn('Failed to delete lesson plan file:', lessonPlan.storagePath, err.message);
+      }
+    }
+
+    // ล้างฟิลด์ lessonPlan ออกจากเอกสาร
+    await db.collection('evaluations').doc(targetDoc.id).update({
+      lessonPlan: admin.firestore.FieldValue.delete(),
+      lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    // บันทึก log
+    try {
+      await db.collection('system_logs').add({
+        level: 'info',
+        category: 'lesson_plan_delete',
+        message: `Lesson plan deleted for ${studentId} in ${observationId}`,
+        userId: req.session?.user?.user_id || req.session?.user?.id || null,
+        studentId,
+        observationId,
+        storagePath: lessonPlan?.storagePath || null,
+        timestamp: admin.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (logErr) {
+      console.warn('Failed to log lesson plan delete', logErr);
+    }
+
+    res.json({ success: true, message: 'ลบไฟล์และข้อมูลแผนการสอนแล้ว' });
+  } catch (error) {
+    console.error('Error deleting lesson plan:', error);
+    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการลบไฟล์', error: error.message });
   }
 });
 

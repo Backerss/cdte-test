@@ -351,6 +351,7 @@ async function loadReportsData() {
     renderYearDistribution();
     renderCharts();
     renderTable();
+    renderLessonPlans();
     renderCategoryAnalysis();
     
     showContent();
@@ -507,7 +508,7 @@ function renderTable() {
   const startIndex = (currentTablePage - 1) * tablePageSize;
   const endIndex = Math.min(startIndex + tablePageSize, filteredStudents.length);
   const pageStudents = filteredStudents.slice(startIndex, endIndex);
-  const colCount = 4 + Object.keys(categoriesLabel).length + 3;
+  const colCount = 5 + Object.keys(categoriesLabel).length + 3;
   
   // Render body
   if (pageStudents.length === 0) {
@@ -527,6 +528,16 @@ function renderTable() {
     const gradeText = studentAvg >= 4.5 ? 'ดีมาก' : studentAvg >= 4 ? 'ดี' : studentAvg >= 3.5 ? 'ปานกลาง' : studentAvg >= 3 ? 'พอใช้' : 'ปรับปรุง';
     const gradeClass = studentAvg >= 4.5 ? 'grade-excellent' : studentAvg >= 4 ? 'grade-verygood' : studentAvg >= 3.5 ? 'grade-good' : studentAvg >= 3 ? 'grade-fair' : 'grade-poor';
     
+    const lessonPlan = student.lessonPlan || null;
+    const preferredUrlRaw = lessonPlan?.fileUrl || lessonPlan?.signedUrl || '';
+    const lessonPlanUrl = preferredUrlRaw ? encodeURI(preferredUrlRaw) : '';
+    const lessonPlanCell = lessonPlan && lessonPlan.fileUrl
+      ? `<div style="display:flex;flex-direction:column;gap:4px;align-items:center;">
+          <a href="${lessonPlanUrl}" target="_blank" rel="noopener" class="btn btn--secondary" style="padding:6px 10px;font-size:0.85rem;">เปิด PDF</a>
+          <div style="font-size:0.8rem;color:var(--color-muted);max-width:160px;word-break:break-word;text-align:center;">${escapeHtml(lessonPlan.fileName || lessonPlan.storedFileName || 'ไฟล์ PDF')}</div>
+        </div>`
+      : '<span style="color:var(--color-muted);">ไม่มีไฟล์</span>';
+
     const scoreCells = Object.keys(categoriesLabel).map(key => {
       const score = evalData[key] || 0;
       const scoreClass = score >= 4.5 ? 'score-excellent' : score >= 4 ? 'score-verygood' : score >= 3.5 ? 'score-good' : score >= 3 ? 'score-fair' : 'score-poor';
@@ -543,6 +554,7 @@ function renderTable() {
         <td>${(student.firstName || '')} ${(student.lastName || '')}</td>
         <td style="text-align:center;"><span class="year-badge-sm">ปี ${student.year || '-'}</span></td>
         <td style="text-align:center;"><span class="year-badge-sm">${Number.isFinite(countTotal) ? countTotal : 0}/9</span></td>
+        <td style="text-align:center;">${lessonPlanCell}</td>
         ${scoreCells}
         <td style="text-align:center;background:#f0f9ff;font-weight:700;font-size:1.05rem;">
           ${studentAvg > 0 ? studentAvg.toFixed(2) : '-'}
@@ -564,7 +576,7 @@ function renderTable() {
   
   tfoot.innerHTML = `
     <tr style="background:var(--color-primary);color:white;font-weight:600;">
-      <td colspan="4" style="text-align:center;">ค่าเฉลี่ยรวมทุกคน</td>
+      <td colspan="5" style="text-align:center;">ค่าเฉลี่ยรวมทุกคน</td>
       ${avgCells}
       <td style="text-align:center;background:#1e40af;">${reportsData.grandAverage || '0.00'}</td>
       <td></td>
@@ -573,6 +585,56 @@ function renderTable() {
   `;
 
   updateTablePaginationUI();
+}
+
+// Render lesson plans table (visible only when an observation is selected and students year>=2 have uploads)
+function renderLessonPlans() {
+  const section = document.getElementById('lessonPlansSection');
+  const tbody = document.getElementById('lessonPlansTableBody');
+  if (!section || !tbody) return;
+
+  const filters = getCurrentFilterState();
+  const obsId = filters.observationId;
+
+  // Require a specific observation selection (not "__all__")
+  if (!obsId || obsId === '__all__') {
+    section.style.display = 'none';
+    return;
+  }
+
+  const rows = (filteredStudents || []).filter(s => {
+    const yearNum = Number(s.year || s.yearLevel || 0);
+    const lp = s.lessonPlan || {};
+    const url = lp.fileUrl || lp.signedUrl;
+    return yearNum >= 2 && !!url;
+  });
+
+  if (!rows.length) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'block';
+  tbody.innerHTML = rows.map(s => {
+    const lp = s.lessonPlan || {};
+    const preferredUrlRaw = lp.fileUrl || lp.signedUrl || '';
+    const url = preferredUrlRaw ? encodeURI(preferredUrlRaw) : '#';
+    const fileLabel = escapeHtml(lp.fileName || lp.storedFileName || 'ไฟล์ PDF');
+    const submitted = lp.submittedDate ? formatThaiDate(lp.submittedDate) : '-';
+    return `
+      <tr>
+        <td>${escapeHtml(s.id || '-')}</td>
+        <td>${escapeHtml(`${s.firstName || ''} ${s.lastName || ''}`.trim() || '-')}</td>
+        <td style="text-align:center;"><span class="year-badge-sm">ปี ${s.year || '-'}</span></td>
+        <td style="text-align:center;"><a href="${url}" target="_blank" rel="noopener" class="btn btn--secondary" style="padding:6px 10px;font-size:0.85rem;">เปิดดู</a><div style="font-size:0.8rem;color:var(--color-muted);max-width:180px;word-break:break-word;margin-top:4px;">${fileLabel}</div></td>
+        <td style="text-align:center;">${submitted}</td>
+        <td style="text-align:center;"><a href="${url}" download class="btn btn--primary" style="padding:6px 10px;font-size:0.85rem;">ดาวน์โหลด</a></td>
+        <td style="text-align:center;">
+          <button type="button" class="btn btn--secondary" style="padding:6px 10px;font-size:0.85rem;background:var(--color-danger);color:white;border:none;" onclick="deleteLessonPlan('${s.id}')">ลบไฟล์</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
 }
 
 async function fetchStudentReportDetail(studentId) {
@@ -1403,6 +1465,7 @@ function filterTable() {
   
   // Re-render table only
   renderTable();
+  renderLessonPlans();
   renderCategoryAnalysis();
 }
 
@@ -1413,6 +1476,43 @@ function filterTable() {
 window.refreshData = async function() {
   await loadReportsData();
 }
+
+window.deleteLessonPlan = function(studentId) {
+  (async () => {
+    try {
+      const filters = getCurrentFilterState();
+      const obsId = filters.observationId;
+      if (!obsId || obsId === '__all__') {
+        Swal.fire({ icon: 'info', title: 'กรุณาเลือกรอบการสังเกตก่อนลบไฟล์' });
+        return;
+      }
+
+      const confirm = await Swal.fire({
+        icon: 'warning',
+        title: 'ยืนยันการลบไฟล์แผนการสอน?',
+        text: `รหัสนักศึกษา: ${studentId} | รอบ: ${obsId}`,
+        showCancelButton: true,
+        confirmButtonText: 'ลบไฟล์',
+        cancelButtonText: 'ยกเลิก',
+        confirmButtonColor: '#dc2626'
+      });
+      if (!confirm.isConfirmed) return;
+
+      const url = `/api/reports/lesson-plan?studentId=${encodeURIComponent(studentId)}&observationId=${encodeURIComponent(obsId)}`;
+      const resp = await fetch(url, { method: 'DELETE' });
+      const json = await resp.json();
+      if (!json.success) {
+        throw new Error(json.message || 'ลบไฟล์ไม่สำเร็จ');
+      }
+
+      Swal.fire({ icon: 'success', title: 'ลบไฟล์แล้ว', timer: 1200, showConfirmButton: false });
+      await loadReportsData();
+    } catch (error) {
+      console.error('deleteLessonPlan error:', error);
+      Swal.fire({ icon: 'error', title: 'ลบไฟล์ไม่สำเร็จ', text: error.message || 'เกิดข้อผิดพลาด' });
+    }
+  })();
+};
 
 window.printReport = function() {
   window.print();

@@ -262,6 +262,7 @@
           <th rowspan="2" style="vertical-align:middle;">ชื่อ-นามสกุล</th>
           <th rowspan="2" style="vertical-align:middle;">ชั้นปี</th>
           <th rowspan="2" style="vertical-align:middle;">จำนวนครั้ง</th>
+          <th rowspan="2" style="vertical-align:middle;">แผนการสอน (PDF)</th>
           <% Object.entries(categoriesLabel).forEach(entry => { %>
             <th><%= entry[1] %></th>
           <% }); %>
@@ -286,6 +287,32 @@
       <span id="tablePageIndicator" style="color:var(--color-text);font-weight:600;"></span>
       <button id="tableNextPage" type="button" class="btn btn--secondary" onclick="nextTablePage()">ถัดไป</button>
     </div>
+  </div>
+</div>
+
+<!-- Lesson Plans (PDF) for selected observation, year >= 2 -->
+<div class="table-section" id="lessonPlansSection" style="display:none;">
+  <h3 class="section-title">
+    <span>📂</span> แผนการจัดการเรียนรู้ (เฉพาะรอบที่เลือก)
+  </h3>
+  <p style="color:var(--color-muted);margin-top:-8px;margin-bottom:12px;">แสดงเฉพาะนักศึกษาชั้นปี 2 ขึ้นไปที่มีการส่งไฟล์ PDF ในรอบการสังเกตที่เลือก</p>
+  <div class="table-responsive">
+    <table class="data-table" id="lessonPlansTable">
+      <thead>
+        <tr>
+          <th style="vertical-align:middle;">รหัสนักศึกษา</th>
+          <th style="vertical-align:middle;">ชื่อ-นามสกุล</th>
+          <th style="vertical-align:middle;">ชั้นปี</th>
+          <th style="vertical-align:middle;">ไฟล์</th>
+          <th style="vertical-align:middle;">วันที่ส่ง</th>
+          <th style="vertical-align:middle;">ดาวน์โหลด</th>
+          <th style="vertical-align:middle;">จัดการ</th>
+        </tr>
+      </thead>
+      <tbody id="lessonPlansTableBody">
+        <tr><td colspan="6" style="text-align:center;color:var(--color-muted);padding:12px;">กำลังโหลด...</td></tr>
+      </tbody>
+    </table>
   </div>
 </div>
 
