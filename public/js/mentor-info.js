@@ -57,13 +57,28 @@ async function checkMentorEligibility() {
     
     // แสดงข้อมูลการฝึกประสบการณ์วิชาชีพครูและโรงเรียน
     if (data.observation) {
+      const obs = data.observation;
+      const endDateObj = obs.endDate ? new Date(obs.endDate) : null;
+      const endDateText = endDateObj && !isNaN(endDateObj) 
+        ? endDateObj.toLocaleDateString('th-TH') 
+        : '-';
+      let timingText = '';
+      if (typeof obs.daysAfterEnd === 'number') {
+        if (obs.daysAfterEnd < 0) {
+          timingText = `(สิ้นสุดในอีก ${Math.abs(obs.daysAfterEnd)} วัน)`;
+        } else if (obs.daysAfterEnd === 0) {
+          timingText = '(สิ้นสุดวันนี้)';
+        } else {
+          timingText = `(สิ้นสุดมาแล้ว ${obs.daysAfterEnd} วัน)`;
+        }
+      }
+
       const banner = document.createElement('div');
       banner.style.cssText = 'background:#d1ecf1;border-left:4px solid#17a2b8;padding:12px;border-radius:8px;margin-bottom:16px;color:#0c5460';
       banner.innerHTML = `
-        ℹ️ <strong>การฝึกประสบการณ์วิชาชีพครู:</strong> ${data.observation.name}<br>
-        <strong>โรงเรียน:</strong> ${data.observation.schoolName}<br>
-        <small>เริ่มเมื่อ: ${new Date(data.observation.startDate).toLocaleDateString('th-TH')} 
-        (ผ่านไป ${data.observation.daysPassed} วัน, เหลืออีก ${data.observation.daysRemaining} วัน)</small>
+        ℹ️ <strong>การฝึกประสบการณ์วิชาชีพครู:</strong> ${obs.name}<br>
+        <strong>โรงเรียน:</strong> ${obs.schoolName}<br>
+        <small>สิ้นสุดเมื่อ: ${endDateText} ${timingText}</small>
       `;
       const card = document.querySelector('.card');
       if (card) {
@@ -295,7 +310,7 @@ function loadMentorDataToForm(data) {
   
   // ประสบการณ์การสอน
   const expInput = form.querySelector('input[type="number"]');
-  if (expInput) expInput.value = data.experience || '';
+  if (expInput) expInput.value = (data.experience ?? '') === '' ? '' : data.experience;
   
   // กลุ่มสาระ
   const deptSelect = form.querySelectorAll('select')[1];

@@ -38,7 +38,7 @@ router.get('/api/mentor-info/check-eligibility', requireStudent, async (req, res
   try {
     const studentId = req.session.user.user_id || req.session.user.studentId || req.session.user.id;
     
-    // หา observation ที่ active และมีนักศึกษาคนนี้อยู่
+    // หา observation ที่ยังเป็น active และมีนักศึกษาคนนี้อยู่
     const observationsSnapshot = await db.collection('observations')
       .where('status', '==', 'active')
       .get();
@@ -57,12 +57,13 @@ router.get('/api/mentor-info/check-eligibility', requireStudent, async (req, res
         .get();
       
       if (!studentInObs.empty) {
-        // ตรวจสอบว่าอยู่ภายใน 15 วันหรือไม่
-        const startDate = obsData.startDate?.toDate ? obsData.startDate.toDate() : new Date(obsData.startDate);
+        const endDateRaw = obsData.endDate;
+        const endDate = endDateRaw?.toDate ? endDateRaw.toDate() : (endDateRaw ? new Date(endDateRaw) : null);
         const now = new Date();
-        const daysPassed = Math.floor((now - startDate) / (1000 * 60 * 60 * 24));
+        const daysAfterEnd = endDate ? Math.floor((now - endDate) / (1000 * 60 * 60 * 24)) : null;
         
-        if (daysPassed <= 15) {
+        // ถ้า status ยังเป็น active ไม่ว่าจะเกิน 7 วันหลัง endDate หรือไม่ ก็ให้กรอกได้
+        if (obsData.status === 'active') {
           // ตรวจสอบว่ามีข้อมูลโรงเรียนหรือไม่ (เช็คจาก studentIds array)
           const schoolSnapshot = await db.collection('schools')
             .where('studentIds', 'array-contains', studentId)
@@ -84,9 +85,8 @@ router.get('/api/mentor-info/check-eligibility', requireStudent, async (req, res
           eligibleObservation = {
             id: obsDoc.id,
             name: obsData.name,
-            startDate: startDate.toISOString(),
-            daysPassed: daysPassed,
-            daysRemaining: 15 - daysPassed,
+            endDate: endDate ? endDate.toISOString() : null,
+            daysAfterEnd: daysAfterEnd,
             schoolId: schoolSnapshot.docs[0].id,
             schoolName: schoolData.name
           };
@@ -366,12 +366,13 @@ async function checkEligibility(studentId) {
       .get();
     
     if (!studentInObs.empty) {
-      const startDate = obsData.startDate?.toDate ? obsData.startDate.toDate() : new Date(obsData.startDate);
+      const endDateRaw = obsData.endDate;
+      const endDate = endDateRaw?.toDate ? endDateRaw.toDate() : (endDateRaw ? new Date(endDateRaw) : null);
       const now = new Date();
-      const daysPassed = Math.floor((now - startDate) / (1000 * 60 * 60 * 24));
+      const daysAfterEnd = endDate ? Math.floor((now - endDate) / (1000 * 60 * 60 * 24)) : null;
       
-      if (daysPassed <= 15) {
-        // ตรวจสอบว่ามีข้อมูลโรงเรียนหรือไม่ (เช็คจาก studentIds array และ observationId ที่ตรงกัน)
+      // ถ้า status ยังเป็น active ไม่ว่าจะเกิน 7 วันหลัง endDate หรือไม่ ก็ให้กรอกได้
+      if (obsData.status === 'active') {
         const schoolSnapshot = await db.collection('schools')
           .where('studentIds', 'array-contains', studentId)
           .where('observationId', '==', obsDoc.id)
@@ -393,7 +394,7 @@ async function checkEligibility(studentId) {
           observationId: obsDoc.id,
           schoolId: schoolSnapshot.docs[0].id,
           schoolName: schoolData.name,
-          daysPassed: daysPassed
+          daysAfterEnd: daysAfterEnd
         };
       }
     }

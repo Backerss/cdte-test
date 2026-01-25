@@ -20,7 +20,7 @@ async function checkEligibility() {
       Swal.fire({
         icon: 'warning',
         title: 'ไม่สามารถกรอกข้อมูลได้',
-        html: data.message || 'คุณไม่อยู่ในรอบการสังเกตที่สามารถกรอกข้อมูลได้<br>หรือเกิน 15 วันแล้ว',
+        html: data.message || 'คุณไม่อยู่ในรอบการสังเกตที่สามารถกรอกข้อมูลได้',
         confirmButtonText: 'รับทราบ'
       });
       
@@ -34,12 +34,27 @@ async function checkEligibility() {
     
     // แสดงข้อมูลรอบ
     if (data.observation) {
+      const obs = data.observation;
+      const endDateObj = obs.endDate ? new Date(obs.endDate) : null;
+      const endDateText = endDateObj && !isNaN(endDateObj)
+        ? endDateObj.toLocaleDateString('th-TH')
+        : '-';
+      let timingText = '';
+      if (typeof obs.daysAfterEnd === 'number') {
+        if (obs.daysAfterEnd < 0) {
+          timingText = `(สิ้นสุดในอีก ${Math.abs(obs.daysAfterEnd)} วัน)`;
+        } else if (obs.daysAfterEnd === 0) {
+          timingText = '(สิ้นสุดวันนี้)';
+        } else {
+          timingText = `(สิ้นสุดมาแล้ว ${obs.daysAfterEnd} วัน)`;
+        }
+      }
+
       const banner = document.createElement('div');
       banner.style.cssText = 'background:#d1ecf1;border-left:4px solid#17a2b8;padding:12px;border-radius:8px;margin-bottom:16px;color:#0c5460';
       banner.innerHTML = `
-        ℹ️ <strong>รอบการสังเกต:</strong> ${data.observation.name}<br>
-        <small>เริ่มเมื่อ: ${new Date(data.observation.startDate).toLocaleDateString('th-TH')} 
-        (ผ่านไป ${data.observation.daysPassed} วัน, เหลืออีก ${data.observation.daysRemaining} วัน)</small>
+        ℹ️ <strong>รอบการสังเกต:</strong> ${obs.name}<br>
+        <small>สิ้นสุดเมื่อ: ${endDateText} ${timingText}</small>
       `;
       document.querySelector('.card').insertBefore(banner, document.querySelector('.card').children[1]);
     }
