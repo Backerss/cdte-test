@@ -768,12 +768,13 @@ router.post('/api/observations/:id/add-students', requireAdminOrTeacher, async (
 
     const observation = obsDoc.data();
 
-    // ตรวจสอบสิทธิ์ตามเงื่อนไขเวลา
+    // ตรวจสอบสิทธิ์ตามเงื่อนไขเวลา (ยกเว้น admin)
+    const isAdmin = req.session?.user?.role === 'admin';
     const now = new Date();
     const startDate = observation.startDate?.toDate ? observation.startDate.toDate() : new Date(observation.startDate);
     const daysPassed = Math.floor((now - startDate) / (1000 * 60 * 60 * 24));
 
-    if (Number.isFinite(daysPassed) && daysPassed > 5) {
+    if (!isAdmin && Number.isFinite(daysPassed) && daysPassed > 5) {
       return res.status(403).json({
         success: false,
         message: 'ไม่สามารถเพิ่มนักศึกษาได้ เนื่องจากเกิน 5 วันแล้ว'
